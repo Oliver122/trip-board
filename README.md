@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–18 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, and quality of life).
+**Status:** steps 00–19 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, and live collaboration).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -12,7 +12,7 @@ Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMd
 | [`docs/DESIGN.md`](docs/DESIGN.md)                           | Visual direction, wireframes, flow diagrams                               |
 | [`docs/STITCH_DESIGN_GUIDE.md`](docs/STITCH_DESIGN_GUIDE.md) | Prompts to paste into Stitch, plus a review checklist                     |
 | [`docs/database/`](docs/database/DATABASE.md)                | Database design, reference `schema.sql`, `checks.sql`                     |
-| [`requirements/`](requirements/README.md)                    | 18 build steps, each with a test-based Definition of Done                 |
+| [`requirements/`](requirements/README.md)                    | 20 build steps, each with a test-based Definition of Done                 |
 
 Planned stack: React + TypeScript (Vite, Tailwind, shadcn/ui, MapLibre), Node.js (Fastify), PostgreSQL 16 (Drizzle), Discord OAuth2.
 
@@ -121,11 +121,19 @@ PDF is an A4 itinerary: trip title, dates, and members, then the schedule day by
 
 The calendar file has one event per bucket (all-day across the bucket’s dates), one per single entry, and one per visit that has a time. Location is the address, the description is the info text, and `GEO` is the latitude and longitude. Event ids stay the same across downloads. Times use the trip timezone (`TZID`).
 
+## Live updates
+
+`GET /trips/:id/events` is a Server-Sent Events stream for members of that trip. Each API process keeps one Postgres connection on `LISTEN trip_events`. A write notifies that channel in the same transaction as its `activity_events` row, so a rollback sends nothing. The payload is ids only: trip, resource (`spot`, `image`, `plan`, `home`, `member`, `trip`), entity id, action, actor, and the tab’s `X-Client-Id`. The browser opens one stream per trip tab, ignores its own client id, and refetches the affected list after a short pause. Map position, open dialogs, scroll, and selection stay put.
+
+A reverse proxy must not buffer this route (`X-Accel-Buffering: no` is set; nginx also needs `proxy_buffering off`) and must allow the connection to stay open (read timeout of at least 10 minutes). A comment line every 25 seconds keeps the proxy from treating it as idle. If the stream fails three times, the tab polls the existing GET routes every 15 seconds and only shows an error if that polling fails too. Hiding the tab for more than five minutes closes the stream; coming back reconnects and refetches once. Reconnect sends `Last-Event-ID`; the server does not replay missed events, it sends `event: resync`.
+
+`PATCH` and `DELETE` for a spot, plan entry, or trip may send `expectedUpdatedAt` (or `If-Unmodified-Since`). A stale value is `409` with the current row and who saved it. The panel then asks whether to keep your draft or take theirs. Requests without the check stay last-write-wins. Reordering a bucket does not conflict; everyone else sees the new order through the stream. The admin dashboard shows how many streams this process has open, and the log records when the listener reconnects.
+
 ## Hardening
 
 From 640 px to 1023 px the list column is 280 px and the spot panel stays a sheet on the right, so the list remains visible. Below 640 px the map is full screen and the list is a bottom sheet (`peek`, `half`, `full`) dragged from the handle or moved with the arrow keys. The toolbar becomes one **Filters** button, and the spot panel and dialogs fill the screen. The panel’s close control is named **Back**.
 
-Every API response sends `Content-Security-Policy` (`self`, `https://tiles.openfreemap.org`, the blob origin, and `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`. Production also sends `Strict-Transport-Security`. A user, or an anonymous IP, is limited to 300 requests a minute; the 301st is `429` with `Retry-After`. Unexpected errors are `{error:"internal", requestId}` and the same id is in the JSON log line and the `x-request-id` header.
+Every API response sends `Content-Security-Policy` (`self`, `https://tiles.openfreemap.org`, the blob origin, and `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`. Production also sends `Strict-Transport-Security`. A user, or an anonymous IP, is limited to 300 requests a minute; the 301st is `429` with `Retry-After`. `GET /trips/:id/events` is outside that limit and instead allows 5 open streams per user on each API process. Unexpected errors are `{error:"internal", requestId}` and the same id is in the JSON log line and the `x-request-id` header.
 
 Housekeeping deletes expired sessions hourly, invites that expired or were revoked more than 90 days ago, geocode cache older than 30 days, and activity older than 180 days. Blob deletions still drain once a minute. Spot titles are text, and links that open a new tab use `rel="noopener noreferrer"`. The map library loads only when a board or schedule opens. `pnpm check:bundle` fails when the first-route JavaScript exceeds 250 kB gzip.
 
@@ -139,7 +147,7 @@ Discord ids in `ADMIN_DISCORD_IDS` are promoted on login. Removing an id does no
 
 Every admin write inserts an `admin_audit_log` row in the same transaction, with before and after values. Trip detail for an admin who is not a member shows counts, members, and activity. Spot content stays on the member routes.
 
-The dashboard reads `GET /admin/stats` and `GET /admin/metrics`. A job at 00:05 UTC stores yesterday in `metrics_daily` (`pnpm db:metrics` backfills missing days). The activity feed polls every 15 seconds while the tab is visible and can download the same filter as CSV. Storage shows database and image use against the capacities from Settings. At or above the warning percent, every admin page shows a banner (red at 95% or more). If `ADMIN_DISCORD_WEBHOOK_URL` is set, that channel gets the capacity warning at most once per UTC day per resource, and a message for each new storage request. Activity older than 180 days is deleted daily; daily metrics are kept.
+The dashboard reads `GET /admin/stats` and `GET /admin/metrics`, and shows how many live streams this API process has open (`GET /admin/streams`). A job at 00:05 UTC stores yesterday in `metrics_daily` (`pnpm db:metrics` backfills missing days). The activity feed polls every 15 seconds while the tab is visible and can download the same filter as CSV. Storage shows database and image use against the capacities from Settings. At or above the warning percent, every admin page shows a banner (red at 95% or more). If `ADMIN_DISCORD_WEBHOOK_URL` is set, that channel gets the capacity warning at most once per UTC day per resource, and a message for each new storage request. Activity older than 180 days is deleted daily; daily metrics are kept.
 
 ## Scripts
 

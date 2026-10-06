@@ -10,6 +10,7 @@ import {
   type Member,
   type TripInvite,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 import { AuthError } from '../trips/client'
 
 export class MembersError extends Error {
@@ -133,7 +134,10 @@ export function daysUntil(expiresAt: string, now = Date.now()): number {
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, { ...init, credentials: 'include' })
+  const response = await fetch(path, {
+    ...writeInit(init),
+    credentials: 'include',
+  })
   if (response.status === 401) throw new AuthError()
   return response
 }

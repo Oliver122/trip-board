@@ -6,6 +6,7 @@ import {
   type Quota,
   type SpotImage,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 import { AuthError } from '../trips/client'
 
 export async function listImages(
@@ -74,7 +75,10 @@ export async function deleteImage(imageId: string): Promise<void> {
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, { ...init, credentials: 'include' })
+  const response = await fetch(path, {
+    ...writeInit(init),
+    credentials: 'include',
+  })
   if (response.status === 401) throw new AuthError()
   return response
 }

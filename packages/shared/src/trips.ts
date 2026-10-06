@@ -30,6 +30,7 @@ export const tripSchema = z.object({
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   timezone: z.string(),
+  updatedAt: z.string().optional(),
   region: z.object({ bbox: bboxSchema }),
   members: z.array(tripMemberSchema),
 })

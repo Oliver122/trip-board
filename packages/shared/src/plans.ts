@@ -48,6 +48,7 @@ export const planEntrySchema = z.object({
   endTime: z.string().nullable(),
   info: z.string().nullable(),
   sortOrder: z.number().int(),
+  updatedAt: z.string().optional(),
   outsideTripDates: z.boolean(),
   spots: z.array(planLinkSchema),
   home: z

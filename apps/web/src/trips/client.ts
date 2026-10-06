@@ -5,6 +5,7 @@ import {
   type PatchTripBody,
   type Trip,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 
 export class AuthError extends Error {
   constructor() {
@@ -17,6 +18,18 @@ export class NotFoundError extends Error {
   constructor() {
     super('not_found')
     this.name = 'NotFoundError'
+  }
+}
+
+export class ConflictError extends Error {
+  readonly current: Trip
+  readonly updatedBy: { id: string; name: string } | null
+
+  constructor(current: Trip, updatedBy: { id: string; name: string } | null) {
+    super('conflict')
+    this.name = 'ConflictError'
+    this.current = current
+    this.updatedBy = updatedBy
   }
 }
 
@@ -58,14 +71,18 @@ export async function createTrip(body: CreateTripBody): Promise<Trip> {
 export async function updateTrip(
   id: string,
   body: PatchTripBody,
+  expectedUpdatedAt?: string,
 ): Promise<Trip> {
   const response = await send(`/api/trips/${id}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(
+      expectedUpdatedAt ? { ...body, expectedUpdatedAt } : body,
+    ),
   })
   if (response.status === 400) throw new ApiError(await readFields(response))
   if (response.status === 404) throw new NotFoundError()
+  if (response.status === 409) throw await conflictError(response)
   if (!response.ok) throw new ApiError({})
   return tripSchema.parse(await response.json())
 }
@@ -77,9 +94,26 @@ export async function deleteTrip(id: string): Promise<void> {
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, { ...init, credentials: 'include' })
+  const response = await fetch(path, {
+    ...writeInit(init),
+    credentials: 'include',
+  })
   if (response.status === 401) throw new AuthError()
   return response
+}
+
+async function conflictError(response: Response): Promise<ConflictError> {
+  const body = (await response.json()) as {
+    current?: unknown
+    updatedBy?: { id?: unknown; name?: unknown } | null
+  }
+  const updatedBy =
+    body.updatedBy &&
+    typeof body.updatedBy.id === 'string' &&
+    typeof body.updatedBy.name === 'string'
+      ? { id: body.updatedBy.id, name: body.updatedBy.name }
+      : null
+  return new ConflictError(tripSchema.parse(body.current), updatedBy)
 }
 
 async function readFields(response: Response): Promise<Record<string, string>> {

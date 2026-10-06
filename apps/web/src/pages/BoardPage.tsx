@@ -16,11 +16,14 @@ import { ErrorState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { useListFollowsMap } from '../list-follows-map'
+import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
+import type { LiveNotice } from '../trips/trip-context'
 import type { LngLatBounds } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
 import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
 import { useSession } from '../session'
 import {
+  ConflictError,
   createSpot,
   deleteSpot,
   getSpot,
@@ -65,6 +68,9 @@ export function BoardPage() {
     setEntries,
     setTrip,
     updateSpots,
+    notices,
+    dismissNotice,
+    liveError,
   } = useTripData()
   const [params, setParams] = useSearchParams()
   const paramKey = params.toString()
@@ -106,7 +112,14 @@ export function BoardPage() {
     lat: number
   } | null>(null)
   const [toast, setToast] = useState('')
+  const [banner, setBanner] = useState<LiveNotice | null>(null)
+  const [conflict, setConflict] = useState<{
+    current: Spot
+    updatedByName: string
+    body: Parameters<typeof updateSpot>[1]
+  } | null>(null)
   const [overlay, setOverlay] = useState<HTMLElement | null>(null)
+  const seenLiveError = useRef(0)
 
   useLayoutEffect(() => {
     setOverlay(document.getElementById('trip-map-overlay'))
@@ -117,6 +130,37 @@ export function BoardPage() {
     const timer = window.setTimeout(() => setToast(''), 4000)
     return () => window.clearTimeout(timer)
   }, [toast])
+
+  useEffect(() => {
+    if (liveError === seenLiveError.current) return
+    seenLiveError.current = liveError
+    setToast(t('board.loadError'))
+  }, [liveError, t])
+
+  useEffect(() => {
+    if (notices.length === 0) return
+    for (const notice of notices) {
+      const aboutSpot = notice.resource === 'spot' || notice.resource === 'home'
+      const open = panel?.spot?.id === notice.id
+      if (!aboutSpot || !open || !panel?.spot) {
+        dismissNotice(notice.token)
+        continue
+      }
+      if (notice.action.endsWith('.delete')) {
+        setPanel(null)
+        setSelectedId(null)
+        setBanner(null)
+        setToast(
+          t('live.deleted', { name: notice.actorName || t('live.someone') }),
+        )
+      } else if (!draftsEqual(panel.draft, panel.baseline)) {
+        setBanner(notice)
+      } else {
+        void refreshDetail(notice.id ?? panel.spot.id)
+      }
+      dismissNotice(notice.token)
+    }
+  }, [dismissNotice, notices, panel, t])
 
   useEffect(() => {
     setQuery(urlQuery)
@@ -364,7 +408,7 @@ export function BoardPage() {
             return spot
           }),
         )
-        const saved = await updateSpot(spotId, body)
+        const saved = await updateSpot(spotId, body, existing.updatedAt)
         changeSpots((current) => placeSaved(current, saved, spotId))
       }
       setPanel(null)
@@ -375,6 +419,14 @@ export function BoardPage() {
       }
       updateSpots(() => fullSnapshot)
       setFiltered(remote ? { spots: snapshot, total: snapshot.length } : null)
+      if (error instanceof ConflictError && existing) {
+        setConflict({
+          current: error.current,
+          updatedByName: error.updatedBy?.name ?? '',
+          body,
+        })
+        return
+      }
       if (error instanceof SaveError && error.fields.link) {
         setLinkError(error.fields.link)
       }
@@ -413,6 +465,66 @@ export function BoardPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function useMine() {
+    if (!conflict || !panel?.spot) return
+    const spotId = panel.spot.id
+    setSaving(true)
+    try {
+      const saved = await updateSpot(spotId, conflict.body)
+      changeSpots((current) => placeSaved(current, saved, spotId))
+      setConflict(null)
+      setBanner(null)
+      setPanel(null)
+    } catch (error) {
+      if (error instanceof AuthError) {
+        reload()
+        return
+      }
+      setToast(t('board.saveError'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function useTheirs() {
+    if (!conflict) return
+    const draft = draftFromSpot(conflict.current)
+    const saved = conflict.current
+    changeSpots((current) => placeSaved(current, saved, saved.id))
+    setPanel((current) =>
+      current
+        ? {
+            ...current,
+            spot: saved,
+            draft,
+            baseline: draft,
+            plans: current.plans,
+          }
+        : current,
+    )
+    setConflict(null)
+    setBanner(null)
+  }
+
+  async function reloadTheirs() {
+    if (!panel?.spot) return
+    const detail = await getSpot(panel.spot.id)
+    const draft = draftFromSpot(detail)
+    changeSpots((current) => placeSaved(current, detail, detail.id))
+    setPanel((current) =>
+      current && current.spot?.id === detail.id
+        ? {
+            ...current,
+            spot: detail,
+            plans: detail.plans,
+            draft,
+            baseline: draft,
+          }
+        : current,
+    )
+    setBanner(null)
   }
 
   function updateQuery(next: SpotListQuery) {
@@ -527,6 +639,46 @@ export function BoardPage() {
           }}
         />
       ) : null}
+      {banner ? (
+        <div
+          role="status"
+          data-testid="live-banner"
+          className="fixed left-4 right-4 top-20 z-50 flex flex-wrap items-center gap-2 rounded-[8px] border border-border bg-background p-3 shadow-panel sm:left-auto sm:right-4 sm:w-[360px]"
+        >
+          <p className="text-sm">
+            {t('live.changed', {
+              name: banner.actorName || t('live.someone'),
+            })}
+          </p>
+          <Button
+            type="button"
+            data-testid="live-reload"
+            onClick={() => {
+              void reloadTheirs()
+            }}
+          >
+            {t('live.reload')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            data-testid="live-keep"
+            onClick={() => setBanner(null)}
+          >
+            {t('live.keep')}
+          </Button>
+        </div>
+      ) : null}
+      {conflict ? (
+        <ConflictDialog
+          name={conflict.updatedByName}
+          rows={spotConflictRows(t, conflict.body, conflict.current)}
+          onMine={() => {
+            void useMine()
+          }}
+          onTheirs={useTheirs}
+        />
+      ) : null}
       {toast ? (
         <p
           role="alert"
@@ -538,6 +690,29 @@ export function BoardPage() {
       ) : null}
     </>
   )
+}
+
+function spotConflictRows(
+  t: (key: string) => string,
+  mine: {
+    title?: string
+    address?: string | null
+    info?: string | null
+    link?: string | null
+    baseCategory?: string
+  },
+  theirs: Spot,
+): ConflictRow[] {
+  const pairs: Array<[string, string, string]> = [
+    [t('board.spotTitle'), mine.title ?? '', theirs.title],
+    [t('board.address'), mine.address ?? '', theirs.address ?? ''],
+    [t('board.info'), mine.info ?? '', theirs.info ?? ''],
+    [t('board.link'), mine.link ?? '', theirs.link ?? ''],
+    [t('board.category'), mine.baseCategory ?? '', theirs.baseCategory],
+  ]
+  return pairs
+    .filter(([, left, right]) => left !== right)
+    .map(([label, left, right]) => ({ label, mine: left, theirs: right }))
 }
 
 function PanelSkeleton() {

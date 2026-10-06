@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { onMembersRefresh } from '../live/bus'
 import { useSession } from '../session'
 import { AuthError } from '../trips/client'
 import { DialogFrame } from '../trips/CreateTripDialog'
@@ -93,6 +94,8 @@ export function MembersDialog({
     })()
     return () => controller.abort()
   }, [attempt, reload, tripId])
+
+  useEffect(() => onMembersRefresh(() => setAttempt((value) => value + 1)), [])
 
   async function run(action: () => Promise<void>) {
     setBusy(true)

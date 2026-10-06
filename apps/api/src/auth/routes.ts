@@ -189,6 +189,7 @@ export function registerAuthRoutes(
       reply.header('set-cookie', clearCookie(SESSION_COOKIE, secure))
       return reply.code(401).send({ error: 'unauthenticated' })
     }
+    if (token) app.tripHub.closeToken(token)
     reply.header('set-cookie', clearCookie(SESSION_COOKIE, secure))
     return reply.code(204).send()
   })

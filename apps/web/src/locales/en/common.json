@@ -464,6 +464,7 @@
       "database": "Database",
       "images": "Images",
       "events": "Events",
+      "streams": "{{count}} open live connections",
       "charts": {
         "active": "Active users per day",
         "activity": "Activity per day",
@@ -575,6 +576,20 @@
       "title": "Activity (30 days)",
       "view": "View all in Activity"
     }
+  },
+  "live": {
+    "changed": "{{name}} changed this spot",
+    "reload": "Reload their version",
+    "keep": "Keep editing",
+    "deleted": "Deleted by {{name}}",
+    "someone": "Someone",
+    "conflictTitle": "{{name}} saved this spot first",
+    "conflictSaved": "{{name}} saved a newer version",
+    "useMine": "Use mine",
+    "useTheirs": "Use theirs",
+    "mine": "Yours: {{value}}",
+    "theirs": "Theirs: {{value}}",
+    "blank": "—"
   },
   "notFound": {
     "title": "Page not found",

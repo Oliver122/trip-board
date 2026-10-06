@@ -11,6 +11,8 @@ import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
 import { deny, parseBody } from '../http/validate.js'
+import { readExpected } from '../live/conflict.js'
+import { invalidExpected } from '../live/routes.js'
 import { listSpotPlans } from '../plan/store.js'
 import {
   createSpot,
@@ -80,15 +82,7 @@ export function registerSpotRoutes(
     )
     if (!input) return
     const result = await createSpot(pool, user.id, params.id, input)
-    if (!result.ok) {
-      if (result.status === 400) {
-        return reply.code(400).send({
-          error: 'invalid_request',
-          fields: result.fields,
-        })
-      }
-      return deny(reply, result.status)
-    }
+    if (!result.ok) return spotFailure(reply, result)
     return reply.code(201).send(result.spot)
   })
 
@@ -113,16 +107,16 @@ export function registerSpotRoutes(
     if (!params) return
     const input = parseBody(patchSpotSchema, request.body, reply, knownMessages)
     if (!input) return
-    const result = await updateSpot(pool, user.id, params.id, input)
-    if (!result.ok) {
-      if (result.status === 400) {
-        return reply.code(400).send({
-          error: 'invalid_request',
-          fields: result.fields,
-        })
-      }
-      return deny(reply, result.status)
-    }
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await updateSpot(
+      pool,
+      user.id,
+      params.id,
+      input,
+      expected.at,
+    )
+    if (!result.ok) return spotFailure(reply, result)
     return result.spot
   })
 
@@ -134,10 +128,37 @@ export function registerSpotRoutes(
     }
     const params = parseParams(request.params, reply)
     if (!params) return
-    const result = await deleteSpot(pool, user.id, params.id)
-    if (!result.ok) return deny(reply, result.status)
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await deleteSpot(pool, user.id, params.id, expected.at)
+    if (!result.ok) return spotFailure(reply, result)
     return reply.code(204).send()
   })
+}
+
+function spotFailure(
+  reply: FastifyReply,
+  result: {
+    status: 400 | 403 | 404 | 409
+    fields?: Record<string, string>
+    current?: unknown
+    updatedBy?: unknown
+  },
+) {
+  if (result.status === 400) {
+    return reply.code(400).send({
+      error: 'invalid_request',
+      fields: result.fields,
+    })
+  }
+  if (result.status === 409) {
+    return reply.code(409).send({
+      error: 'conflict',
+      updatedBy: result.updatedBy ?? null,
+      current: result.current,
+    })
+  }
+  return deny(reply, result.status)
 }
 
 function parseParams(

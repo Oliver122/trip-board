@@ -1,4 +1,6 @@
 import type { PlanEntry, Spot, Trip } from '@tripboard/shared'
+import type { LiveChange } from '../live/events'
+import { useTripEvents } from '../live/use-trip-events'
 import {
   createContext,
   useCallback,
@@ -48,6 +50,8 @@ type TripState = {
   selectedEntryId: string | null
 }
 
+export type LiveNotice = LiveChange & { actorName: string; token: number }
+
 type TripContextValue = TripState & {
   setTrip: (trip: Trip) => void
   replaceSpots: (spots: Spot[], total: number) => void
@@ -57,6 +61,11 @@ type TripContextValue = TripState & {
   setScene: (scene: MapScene | null) => void
   scene: MapScene | null
   handlersRef: { current: MapHandlers }
+  imageRevision: number
+  notices: LiveNotice[]
+  dismissNotice: (token: number) => void
+  accessLost: boolean
+  liveError: number
 }
 
 const TripContext = createContext<TripContextValue | null>(null)
@@ -85,7 +94,14 @@ export function TripProvider({
     selectedEntryId: null,
   })
   const [scene, setSceneState] = useState<MapScene | null>(null)
+  const [imageRevision, setImageRevision] = useState(0)
+  const [notices, setNotices] = useState<LiveNotice[]>([])
+  const [accessLost, setAccessLost] = useState(false)
+  const [liveError, setLiveError] = useState(0)
   const handlersRef = useRef<MapHandlers>(idleHandlers)
+  const noticeToken = useRef(0)
+  const membersRef = useRef(trip.members)
+  membersRef.current = state.trip.members
 
   const setTrip = useCallback((next: Trip) => {
     setState((current) => ({ ...current, trip: next }))
@@ -108,6 +124,29 @@ export function TripProvider({
   const setScene = useCallback((next: MapScene | null) => {
     setSceneState(next)
   }, [])
+  const dismissNotice = useCallback((token: number) => {
+    setNotices((current) => current.filter((notice) => notice.token !== token))
+  }, [])
+
+  useTripEvents(trip.id, {
+    replaceSpots,
+    setEntries,
+    setTrip,
+    bumpImages: () => setImageRevision((value) => value + 1),
+    onNotices: (changes) => {
+      const named = changes.map((change) => ({
+        ...change,
+        actorName:
+          membersRef.current.find((member) => member.id === change.actorId)
+            ?.name ?? '',
+        token: noticeToken.current++,
+      }))
+      if (named.length === 0) return
+      setNotices((current) => [...current, ...named])
+    },
+    onLostAccess: () => setAccessLost(true),
+    onPollError: () => setLiveError((value) => value + 1),
+  })
 
   const value = useMemo<TripContextValue>(
     () => ({
@@ -120,6 +159,11 @@ export function TripProvider({
       setScene,
       scene,
       handlersRef,
+      imageRevision,
+      notices,
+      dismissNotice,
+      accessLost,
+      liveError,
     }),
     [
       state,
@@ -130,6 +174,11 @@ export function TripProvider({
       setSelectedEntryId,
       setScene,
       scene,
+      imageRevision,
+      notices,
+      dismissNotice,
+      accessLost,
+      liveError,
     ],
   )
 

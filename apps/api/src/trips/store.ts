@@ -6,6 +6,7 @@ import {
 } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
 import { activity } from '../activity/record.js'
+import { latestEditor, stampAgrees, type Editor } from '../live/conflict.js'
 import { withTransaction } from '../db/transaction.js'
 import { requireTripRole } from './roles.js'
 
@@ -17,6 +18,7 @@ type TripRow = {
   start_date: string | null
   end_date: string | null
   timezone: string
+  updated_at: Date
   bbox_min_lng: number
   bbox_min_lat: number
   bbox_max_lng: number
@@ -33,6 +35,7 @@ SELECT
   t.start_date::text AS start_date,
   t.end_date::text AS end_date,
   t.timezone,
+  t.updated_at,
   t.bbox_min_lng,
   t.bbox_min_lat,
   t.bbox_max_lng,
@@ -62,6 +65,12 @@ LEFT JOIN users creator ON creator.id = t.created_by
 export type TripFailure =
   | { ok: false; status: 400; fields: Record<string, string> }
   | { ok: false; status: 403 | 404 }
+  | {
+      ok: false
+      status: 409
+      current: Trip
+      updatedBy: Editor | null
+    }
 
 export async function listTrips(
   db: Queryable,
@@ -148,12 +157,15 @@ export async function updateTrip(
   userId: string,
   tripId: string,
   patch: PatchTripBody,
+  expectedUpdatedAt: string | null = null,
 ): Promise<{ ok: true; trip: Trip } | TripFailure> {
   return withTransaction(pool, async (tx) => {
     const access = await requireTripRole(tx, tripId, userId, 'planner')
     if (!access.ok) return { ok: false, status: access.status }
     const current = await getTrip(tx, tripId, userId)
     if (!current) return { ok: false, status: 404 }
+    const disagreed = await disagree(tx, tripId, userId, expectedUpdatedAt)
+    if (disagreed) return disagreed
     const name = patch.name !== undefined ? patch.name.trim() : current.name
     const startDate =
       patch.startDate !== undefined ? patch.startDate : current.startDate
@@ -204,12 +216,15 @@ export async function deleteTrip(
   pool: Pool,
   userId: string,
   tripId: string,
-): Promise<{ ok: true } | { ok: false; status: 403 | 404 }> {
+  expectedUpdatedAt: string | null = null,
+): Promise<{ ok: true } | TripFailure> {
   return withTransaction(pool, async (tx) => {
     const access = await requireTripRole(tx, tripId, userId, 'owner')
     if (!access.ok) return access
     const current = await getTrip(tx, tripId, userId)
     if (!current) return { ok: false, status: 404 }
+    const disagreed = await disagree(tx, tripId, userId, expectedUpdatedAt)
+    if (disagreed) return disagreed
     await activity.record(tx, {
       actor: userId,
       trip: tripId,
@@ -220,6 +235,25 @@ export async function deleteTrip(
     await tx.query('DELETE FROM trips WHERE id = $1', [tripId])
     return { ok: true }
   })
+}
+
+async function disagree(
+  tx: PoolClient,
+  tripId: string,
+  userId: string,
+  expected: string | null,
+): Promise<TripFailure | null> {
+  const stamp = await stampAgrees(tx, 'trips', tripId, expected)
+  if (stamp === 'ok') return null
+  if (stamp === 'missing') return { ok: false, status: 404 }
+  const current = await getTrip(tx, tripId, userId)
+  if (!current) return { ok: false, status: 404 }
+  return {
+    ok: false,
+    status: 409,
+    current,
+    updatedBy: await latestEditor(tx, tripId),
+  }
 }
 
 function rowToTrip(row: TripRow): Trip {
@@ -234,6 +268,7 @@ function rowToTrip(row: TripRow): Trip {
     startDate: row.start_date,
     endDate: row.end_date,
     timezone: row.timezone,
+    updatedAt: row.updated_at.toISOString(),
     region: {
       bbox: {
         minLng: row.bbox_min_lng,

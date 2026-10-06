@@ -102,6 +102,12 @@ export function registerAdminRoutes(
   const admin = async (request: FastifyRequest, reply: FastifyReply) =>
     requireAppRole(request, reply, pool, now(), secure, 'admin')
 
+  app.get('/admin/streams', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    return { openStreams: app.tripHub.openCount() }
+  })
+
   app.get('/admin/stats', async (request, reply) => {
     const user = await admin(request, reply)
     if (!user) return

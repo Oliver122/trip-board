@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { enterClientId } from './activity/client.js'
 import { healthResponseSchema, maxUploadBytes } from '@tripboard/shared'
 import Fastify from 'fastify'
 import type { Pool } from 'pg'
@@ -11,6 +12,8 @@ import { pingDatabase } from './db.js'
 import { registerGeocodeRoutes } from './geocode/routes.js'
 import { applySecurityHeaders, blobOrigin } from './http/headers.js'
 import { RequestLimiter } from './http/limit.js'
+import { TripHub } from './live/hub.js'
+import { isLiveEvents, registerLiveRoutes } from './live/routes.js'
 import { registerImageRoutes } from './images/routes.js'
 import { registerPlanRoutes } from './plan/routes.js'
 import { UploadLimiter } from './images/limit.js'
@@ -58,11 +61,14 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
   })
 
   app.addHook('onRequest', async (request, reply) => {
+    const rawClient = request.headers['x-client-id']
+    enterClientId(typeof rawClient === 'string' ? rawClient.slice(0, 80) : null)
     reply.header('x-request-id', request.id)
     applySecurityHeaders(reply, {
       production: config.NODE_ENV === 'production',
       blobOrigin: blobOrigin(config.S3_ENDPOINT),
     })
+    if (isLiveEvents(request.url)) return
     const token = readCookie(request.headers.cookie, SESSION_COOKIE)
     const key = token ? `user:${token}` : `ip:${request.ip}`
     const decision = limiter.check(key, now())
@@ -70,6 +76,15 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
       reply.header('retry-after', String(decision.retryAfter))
       return reply.code(429).send({ error: 'rate_limited' })
     }
+  })
+
+  const hub = new TripHub(config.DATABASE_URL, (message) => {
+    app.log.info(message)
+  }, now)
+  await hub.start()
+  app.decorate('tripHub', hub)
+  app.addHook('onClose', async () => {
+    await hub.stop()
   })
 
   app.get('/health', async (_request, reply) => {
@@ -91,6 +106,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     limiter: options.joinLimiter ?? new JoinLimiter(),
   })
   registerSpotRoutes(app, { pool, config, now })
+  registerLiveRoutes(app, { pool, config, now, hub })
   registerPlanRoutes(app, { pool, config, now })
   registerExportRoutes(app, { pool, config, now })
   registerGeocodeRoutes(app, {
