@@ -1,6 +1,7 @@
 import { safeNextPath } from '@tripboard/shared'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { LanguageSwitch } from '../components/Preferences'
 import { buttonVariants } from '../components/ui/button'
 
 export function LoginPage() {
@@ -11,6 +12,9 @@ export function LoginPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-8 md:px-8">
+      <div className="mb-4">
+        <LanguageSwitch />
+      </div>
       <h1 className="mb-4 text-xl font-semibold">{t('login.title')}</h1>
       {message ? (
         <p role="alert" data-testid="login-error" className="mb-4 text-danger">

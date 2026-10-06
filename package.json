@@ -19,7 +19,8 @@
     "db:migrate": "pnpm --filter @tripboard/api db:migrate",
     "db:seed": "pnpm --filter @tripboard/api db:seed",
     "db:check": "pnpm --filter @tripboard/api db:check",
-    "db:metrics": "pnpm --filter @tripboard/api db:metrics"
+    "db:metrics": "pnpm --filter @tripboard/api db:metrics",
+    "deploy": "bash scripts/deploy.sh"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

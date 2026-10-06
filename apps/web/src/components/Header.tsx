@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { LanguageSwitch, ThemeSwitch } from './Preferences'
+import { ThemeSwitch } from './Preferences'
 import { useSession } from '../session'
 
 export function Header({
@@ -30,7 +30,6 @@ export function Header({
       <div data-slot="tabs">{tabs}</div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <div data-slot="members">{members}</div>
-        <LanguageSwitch />
         <ThemeSwitch />
         {user ? <AvatarMenu /> : null}
       </div>

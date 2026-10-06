@@ -1,91 +1,35 @@
 import type { Trip } from '@tripboard/shared'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { useSession } from '../session'
-import {
-  ApiError,
-  AuthError,
-  getTrip,
-  NotFoundError,
-  updateTrip,
-} from '../trips/client'
+import { ApiError, AuthError, updateTrip } from '../trips/client'
 import { DeleteTripDialog } from '../trips/DeleteTripDialog'
 import { fieldMessage } from '../trips/fields'
 import { dateRange, roleName } from '../trips/TripCard'
+import { useTripData } from '../trips/trip-context'
 
 export function TripSettingsPage() {
   const { t } = useTranslation()
-  const { id } = useParams()
   const { reload } = useSession()
   const navigate = useNavigate()
-  const [status, setStatus] = useState<
-    'loading' | 'ready' | 'missing' | 'error'
-  >('loading')
-  const [trip, setTrip] = useState<Trip | null>(null)
+  const { trip, setTrip } = useTripData()
   const [confirming, setConfirming] = useState(false)
   const closeDelete = useCallback(() => setConfirming(false), [])
-
-  const load = useCallback(() => {
-    if (!id) {
-      setStatus('missing')
-      return () => undefined
-    }
-    const controller = new AbortController()
-    setStatus('loading')
-    void getTrip(id, controller.signal)
-      .then((next) => {
-        setTrip(next)
-        setStatus('ready')
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
-          reload()
-          return
-        }
-        if (error instanceof NotFoundError) {
-          setStatus('missing')
-          return
-        }
-        setStatus('error')
-      })
-    return () => controller.abort()
-  }, [id, reload])
-
-  useEffect(() => load(), [load])
 
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-8 md:px-8">
       <Link to="/trips" className="text-sm text-muted">
         {t('trips.back')}
       </Link>
-      {status === 'loading' ? (
-        <div className="mt-4">
-          <LoadingState />
-        </div>
-      ) : null}
-      {status === 'error' ? (
-        <div className="mt-4">
-          <ErrorState message={t('trips.errors.load')} retry={load} />
-        </div>
-      ) : null}
-      {status === 'missing' ? (
-        <div className="mt-4">
-          <ErrorState message={t('trips.notFound')} />
-        </div>
-      ) : null}
-      {status === 'ready' && trip ? (
-        <SettingsForm
-          trip={trip}
-          onUpdated={setTrip}
-          onUnauthorized={reload}
-          onDelete={() => setConfirming(true)}
-        />
-      ) : null}
+      <SettingsForm
+        trip={trip}
+        onUpdated={setTrip}
+        onUnauthorized={reload}
+        onDelete={() => setConfirming(true)}
+      />
       <DeleteTripDialog
         trip={confirming ? trip : null}
         onClose={closeDelete}

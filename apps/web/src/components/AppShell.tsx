@@ -55,6 +55,12 @@ export function AppShell() {
               >
                 {t('nav.schedule')}
               </NavLink>
+              <NavLink
+                to={`/trips/${tripId}/settings`}
+                className={({ isActive }) => tabClass(isActive)}
+              >
+                {t('trips.settings')}
+              </NavLink>
             </nav>
           ) : null
         }

@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { CategoryStrip, type Category } from '../components/category'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
+import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import type { LngLatBounds } from '../map/bounds'
@@ -85,6 +86,7 @@ export function SpotList({
   onHover: (id: string | null) => void
 }) {
   const { t, i18n } = useTranslation()
+  const { enabled: listFollowsMap } = useListFollowsMap()
   const phone = useMediaQuery(phoneQuery)
   const [snap, setSnap] = useState<Snap>('peek')
   const [dragHeight, setDragHeight] = useState<number | null>(null)
@@ -202,7 +204,9 @@ export function SpotList({
             <Button
               variant="outline"
               className="mt-3"
-              onClick={() => onQuery(defaultSpotListQuery)}
+              onClick={() =>
+                onQuery({ ...defaultSpotListQuery, visible: listFollowsMap })
+              }
             >
               {t('board.reset')}
             </Button>

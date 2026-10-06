@@ -75,3 +75,24 @@ export function useTheme() {
   if (!value) throw new Error('ThemeProvider is missing')
   return value
 }
+
+/** Mirrors the `dark` class on `<html>`, including the system theme. */
+export function useDark() {
+  const { theme } = useTheme()
+  const [dark, setDark] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  )
+  useEffect(() => {
+    const sync = () => {
+      setDark(document.documentElement.classList.contains('dark'))
+    }
+    sync()
+    const observer = new MutationObserver(sync)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+    return () => observer.disconnect()
+  }, [theme])
+  return dark
+}

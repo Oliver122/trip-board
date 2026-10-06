@@ -28,7 +28,7 @@ describe('spot list query', () => {
     expect(search).toContain(`by=${aiko}`)
     expect(search).toContain('entry=30000000-0000-0000-0000-000000000001')
     expect(search).toContain('sort=az')
-    expect(search).toContain('visible=0')
+    expect(search).not.toContain('visible=')
     expect(parseSpotListQuery(search)).toEqual(query)
     expect(parseSpotListQuery(new URLSearchParams(search))).toEqual(query)
     expect(spotListSearchParams(defaultSpotListQuery).toString()).toBe('')
@@ -44,8 +44,33 @@ describe('spot list query', () => {
       by: null,
       entry: null,
       sort: 'scheduled',
+      visible: false,
+    })
+  })
+
+  it('T-18-05 lets the URL override the list-follows-map setting', () => {
+    expect(parseSpotListQuery('')).toMatchObject({ visible: false })
+    expect(parseSpotListQuery('', true)).toMatchObject({ visible: true })
+    expect(parseSpotListQuery('visible=0', true)).toMatchObject({
+      visible: false,
+    })
+    expect(parseSpotListQuery('visible=1', false)).toMatchObject({
       visible: true,
     })
+    expect(
+      spotListSearchParams({ ...defaultSpotListQuery, visible: true }).get(
+        'visible',
+      ),
+    ).toBe('1')
+    expect(
+      spotListSearchParams(
+        { ...defaultSpotListQuery, visible: false },
+        true,
+      ).get('visible'),
+    ).toBe('0')
+    expect(spotListSearchParams(defaultSpotListQuery, false).toString()).toBe(
+      '',
+    )
   })
 
   it('escapes LIKE wildcards and leaves ordinary text unchanged', () => {

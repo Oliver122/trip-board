@@ -56,6 +56,54 @@ export const spotListSchema = z.object({
 })
 
 const httpLink = /^https?:\/\//i
+const otherScheme = /^[a-z][a-z0-9+.-]*:/i
+
+/**
+ * Accepts a web address with or without a scheme.
+ * `www.hotel.jp` becomes `https://www.hotel.jp`. `HTTP://x.de` is kept as typed.
+ * Anything that is still not an http(s) URL is `invalid` (including whitespace
+ * only, `javascript:`, and `ftp:`).
+ */
+export function normalizeSpotLink(
+  value: string | null | undefined,
+): { link: string | null } | { error: 'invalid' | 'too_long' } {
+  if (value == null) return { link: null }
+  const trimmed = value.trim()
+  if (trimmed.length === 0) {
+    return value.length > 0 ? { error: 'invalid' } : { link: null }
+  }
+  if (trimmed.length > spotLimits.link) return { error: 'too_long' }
+  if (httpLink.test(trimmed)) {
+    try {
+      const url = new URL(trimmed)
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return { error: 'invalid' }
+      }
+      if (url.hostname.length === 0) return { error: 'invalid' }
+    } catch {
+      return { error: 'invalid' }
+    }
+    return { link: trimmed }
+  }
+  if (otherScheme.test(trimmed) || /\s/.test(trimmed)) {
+    return { error: 'invalid' }
+  }
+  const withScheme = `https://${trimmed}`
+  try {
+    const url = new URL(withScheme)
+    if (!url.hostname.includes('.')) return { error: 'invalid' }
+  } catch {
+    return { error: 'invalid' }
+  }
+  return { link: withScheme }
+}
+
+function withNormalizedLink<T extends { link?: string | null }>(data: T): T {
+  if (data.link === undefined) return data
+  const normalized = normalizeSpotLink(data.link)
+  if ('error' in normalized) return data
+  return { ...data, link: normalized.link }
+}
 
 function checkTitle(title: string, ctx: z.RefinementCtx) {
   const trimmed = title.trim()
@@ -223,24 +271,13 @@ function checkStay(
 }
 
 function checkLink(value: string | null | undefined, ctx: z.RefinementCtx) {
-  if (value == null) return
-  const trimmed = value.trim()
-  if (trimmed.length === 0) return
-  if (trimmed.length > spotLimits.link) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['link'],
-      message: 'too_long',
-    })
-    return
-  }
-  if (!httpLink.test(trimmed)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['link'],
-      message: 'invalid',
-    })
-  }
+  const normalized = normalizeSpotLink(value)
+  if (!('error' in normalized)) return
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['link'],
+    message: normalized.error,
+  })
 }
 
 export const createSpotSchema = z
@@ -272,6 +309,7 @@ export const createSpotSchema = z
       checkStay(data, ctx, true)
     }
   })
+  .transform(withNormalizedLink)
 
 export type CreateSpotBody = z.infer<typeof createSpotSchema>
 
@@ -326,6 +364,7 @@ export const patchSpotSchema = z
       })
     }
   })
+  .transform(withNormalizedLink)
 
 export type PatchSpotBody = z.infer<typeof patchSpotSchema>
 

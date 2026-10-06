@@ -1,19 +1,26 @@
 import { LocateFixed, Minus, Plus } from 'lucide-react'
 import { setWorkerUrl, type Map as MaplibreMap } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Map, { Marker, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Button } from '../components/ui/button'
 import type { Category } from '../components/category'
 import { activeLocale } from '../i18n'
-import { useTheme, type ThemeChoice } from '../theme'
+import { useDark } from '../theme'
 import { maxBoundsFor, toMaxBoundsTuple, type LngLatBounds } from './bounds'
 import { clusterSpots, type MapSpot } from './clusters'
 import { Pin } from './Pin'
-import { mapStyle } from './style'
-import { formatViewportHash, parseViewportHash } from './viewport'
+import { mapLandColor, mapStyle } from './style'
+import {
+  initialViewport,
+  readStoredViewport,
+  rememberViewport,
+  viewportTransitionDuration,
+  writeStoredViewport,
+  type ViewportScope,
+} from './viewport'
 
 setWorkerUrl(maplibreWorkerUrl)
 
@@ -35,6 +42,9 @@ export function TripMap({
   onViewport,
   highlightIds = [],
   focus = null,
+  viewportScope = 'board',
+  viewportStorageKey,
+  flyTo = null,
 }: {
   bbox: LngLatBounds
   spots: MapSpot[]
@@ -54,14 +64,18 @@ export function TripMap({
   onViewport?: (bounds: LngLatBounds) => void
   highlightIds?: string[]
   focus?: { key: string; bounds: LngLatBounds } | null
+  viewportScope?: ViewportScope
+  viewportStorageKey?: string
+  flyTo?: { token: string; lng: number; lat: number } | null
 }) {
   const { t, i18n } = useTranslation()
-  const { theme } = useTheme()
-  const dark = useResolvedDark(theme)
+  const dark = useDark()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const mapRef = useRef<MapRef>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [tileError, setTileError] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [loaded, setLoaded] = useState(false)
   const [camera, setCamera] = useState({ bounds: bbox, zoom: 4 })
   const style = useMemo(
     () => mapStyle(locale, dark ? 'dark' : 'light'),
@@ -72,41 +86,159 @@ export function TripMap({
     () => clusterSpots(spots, camera.bounds, camera.zoom),
     [spots, camera],
   )
-  const hash = parseViewportHash(window.location.hash)
+  const [initialView] = useState(() =>
+    initialViewport(
+      window.location.hash,
+      viewportScope,
+      viewportStorageKey ? readStoredViewport(viewportStorageKey) : null,
+    ),
+  )
   const focusRef = useRef(focus)
   focusRef.current = focus
+  const flyRef = useRef(flyTo)
+  flyRef.current = flyTo
+  const bboxRef = useRef(bbox)
+  bboxRef.current = bbox
+  const scopeRef = useRef(viewportScope)
+  scopeRef.current = viewportScope
+  const storageKeyRef = useRef(viewportStorageKey)
+  storageKeyRef.current = viewportStorageKey
+  const onViewportRef = useRef(onViewport)
+  onViewportRef.current = onViewport
+  const flown = useRef<string | null>(null)
+  const alive = useRef(true)
+  const openingScope = useRef(viewportScope)
+  const heldScope = useRef(viewportScope)
+  const appliedFocus = useRef<string | null>(null)
+  const gestureScope = useRef<ViewportScope | null>(null)
+  const transitionToken = useRef(0)
+  const suppressMove = useRef(false)
+  const land = mapLandColor(dark ? 'dark' : 'light')
+
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+      const boardWindow = window as BoardWindow
+      if (boardWindow.__tripboardMap) delete boardWindow.__tripboardMap
+    }
+  }, [])
+
+  useEffect(() => {
+    const element = containerRef.current
+    const map = mapRef.current?.getMap()
+    if (!loaded || !element || !map) return
+    const observer = new ResizeObserver(() => {
+      map.resize()
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [loaded])
 
   useEffect(() => {
     const map = mapRef.current?.getMap()
-    if (map) fitSelection(map, focus)
-  }, [focus])
+    if (map) flyToSpot(map)
+  }, [flyTo])
 
-  function remember(map: MaplibreMap) {
+  useLayoutEffect(() => {
+    if (!loaded) return
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    const nextScope = viewportScope
+    const previous = heldScope.current
+    heldScope.current = nextScope
+    if (previous !== nextScope) {
+      animateTo(map, nextScope)
+      return
+    }
+    if (nextScope === 'schedule') {
+      const frame = focusRef.current
+      if (frame && appliedFocus.current !== frame.key) {
+        appliedFocus.current = frame.key
+        fitBox(map, frame.bounds, 0, 80, 13)
+      }
+    }
+  }, [loaded, viewportScope, focus])
+
+  function flyToSpot(map: MaplibreMap) {
+    const target = flyRef.current
+    if (!target || flown.current === target.token) return
+    flown.current = target.token
+    map.easeTo({
+      center: [target.lng, target.lat],
+      zoom: Math.max(map.getZoom(), 12),
+    })
+  }
+
+  function animateTo(map: MaplibreMap, scope: ViewportScope) {
+    const reduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    const duration = viewportTransitionDuration(reduced)
+    const token = ++transitionToken.current
+    gestureScope.current = null
+    suppressMove.current = true
+    map.stop()
+    suppressMove.current = false
+    const finish = () => {
+      if (transitionToken.current !== token) return
+      transitionToken.current = 0
+      if (scopeRef.current !== scope) return
+      commitViewport(map, scope)
+    }
+    map.once('moveend', finish)
+    if (scope === 'board') {
+      const stored = storageKeyRef.current
+        ? readStoredViewport(storageKeyRef.current)
+        : null
+      if (stored) {
+        map.easeTo({
+          center: [stored.lng, stored.lat],
+          zoom: stored.zoom,
+          duration,
+        })
+      } else {
+        fitBox(map, bboxRef.current, duration, 48)
+      }
+    } else {
+      const frame = focusRef.current
+      if (frame) {
+        appliedFocus.current = frame.key
+        fitBox(map, frame.bounds, duration, 80, 13)
+      } else {
+        appliedFocus.current = null
+        fitBox(map, bboxRef.current, duration, 48)
+      }
+    }
+    if (duration === 0) finish()
+  }
+
+  function commitViewport(map: MaplibreMap, eventScope: ViewportScope) {
+    if (!alive.current) return
     const center = map.getCenter()
     const zoom = map.getZoom()
     const next = map.getBounds()
-    setCamera({
-      zoom,
-      bounds: {
-        minLng: next.getWest(),
-        minLat: next.getSouth(),
-        maxLng: next.getEast(),
-        maxLat: next.getNorth(),
-      },
-    })
-    onViewport?.({
+    const bounds = {
       minLng: next.getWest(),
       minLat: next.getSouth(),
       maxLng: next.getEast(),
       maxLat: next.getNorth(),
+    }
+    setCamera({ zoom, bounds })
+    const decision = rememberViewport({
+      eventScope,
+      activeScope: scopeRef.current,
+      view: { lng: center.lng, lat: center.lat, zoom },
+      pathname: window.location.pathname,
+      search: window.location.search,
     })
-    const nextHash = formatViewportHash({
-      lng: center.lng,
-      lat: center.lat,
-      zoom,
-    })
-    const url = `${window.location.pathname}${window.location.search}${nextHash}`
-    if (window.location.hash !== nextHash) {
+    if (!decision) return
+    onViewportRef.current?.(bounds)
+    if (decision.persistBoard && storageKeyRef.current) {
+      writeStoredViewport(storageKeyRef.current, decision.view)
+    }
+    if (window.location.hash !== decision.hash) {
+      const url = decision.url
       window.history.replaceState(window.history.state, '', url)
     }
   }
@@ -117,7 +249,13 @@ export function TripMap({
   }
 
   return (
-    <div className="absolute inset-0" role="region" aria-label={t('board.map')}>
+    <div
+      ref={containerRef}
+      className="absolute inset-0"
+      style={{ backgroundColor: land }}
+      role="region"
+      aria-label={t('board.map')}
+    >
       <Map
         key={`${attempt}-${locale}-${dark ? 'dark' : 'light'}`}
         ref={mapRef}
@@ -125,8 +263,12 @@ export function TripMap({
         attributionControl={false}
         maxBounds={maxBounds}
         initialViewState={
-          hash
-            ? { longitude: hash.lng, latitude: hash.lat, zoom: hash.zoom }
+          initialView
+            ? {
+                longitude: initialView.lng,
+                latitude: initialView.lat,
+                zoom: initialView.zoom,
+              }
             : {
                 bounds: [
                   [bbox.minLng, bbox.minLat],
@@ -135,15 +277,25 @@ export function TripMap({
                 fitBoundsOptions: { padding: 48 },
               }
         }
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', background: land }}
         onLoad={(event) => {
           const map = event.target
           ;(window as BoardWindow).__tripboardMap = map
-          remember(map)
-          fitSelection(map, focusRef.current)
+          setLoaded(true)
+          if (scopeRef.current === openingScope.current) {
+            commitViewport(map, scopeRef.current)
+          }
+          flyToSpot(map)
+        }}
+        onMoveStart={(event) => {
+          if (event.originalEvent) gestureScope.current = scopeRef.current
         }}
         onMoveEnd={(event) => {
-          remember(event.target)
+          if (suppressMove.current) return
+          if (transitionToken.current !== 0) return
+          const eventScope = gestureScope.current ?? scopeRef.current
+          gestureScope.current = null
+          commitViewport(event.target, eventScope)
         }}
         onClick={(event) => {
           if (!placing || !onPlace) return
@@ -312,36 +464,19 @@ export function TripMap({
   )
 }
 
-function useResolvedDark(theme: ThemeChoice) {
-  const [dark, setDark] = useState(() =>
-    document.documentElement.classList.contains('dark'),
-  )
-  useEffect(() => {
-    const sync = () => {
-      setDark(document.documentElement.classList.contains('dark'))
-    }
-    sync()
-    const observer = new MutationObserver(sync)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    })
-    return () => observer.disconnect()
-  }, [theme])
-  return dark
-}
-
-function fitSelection(
+function fitBox(
   map: MaplibreMap,
-  focus: { key: string; bounds: LngLatBounds } | null,
+  bounds: LngLatBounds,
+  duration: number,
+  padding: number,
+  maxZoom?: number,
 ) {
-  if (!focus || !map.isStyleLoaded()) return
   map.fitBounds(
     [
-      [focus.bounds.minLng, focus.bounds.minLat],
-      [focus.bounds.maxLng, focus.bounds.maxLat],
+      [bounds.minLng, bounds.minLat],
+      [bounds.maxLng, bounds.maxLat],
     ],
-    { padding: 80, maxZoom: 13, duration: 0 },
+    { padding, ...(maxZoom != null ? { maxZoom } : {}), duration },
   )
 }
 

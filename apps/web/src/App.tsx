@@ -18,86 +18,78 @@ import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SchedulePage } from './pages/SchedulePage'
+import { TripLayout } from './pages/TripLayout'
 import { TripSettingsPage } from './pages/TripSettingsPage'
 import { TripsPage } from './pages/TripsPage'
 import { RequireAuth } from './RequireAuth'
+import { ListFollowsMapProvider } from './list-follows-map'
 import { SessionProvider } from './session'
 import { ThemeProvider } from './theme'
 
 export function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <SessionProvider>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/join/:code" element={<JoinPage />} />
+      <ListFollowsMapProvider>
+        <BrowserRouter>
+          <SessionProvider>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/join/:code" element={<JoinPage />} />
+                <Route
+                  path="/trips"
+                  element={
+                    <RequireAuth>
+                      <TripsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/trips/:id"
+                  element={
+                    <RequireAuth>
+                      <TripLayout />
+                    </RequireAuth>
+                  }
+                >
+                  <Route index element={<BoardPage />} />
+                  <Route path="schedule" element={<SchedulePage />} />
+                  <Route path="settings" element={<TripSettingsPage />} />
+                </Route>
+                <Route
+                  path="/account"
+                  element={
+                    <RequireAuth>
+                      <AccountPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
               <Route
-                path="/trips"
+                path="/admin"
                 element={
                   <RequireAuth>
-                    <TripsPage />
+                    <AdminGate />
                   </RequireAuth>
                 }
-              />
-              <Route
-                path="/trips/:id"
-                element={
-                  <RequireAuth>
-                    <BoardPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/trips/:id/settings"
-                element={
-                  <RequireAuth>
-                    <TripSettingsPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/trips/:id/schedule"
-                element={
-                  <RequireAuth>
-                    <SchedulePage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/account"
-                element={
-                  <RequireAuth>
-                    <AccountPage />
-                  </RequireAuth>
-                }
-              />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-            <Route
-              path="/admin"
-              element={
-                <RequireAuth>
-                  <AdminGate />
-                </RequireAuth>
-              }
-            >
-              <Route index element={<DashboardPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="users/:id" element={<UserPage />} />
-              <Route path="trips" element={<AdminTripsPage />} />
-              <Route path="trips/:id" element={<TripPage />} />
-              <Route path="activity" element={<ActivityPage />} />
-              <Route path="storage" element={<StoragePage />} />
-              <Route path="requests" element={<RequestsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="audit" element={<AuditPage />} />
-            </Route>
-          </Routes>
-        </SessionProvider>
-      </BrowserRouter>
+              >
+                <Route index element={<DashboardPage />} />
+                <Route path="users" element={<UsersPage />} />
+                <Route path="users/:id" element={<UserPage />} />
+                <Route path="trips" element={<AdminTripsPage />} />
+                <Route path="trips/:id" element={<TripPage />} />
+                <Route path="activity" element={<ActivityPage />} />
+                <Route path="storage" element={<StoragePage />} />
+                <Route path="requests" element={<RequestsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="audit" element={<AuditPage />} />
+              </Route>
+            </Routes>
+          </SessionProvider>
+        </BrowserRouter>
+      </ListFollowsMapProvider>
     </ThemeProvider>
   )
 }

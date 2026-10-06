@@ -92,7 +92,9 @@ test('T-15-09 axe finds no serious issues on the main pages in both themes', asy
   await expectNoSeriousViolations(page, 'light')
 
   await page.goto('/account')
-  await expect(page.getByRole('heading', { name: 'Account' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Account & settings' }),
+  ).toBeVisible()
   await expectNoSeriousViolations(page, 'light')
   await page.getByRole('banner').getByRole('button', { name: 'Dark' }).click()
   await expectNoSeriousViolations(page, 'dark')

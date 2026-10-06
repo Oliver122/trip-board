@@ -140,7 +140,16 @@ test('T-17-15 dashboard and storage pass axe and charts have a table', async ({
   await page.goto('/admin/storage')
   await expect(page.getByRole('heading', { name: 'Storage' })).toBeVisible()
   await expectNoSeriousViolations(page)
-  await page.getByRole('button', { name: 'DE' }).click()
+  await page.evaluate(async () => {
+    const response = await fetch('/api/me', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locale: 'de' }),
+    })
+    if (!response.ok) throw new Error(await response.text())
+  })
+  await page.reload()
   await expect(page.getByRole('heading', { name: 'Speicher' })).toBeVisible()
   await expectNoSeriousViolations(page)
 })
