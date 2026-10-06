@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–12 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots).
+**Status:** steps 00–13 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, and invites).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -96,6 +96,16 @@ Shrinking a bucket’s dates clears visit dates that no longer fit and returns `
 Home spots add **Stay from**, **Stay to**, and **Primary home base** to the panel. Switching the category away from Home asks before those fields are cleared. Two stays that share a day show an overlap warning on both panels; the overlap is allowed. The primary home uses a filled house pin and is listed ahead of the other home spots. Other home pins stay a house outline, including when the spot is also in a plan.
 
 The spot panel’s **In plans** section lists the entries that include the spot. **Add to plan** puts it on an entry, and the category badge switches to _Planned_ with the visit count. The category dropdown still edits the base category. The board filter adds **Plan entry**.
+
+## Members, roles, and invites
+
+**Members** on a trip opens the members dialog. Everyone sees avatars, names, and roles. The owner can switch a member between planner and visitor, remove them, or transfer ownership. Transfer asks for confirmation, then the previous owner becomes a planner in the same transaction. Anyone except the owner can leave. The owner has to transfer ownership first (`409`, “transfer ownership first”).
+
+`POST /trips/:id/invites` is owner-only. The role is `planner` or `visitor`, and it defaults to visitor. `owner` is `400`. The code is `XXX-XXXX`: three letters or digits from the trip name (Japan 2026 → `JAP`) plus four Crockford characters that skip `0`, `O`, `1`, and `I`. It expires seven days after creation. `GET /trips/:id/invites` lists invites that are still active. `DELETE /invites/:id` revokes one.
+
+`GET /join/:code` is public and returns the trip name, owner name, member count, and role. An unknown code is `404`. An expired or revoked code is `410` with `expired` or `revoked`. `POST /join/:code` adds the signed-in user with that role. Someone who is already a member keeps their current role. Join attempts are limited to 10 per minute per IP.
+
+The join page shows that preview and a **Join trip** button. Signed-out visitors get **Continue with Discord** with `next=/join/<code>`. A link-preview bot (for example `Discordbot`) that requests `GET /join/:code` receives HTML with Open Graph tags: the trip name as `og:title` and “Join on Trip Board” as the description. An expired code’s HTML omits the trip name. In development, the Vite server forwards those bot requests to the API. A production host that serves the static app should do the same for `GET /join/:code` when the user agent is a crawler, or Discord will preview the empty app shell.
 
 ## Scripts
 

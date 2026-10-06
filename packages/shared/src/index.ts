@@ -167,3 +167,26 @@ export type {
   Trip,
   TripRole,
 } from './trips.js'
+export {
+  createInviteSchema,
+  inviteCodePattern,
+  inviteListSchema,
+  inviteRoleSchema,
+  inviteRoles,
+  inviteSchema,
+  joinPreviewSchema,
+  joinResultSchema,
+  memberListSchema,
+  memberSchema,
+  patchMemberSchema,
+  transferOwnershipSchema,
+} from './members.js'
+export type {
+  CreateInviteBody,
+  InviteRole,
+  JoinPreview,
+  Member,
+  PatchMemberBody,
+  TransferOwnershipBody,
+  TripInvite,
+} from './members.js'

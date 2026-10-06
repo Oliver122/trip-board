@@ -231,9 +231,45 @@
       "end_time_needs_start": "Gib zuerst eine Startzeit ein."
     }
   },
+  "members": {
+    "title": "Mitglieder",
+    "close": "Schließen",
+    "changeRole": "Rolle von {{name}}",
+    "remove": "{{name}} entfernen",
+    "transfer": "Besitz übertragen",
+    "transferTitle": "Besitz übertragen",
+    "transferBody": "{{name}} zum Owner machen? Du wirst Planer.",
+    "transferConfirm": "Übertragen",
+    "leave": "Reise verlassen",
+    "leaveTitle": "Reise verlassen",
+    "leaveBody": "Du verlierst den Zugriff auf diese Reise.",
+    "leaveConfirm": "Verlassen",
+    "cancel": "Abbrechen",
+    "loadError": "Mitglieder konnten nicht geladen werden.",
+    "saveError": "Mitglieder konnten nicht aktualisiert werden.",
+    "ownerStays": "Übertrage zuerst den Besitz, bevor du gehst."
+  },
+  "invite": {
+    "section": "Einladen",
+    "role": "Rolle",
+    "create": "Erstellen",
+    "copy": "Link kopieren",
+    "copied": "Kopiert",
+    "revoke": "Einladung widerrufen",
+    "empty": "Keine aktiven Einladungen.",
+    "expiresIn_one": "läuft in {{count}} Tag ab",
+    "expiresIn_other": "läuft in {{count}} Tagen ab",
+    "expired": "Diese Einladung ist abgelaufen. Bitte den Reise-Owner um einen neuen Link."
+  },
   "join": {
     "title": "Reise beitreten",
-    "body": "Einladungslinks öffnen sich hier in einem späteren Schritt."
+    "invited": "Du bist eingeladen zu {{trip}}",
+    "by_one": "von {{name}} · {{count}} Mitglied",
+    "by_other": "von {{name}} · {{count}} Mitglieder",
+    "join": "Reise beitreten",
+    "unknown": "Dieser Einladungslink ist ungültig.",
+    "loadError": "Diese Einladung konnte nicht geladen werden.",
+    "joinError": "Der Reise konnte nicht beigetreten werden."
   },
   "account": {
     "title": "Konto",

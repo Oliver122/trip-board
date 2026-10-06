@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useMatch } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { MembersDialog } from '../members/MembersDialog'
 import { Header } from './Header'
 import { activeLocale } from '../i18n'
 import { cn } from '../lib/utils'
@@ -13,6 +14,11 @@ export function AppShell() {
   const settings = useMatch('/trips/:id/settings')
   const board = useMatch('/trips/:id')
   const tripId = schedule?.params.id ?? settings?.params.id ?? board?.params.id
+  const [membersOpen, setMembersOpen] = useState(false)
+
+  useEffect(() => {
+    setMembersOpen(false)
+  }, [tripId])
 
   useEffect(() => {
     document.documentElement.lang = activeLocale(
@@ -53,13 +59,24 @@ export function AppShell() {
           ) : null
         }
         members={
-          user ? (
+          tripId ? (
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center rounded-[8px] px-3 text-sm"
+              onClick={() => setMembersOpen(true)}
+            >
+              {t('header.members')}
+            </button>
+          ) : user ? (
             <span className="inline-flex min-h-11 items-center px-1 text-sm">
               {t('header.members')}
             </span>
           ) : null
         }
       />
+      {tripId && membersOpen ? (
+        <MembersDialog tripId={tripId} onClose={() => setMembersOpen(false)} />
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </div>

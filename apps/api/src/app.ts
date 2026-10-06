@@ -9,6 +9,8 @@ import { registerImageRoutes } from './images/routes.js'
 import { registerPlanRoutes } from './plan/routes.js'
 import { UploadLimiter } from './images/limit.js'
 import { createS3Storage, type ObjectStorage } from './images/storage.js'
+import { JoinLimiter } from './members/limit.js'
+import { registerMemberRoutes } from './members/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
 
@@ -18,6 +20,7 @@ export type BuildAppOptions = {
   geocodeFetch?: typeof fetch
   storage?: ObjectStorage
   beforeImageInsert?: () => Promise<void>
+  joinLimiter?: JoinLimiter
 }
 
 export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
@@ -40,6 +43,12 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
 
   registerAuthRoutes(app, { pool, config, now })
   registerTripRoutes(app, { pool, config, now })
+  registerMemberRoutes(app, {
+    pool,
+    config,
+    now,
+    limiter: options.joinLimiter ?? new JoinLimiter(),
+  })
   registerSpotRoutes(app, { pool, config, now })
   registerPlanRoutes(app, { pool, config, now })
   registerGeocodeRoutes(app, {

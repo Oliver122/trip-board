@@ -231,9 +231,45 @@
       "end_time_needs_start": "Add a start time first."
     }
   },
+  "members": {
+    "title": "Members",
+    "close": "Close",
+    "changeRole": "Role for {{name}}",
+    "remove": "Remove {{name}}",
+    "transfer": "Transfer ownership",
+    "transferTitle": "Transfer ownership",
+    "transferBody": "Make {{name}} the owner? You will become a planner.",
+    "transferConfirm": "Transfer",
+    "leave": "Leave trip",
+    "leaveTitle": "Leave trip",
+    "leaveBody": "You will lose access to this trip.",
+    "leaveConfirm": "Leave",
+    "cancel": "Cancel",
+    "loadError": "Could not load members.",
+    "saveError": "Could not update members.",
+    "ownerStays": "Transfer ownership before leaving."
+  },
+  "invite": {
+    "section": "Invite",
+    "role": "Role",
+    "create": "Create",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "revoke": "Revoke invite",
+    "empty": "No active invites.",
+    "expiresIn_one": "expires in {{count}} day",
+    "expiresIn_other": "expires in {{count}} days",
+    "expired": "This invite has expired. Ask the trip owner for a new link."
+  },
   "join": {
     "title": "Join a trip",
-    "body": "Invite links open here in a later step."
+    "invited": "You're invited to {{trip}}",
+    "by_one": "by {{name}} · {{count}} member",
+    "by_other": "by {{name}} · {{count}} members",
+    "join": "Join trip",
+    "unknown": "This invite link is not valid.",
+    "loadError": "Could not load this invite.",
+    "joinError": "Could not join the trip."
   },
   "account": {
     "title": "Account",

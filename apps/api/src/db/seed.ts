@@ -75,6 +75,25 @@ export async function seedDatabase(pool: Pool): Promise<void> {
     )
     await client.query(
       `
+      INSERT INTO trip_invites (
+        trip_id, code, role, created_by, created_at, expires_at
+      ) VALUES (
+        $1, 'JPN-EXP1', 'visitor', $2,
+        now() - interval '8 days',
+        now() - interval '1 day'
+      )
+      ON CONFLICT (code) DO UPDATE SET
+        trip_id = EXCLUDED.trip_id,
+        role = EXCLUDED.role,
+        created_by = EXCLUDED.created_by,
+        created_at = EXCLUDED.created_at,
+        expires_at = EXCLUDED.expires_at,
+        revoked_at = NULL
+      `,
+      [seedIds.trip, seedIds.users.sven],
+    )
+    await client.query(
+      `
       INSERT INTO spots (id, trip_id, title, address, lat, lng, base_category, created_by) VALUES
         ($2, $1, 'Shibuya Sky', '2-24-12 Shibuya, Tokyo', 35.658, 139.702, 'must_go', $3),
         ($4, $1, 'teamLab Borderless', '1-3-8 Azumabashi, Tokyo', 35.626, 139.783, 'must_go', $3),
