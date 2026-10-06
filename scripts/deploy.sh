@@ -70,6 +70,92 @@ tar -C "$root" -cf - \
 echo "Updating server .env and restarting"
 ssh "${ssh_opts[@]}" "$remote" "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") ${remote_env[*]} bash -s" << 'REMOTE'
 set -euo pipefail
+
+if command -v zypper >/dev/null; then
+  zypper --non-interactive install git curl tar xz python3 docker docker-compose nginx
+elif command -v apt-get >/dev/null; then
+  apt-get update
+  apt-get install -y git curl tar xz-utils python3 docker.io docker-compose-v2 nginx
+else
+  echo "Install Docker, nginx, and curl on this server first." >&2
+  exit 1
+fi
+systemctl enable --now docker
+systemctl enable --now nginx
+
+if ! swapon --show | grep -q /swapfile; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q /swapfile /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab
+fi
+
+if ! node -v 2>/dev/null | grep -q '^v22\.'; then
+  file=$(curl -fsSL https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt | awk '/node-v22\..*-linux-x64\.tar\.xz/{print $2; exit}')
+  curl -fsSL "https://nodejs.org/dist/latest-v22.x/${file}" -o /tmp/node.tar.xz
+  tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+  rm /tmp/node.tar.xz
+  corepack enable
+  corepack prepare pnpm@10.15.1 --activate
+fi
+
+if ! grep -Rqs "127.0.0.1:5180" /etc/nginx; then
+  python3 - << 'NGINX'
+from pathlib import Path
+path = Path("/etc/nginx/nginx.conf")
+text = path.read_text()
+text = text.replace(
+    "        listen       80;\n        server_name  localhost;",
+    "        listen 80 default_server;\n        listen [::]:80 default_server;\n        server_name _;",
+    1,
+)
+text = text.replace(
+    """        location / {
+            root   /srv/www/htdocs/;
+            index  index.html index.htm;
+        }""",
+    """        location / {
+            proxy_pass http://127.0.0.1:5180;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }""",
+    1,
+)
+path.write_text(text)
+NGINX
+fi
+nginx -t
+systemctl reload nginx
+if systemctl is-active --quiet firewalld; then
+  firewall-cmd --permanent --add-service=http
+  firewall-cmd --reload
+fi
+
+mkdir -p "$DEPLOY_PATH"
+cat > /etc/systemd/system/trip-board.service << EOF
+[Unit]
+Description=Trip Board
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+WorkingDirectory=${DEPLOY_PATH}
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/pnpm dev
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable trip-board
+
 cd "$DEPLOY_PATH"
 
 if [[ ! -f .env ]]; then
