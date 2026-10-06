@@ -15,9 +15,11 @@ import { EmptyState, ErrorState } from '../components/states'
 import { activeLocale } from '../i18n'
 import { boundsForPoints } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
+import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
 import { EntryDialog } from '../plan/EntryDialog'
 import {
   addPlanSpot,
+  ConflictError as PlanConflictError,
   createPlanEntry,
   deletePlanEntry,
   listPlan,
@@ -65,8 +67,17 @@ export function SchedulePage() {
     setSelectedEntryId,
     replaceSpots,
     updateSpots,
+    notices,
+    dismissNotice,
+    liveError,
   } = useTripData()
   const [dialog, setDialog] = useState<DialogState | null>(null)
+  const [formKey, setFormKey] = useState(0)
+  const [conflict, setConflict] = useState<{
+    current: PlanEntry
+    updatedByName: string
+    body: PlanWrite
+  } | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -91,6 +102,31 @@ export function SchedulePage() {
     const timer = window.setTimeout(() => setToast(''), 4000)
     return () => window.clearTimeout(timer)
   }, [toast])
+
+  const seenLiveError = useRef(0)
+  useEffect(() => {
+    if (liveError === seenLiveError.current) return
+    seenLiveError.current = liveError
+    setToast(t('board.loadError'))
+  }, [liveError, t])
+
+  useEffect(() => {
+    if (notices.length === 0) return
+    for (const notice of notices) {
+      if (
+        notice.action.endsWith('.delete') &&
+        notice.resource === 'plan' &&
+        dialog?.mode === 'edit' &&
+        dialog.entry.id === notice.id
+      ) {
+        setDialog(null)
+        setToast(
+          t('live.deleted', { name: notice.actorName || t('live.someone') }),
+        )
+      }
+      dismissNotice(notice.token)
+    }
+  }, [dialog, dismissNotice, notices, t])
 
   useEffect(() => {
     if (!id) return
@@ -262,17 +298,48 @@ export function SchedulePage() {
   async function save(draft: PlanDraft) {
     if (!dialog) return
     setSaving(true)
+    const body = writeBody(draft)
     try {
-      const body = writeBody(draft)
       if (dialog.mode === 'create') await createPlanEntry(tripId, body)
-      else await updatePlanEntry(dialog.entry.id, body)
+      else await updatePlanEntry(dialog.entry.id, body, dialog.entry.updatedAt)
       await refresh()
+      setDialog(null)
+      setConflict(null)
+    } catch (error) {
+      if (error instanceof PlanConflictError && dialog.mode === 'edit') {
+        setConflict({
+          current: error.current,
+          updatedByName: error.updatedBy?.name ?? '',
+          body,
+        })
+        return
+      }
+      fail(error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function useMine() {
+    if (!conflict || dialog?.mode !== 'edit') return
+    setSaving(true)
+    try {
+      await updatePlanEntry(dialog.entry.id, conflict.body)
+      await refresh()
+      setConflict(null)
       setDialog(null)
     } catch (error) {
       fail(error)
     } finally {
       setSaving(false)
     }
+  }
+
+  function useTheirs() {
+    if (!conflict) return
+    setDialog({ mode: 'edit', entry: conflict.current })
+    setFormKey((value) => value + 1)
+    setConflict(null)
   }
 
   async function removeEntry() {
@@ -402,6 +469,7 @@ export function SchedulePage() {
       ) : null}
       {dialog ? (
         <EntryDialog
+          key={formKey}
           mode={dialog.mode}
           type={dialog.mode === 'create' ? dialog.type : dialog.entry.type}
           initial={
@@ -422,6 +490,17 @@ export function SchedulePage() {
                 }
               : undefined
           }
+        />
+      ) : null}
+      {conflict ? (
+        <ConflictDialog
+          name={conflict.updatedByName}
+          titleKey="live.conflictSaved"
+          rows={planConflictRows(t, conflict.body, conflict.current)}
+          onMine={() => {
+            void useMine()
+          }}
+          onTheirs={useTheirs}
         />
       ) : null}
       {toast ? (
@@ -489,6 +568,24 @@ function draftFromEntry(entry: PlanEntry): PlanDraft {
     endTime: entry.endTime,
     info: entry.info,
   }
+}
+
+function planConflictRows(
+  t: (key: string) => string,
+  mine: PlanWrite,
+  theirs: PlanEntry,
+): ConflictRow[] {
+  const pairs: Array<[string, string, string]> = [
+    [t('schedule.fieldTitle'), mine.title, theirs.title],
+    [t('schedule.startDate'), mine.startDate, theirs.startDate],
+    [t('schedule.endDate'), mine.endDate ?? '', theirs.endDate ?? ''],
+    [t('schedule.startTime'), mine.startTime ?? '', theirs.startTime ?? ''],
+    [t('schedule.endTime'), mine.endTime ?? '', theirs.endTime ?? ''],
+    [t('schedule.info'), mine.info ?? '', theirs.info ?? ''],
+  ]
+  return pairs
+    .filter(([, left, right]) => left !== right)
+    .map(([label, left, right]) => ({ label, mine: left, theirs: right }))
 }
 
 function writeBody(draft: PlanDraft): PlanWrite {

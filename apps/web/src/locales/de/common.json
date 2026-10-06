@@ -464,6 +464,7 @@
       "database": "Datenbank",
       "images": "Bilder",
       "events": "Ereignisse",
+      "streams": "{{count}} offene Live-Verbindungen",
       "charts": {
         "active": "Aktive Nutzer pro Tag",
         "activity": "Aktivität pro Tag",
@@ -575,6 +576,20 @@
       "title": "Aktivität (30 Tage)",
       "view": "Alles in Aktivität ansehen"
     }
+  },
+  "live": {
+    "changed": "{{name}} hat diesen Ort geändert",
+    "reload": "Deren Version laden",
+    "keep": "Weiter bearbeiten",
+    "deleted": "Gelöscht von {{name}}",
+    "someone": "Jemand",
+    "conflictTitle": "{{name}} hat diesen Ort zuerst gespeichert",
+    "conflictSaved": "{{name}} hat eine neuere Version gespeichert",
+    "useMine": "Meine Version",
+    "useTheirs": "Deren Version",
+    "mine": "Deine: {{value}}",
+    "theirs": "Deren: {{value}}",
+    "blank": "—"
   },
   "notFound": {
     "title": "Seite nicht gefunden",

@@ -15,6 +15,8 @@ import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
 import { deny, fieldErrors, parseBody } from '../http/validate.js'
+import { readExpected } from '../live/conflict.js'
+import { invalidExpected } from '../live/routes.js'
 import {
   addPlanSpot,
   createPlanEntry,
@@ -111,7 +113,15 @@ export function registerPlanRoutes(
       knownMessages,
     )
     if (!input) return
-    const result = await updatePlanEntry(pool, user.id, params.id, input)
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await updatePlanEntry(
+      pool,
+      user.id,
+      params.id,
+      input,
+      expected.at,
+    )
     if (!result.ok) return sendFailure(reply, result)
     return planEntryUpdateSchema.parse(result.entry)
   })
@@ -124,8 +134,10 @@ export function registerPlanRoutes(
     }
     const params = parseParams(request.params, reply)
     if (!params) return
-    const result = await deletePlanEntry(pool, user.id, params.id)
-    if (!result.ok) return deny(reply, result.status)
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await deletePlanEntry(pool, user.id, params.id, expected.at)
+    if (!result.ok) return sendFailure(reply, result)
     return reply.code(204).send()
   })
 
@@ -220,6 +232,13 @@ function sendFailure(reply: FastifyReply, result: PlanFailure) {
       error: 'invalid_request',
       ...(result.message ? { message: result.message } : {}),
       fields: result.fields,
+    })
+  }
+  if (result.status === 409) {
+    return reply.code(409).send({
+      error: 'conflict',
+      updatedBy: result.updatedBy,
+      current: result.current,
     })
   }
   return deny(reply, result.status)

@@ -8,6 +8,8 @@ import type { Pool } from 'pg'
 import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
+import { readExpected } from '../live/conflict.js'
+import { invalidExpected } from '../live/routes.js'
 import { requireTripRole } from './roles.js'
 import {
   createTrip,
@@ -90,16 +92,10 @@ export function registerTripRoutes(
     if (!params) return
     const input = parseBody(patchTripSchema, request.body, reply)
     if (!input) return
-    const result = await updateTrip(pool, user.id, params.id, input)
-    if (!result.ok) {
-      if (result.status === 400) {
-        return reply.code(400).send({
-          error: 'invalid_request',
-          fields: result.fields,
-        })
-      }
-      return deny(reply, result.status)
-    }
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await updateTrip(pool, user.id, params.id, input, expected.at)
+    if (!result.ok) return tripFailure(reply, result)
     return result.trip
   })
 
@@ -111,10 +107,37 @@ export function registerTripRoutes(
     }
     const params = parseParams(request.params, reply)
     if (!params) return
-    const result = await deleteTrip(pool, user.id, params.id)
-    if (!result.ok) return deny(reply, result.status)
+    const expected = readExpected(request)
+    if (!expected.ok) return invalidExpected(reply)
+    const result = await deleteTrip(pool, user.id, params.id, expected.at)
+    if (!result.ok) return tripFailure(reply, result)
     return reply.code(204).send()
   })
+}
+
+function tripFailure(
+  reply: FastifyReply,
+  result: {
+    status: 400 | 403 | 404 | 409
+    fields?: Record<string, string>
+    current?: unknown
+    updatedBy?: unknown
+  },
+) {
+  if (result.status === 400) {
+    return reply.code(400).send({
+      error: 'invalid_request',
+      fields: result.fields,
+    })
+  }
+  if (result.status === 409) {
+    return reply.code(409).send({
+      error: 'conflict',
+      updatedBy: result.updatedBy ?? null,
+      current: result.current,
+    })
+  }
+  return deny(reply, result.status)
 }
 
 function parseBody<T>(

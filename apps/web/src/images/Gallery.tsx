@@ -14,9 +14,11 @@ import { megabytes } from './format'
 export function Gallery({
   spotId,
   canEdit,
+  revision = 0,
 }: {
   spotId: string
   canEdit: boolean
+  revision?: number
 }) {
   const { t } = useTranslation()
   const inputId = useId()
@@ -46,7 +48,7 @@ export function Gallery({
         if (!controller.signal.aborted) setStatus('error')
       })
     return () => controller.abort()
-  }, [spotId])
+  }, [revision, spotId])
 
   useEffect(() => {
     if (!open) return

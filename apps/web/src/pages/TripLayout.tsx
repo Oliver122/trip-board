@@ -92,7 +92,8 @@ export function TripLayout() {
 }
 
 function TripWorkspace() {
-  const { trip, scene, handlersRef } = useTripData()
+  const { t } = useTranslation()
+  const { trip, scene, handlersRef, accessLost } = useTripData()
   const schedule = useMatch('/trips/:id/schedule')
   const settings = useMatch('/trips/:id/settings')
   const dark = useDark()
@@ -106,6 +107,14 @@ function TripWorkspace() {
   const scope = heldScope.current
   const land = mapLandColor(dark ? 'dark' : 'light')
   const frame = scene?.focus ?? null
+
+  if (accessLost) {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <ErrorState message={t('trips.notFound')} />
+      </div>
+    )
+  }
 
   return (
     <div

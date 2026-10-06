@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
 import { formatDate } from '../lib/format'
 import { activeLocale } from '../i18n'
-import { getMetrics, getStats } from './client'
+import { getMetrics, getOpenStreams, getStats } from './client'
 import { formatBytes, formatCount } from './format'
 import {
   AreaChart,
@@ -30,6 +30,7 @@ export function DashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null)
   const [error, setError] = useState(false)
+  const [streams, setStreams] = useState<number | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -51,6 +52,18 @@ export function DashboardPage() {
       })
     return () => controller.abort()
   }, [range])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void getOpenStreams(controller.signal)
+      .then((count) => {
+        if (!controller.signal.aborted) setStreams(count)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setStreams(null)
+      })
+    return () => controller.abort()
+  }, [])
 
   if (error) return <ErrorState />
   if (!stats || !metrics) return <LoadingState />
@@ -115,6 +128,11 @@ export function DashboardPage() {
       <p className="mb-4" data-testid="kpi-events">
         {t('admin.dashboard.events')} {formatCount(events, locale)}
       </p>
+      {streams != null ? (
+        <p className="mb-4" data-testid="open-streams">
+          {t('admin.dashboard.streams', { count: streams })}
+        </p>
+      ) : null}
       <div className="grid gap-4 xl:grid-cols-2">
         <InsightChart
           testId="chart-active"

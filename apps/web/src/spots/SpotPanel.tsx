@@ -18,6 +18,7 @@ import { searchAddress } from './client'
 import { CopyAddress } from './CopyAddress'
 import { Dialog } from './Dialog'
 import { Gallery } from '../images/Gallery'
+import { useTripData } from '../trips/trip-context'
 import { InPlans } from './InPlans'
 import { pinCategory, type Draft } from './model'
 
@@ -68,6 +69,7 @@ export function SpotPanel({
   onRemoveFromPlan: (entryId: string, linkId: string) => Promise<void>
 }) {
   const { t, i18n } = useTranslation()
+  const { imageRevision } = useTripData()
   const phone = useMediaQuery(phoneQuery)
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const titleId = useId()
@@ -376,7 +378,13 @@ export function SpotPanel({
               })}
             </p>
           ) : null}
-          {spot ? <Gallery spotId={spot.id} canEdit={!readOnly} /> : null}
+          {spot ? (
+            <Gallery
+              spotId={spot.id}
+              canEdit={!readOnly}
+              revision={imageRevision}
+            />
+          ) : null}
           {spot ? (
             <InPlans
               plans={plans}

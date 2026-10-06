@@ -14,6 +14,7 @@ import {
 } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
 import { activity } from '../activity/record.js'
+import { latestEditor, stampAgrees, type Editor } from '../live/conflict.js'
 import { withTransaction } from '../db/transaction.js'
 import { isCheckViolation } from '../http/validate.js'
 import { requireTripRole } from '../trips/roles.js'
@@ -75,6 +76,12 @@ const primaryRank = `CASE WHEN s.id = tr.primary_home_spot_id THEN 0 ELSE 1 END`
 export type SpotFailure =
   | { ok: false; status: 400; fields: Record<string, string> }
   | { ok: false; status: 403 | 404 }
+  | {
+      ok: false
+      status: 409
+      current: Spot
+      updatedBy: Editor | null
+    }
 
 const sortOrderSql: Record<SpotSort, string> = {
   scheduled: `(s.first_scheduled_at IS NULL), s.first_scheduled_at, array_position(ARRAY['must_go','maybe','home']::display_category[], s.display_category), ${primaryRank}, lower(s.title), s.id`,
@@ -210,6 +217,7 @@ export async function createSpot(
         trip: tripId,
         action: 'spot.create',
         entityId: id,
+        resource: category === 'home' ? 'home' : 'spot',
         metadata: { spot: title },
       })
       const spot = await getSpot(tx, id, userId)
@@ -229,11 +237,22 @@ export async function updateSpot(
   userId: string,
   spotId: string,
   patch: PatchSpotBody,
+  expectedUpdatedAt: string | null = null,
 ): Promise<{ ok: true; spot: Spot } | SpotFailure> {
   try {
     return await withTransaction(pool, async (tx) => {
       const current = await loadSpotForWrite(tx, spotId, userId)
       if (!current.ok) return current
+      const stamp = await stampAgrees(tx, 'spots', spotId, expectedUpdatedAt)
+      if (stamp === 'missing') return { ok: false, status: 404 }
+      if (stamp === 'conflict') {
+        return {
+          ok: false,
+          status: 409,
+          current: current.spot,
+          updatedBy: await latestEditor(tx, spotId),
+        }
+      }
       const title =
         patch.title !== undefined ? patch.title.trim() : current.spot.title
       const lat = patch.lat !== undefined ? patch.lat : current.spot.lat
@@ -302,6 +321,7 @@ export async function updateSpot(
         trip: current.spot.tripId,
         action: 'spot.update',
         entityId: spotId,
+        resource: category === 'home' ? 'home' : 'spot',
         metadata: { spot: title },
       })
       const spot = await getSpot(tx, spotId, userId)
@@ -320,15 +340,27 @@ export async function deleteSpot(
   pool: Pool,
   userId: string,
   spotId: string,
-): Promise<{ ok: true } | { ok: false; status: 403 | 404 }> {
+  expectedUpdatedAt: string | null = null,
+): Promise<{ ok: true } | SpotFailure> {
   return withTransaction(pool, async (tx) => {
     const current = await loadSpotForWrite(tx, spotId, userId)
     if (!current.ok) return current
+    const stamp = await stampAgrees(tx, 'spots', spotId, expectedUpdatedAt)
+    if (stamp === 'missing') return { ok: false, status: 404 }
+    if (stamp === 'conflict') {
+      return {
+        ok: false,
+        status: 409,
+        current: current.spot,
+        updatedBy: await latestEditor(tx, spotId),
+      }
+    }
     await activity.record(tx, {
       actor: userId,
       trip: current.spot.tripId,
       action: 'spot.delete',
       entityId: spotId,
+      resource: current.spot.baseCategory === 'home' ? 'home' : 'spot',
       metadata: { spot: current.spot.title },
     })
     await tx.query('DELETE FROM spots WHERE id = $1', [spotId])

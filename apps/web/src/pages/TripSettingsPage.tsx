@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { useSession } from '../session'
-import { ApiError, AuthError, updateTrip } from '../trips/client'
+import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
+import { ApiError, AuthError, ConflictError, updateTrip } from '../trips/client'
 import { DeleteTripDialog } from '../trips/DeleteTripDialog'
 import { fieldMessage } from '../trips/fields'
 import { dateRange, roleName } from '../trips/TripCard'
@@ -40,6 +41,21 @@ export function TripSettingsPage() {
   )
 }
 
+function tripConflictRows(
+  t: (key: string) => string,
+  mine: { name: string; startDate: string | null; endDate: string | null },
+  theirs: Trip,
+): ConflictRow[] {
+  const pairs: Array<[string, string, string]> = [
+    [t('trips.name'), mine.name, theirs.name],
+    [t('trips.startDate'), mine.startDate ?? '', theirs.startDate ?? ''],
+    [t('trips.endDate'), mine.endDate ?? '', theirs.endDate ?? ''],
+  ]
+  return pairs
+    .filter(([, left, right]) => left !== right)
+    .map(([label, left, right]) => ({ label, mine: left, theirs: right }))
+}
+
 function SettingsForm({
   trip,
   onUpdated,
@@ -60,27 +76,43 @@ function SettingsForm({
   const [fields, setFields] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [conflict, setConflict] = useState<{
+    current: Trip
+    updatedByName: string
+    body: { name: string; startDate: string | null; endDate: string | null }
+  } | null>(null)
   const canEdit = trip.role !== 'visitor'
 
   useEffect(() => {
     setName(trip.name)
     setStart(trip.startDate ?? '')
     setEnd(trip.endDate ?? '')
-  }, [trip])
+    // A live trip refresh must not wipe a settings form that is already open.
+  }, [trip.id])
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setSaving(true)
     setFields({})
     setFormError('')
+    const body = {
+      name,
+      startDate: start || null,
+      endDate: end || null,
+    }
     try {
-      const updated = await updateTrip(trip.id, {
-        name,
-        startDate: start || null,
-        endDate: end || null,
-      })
+      const updated = await updateTrip(trip.id, body, trip.updatedAt)
       onUpdated(updated)
+      setConflict(null)
     } catch (error) {
+      if (error instanceof ConflictError) {
+        setConflict({
+          current: error.current,
+          updatedByName: error.updatedBy?.name ?? '',
+          body,
+        })
+        return
+      }
       if (error instanceof AuthError) {
         onUnauthorized()
         return
@@ -93,6 +125,33 @@ function SettingsForm({
     } finally {
       setSaving(false)
     }
+  }
+
+  async function useMine() {
+    if (!conflict) return
+    setSaving(true)
+    try {
+      const updated = await updateTrip(trip.id, conflict.body)
+      onUpdated(updated)
+      setConflict(null)
+    } catch (error) {
+      if (error instanceof AuthError) {
+        onUnauthorized()
+        return
+      }
+      setFormError(t('trips.errors.save'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function useTheirs() {
+    if (!conflict) return
+    setName(conflict.current.name)
+    setStart(conflict.current.startDate ?? '')
+    setEnd(conflict.current.endDate ?? '')
+    onUpdated(conflict.current)
+    setConflict(null)
   }
 
   const nameError = fields.name ? fieldMessage(t, fields.name) : ''
@@ -166,6 +225,17 @@ function SettingsForm({
             {t('trips.save')}
           </Button>
         </form>
+      ) : null}
+      {conflict ? (
+        <ConflictDialog
+          name={conflict.updatedByName}
+          titleKey="live.conflictSaved"
+          rows={tripConflictRows(t, conflict.body, conflict.current)}
+          onMine={() => {
+            void useMine()
+          }}
+          onTheirs={useTheirs}
+        />
       ) : null}
       {trip.role === 'owner' ? (
         <div className="mt-8">

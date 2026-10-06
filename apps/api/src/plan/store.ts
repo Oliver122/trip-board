@@ -19,6 +19,7 @@ import {
 } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
 import { activity } from '../activity/record.js'
+import { latestEditor, stampAgrees, type Editor } from '../live/conflict.js'
 import { withTransaction } from '../db/transaction.js'
 import { isCheckViolation } from '../http/validate.js'
 import { requireTripRole } from '../trips/roles.js'
@@ -36,6 +37,7 @@ type EntryRow = {
   end_time: string | null
   info: string | null
   sort_order: number
+  updated_at: Date
   trip_start: string | null
   trip_end: string | null
   spots: unknown
@@ -61,6 +63,12 @@ export type PlanFailure =
       message?: string
     }
   | { ok: false; status: 403 | 404 }
+  | {
+      ok: false
+      status: 409
+      current: PlanEntry
+      updatedBy: Editor | null
+    }
 
 const entrySelect = `
 SELECT
@@ -74,6 +82,7 @@ SELECT
   to_char(pe.end_time, 'HH24:MI') AS end_time,
   pe.info,
   pe.sort_order,
+  pe.updated_at,
   t.start_date::text AS trip_start,
   t.end_date::text AS trip_end,
   COALESCE((
@@ -178,6 +187,7 @@ export async function updatePlanEntry(
   userId: string,
   entryId: string,
   patch: PatchPlanEntry,
+  expectedUpdatedAt: string | null = null,
 ): Promise<{ ok: true; entry: PlanEntryUpdate } | PlanFailure> {
   return write(() =>
     withTransaction(pool, async (tx) => {
@@ -185,6 +195,13 @@ export async function updatePlanEntry(
       if (!locked.ok) return locked
       const current = await loadCurrent(tx, entryId)
       if (!current) return { ok: false as const, status: 404 as const }
+      const disagreed = await disagree(
+        tx,
+        'plan_entries',
+        entryId,
+        expectedUpdatedAt,
+      )
+      if (disagreed) return disagreed
       const merged = mergeEntry(current, patch)
       if (!merged.ok) return merged
       let cleared = 0
@@ -255,10 +272,18 @@ export async function deletePlanEntry(
   pool: Pool,
   userId: string,
   entryId: string,
-): Promise<{ ok: true } | { ok: false; status: 403 | 404 }> {
+  expectedUpdatedAt: string | null = null,
+): Promise<{ ok: true } | PlanFailure> {
   return withTransaction(pool, async (tx) => {
     const locked = await lockEntry(tx, entryId, userId, 'planner')
     if (!locked.ok) return locked
+    const disagreed = await disagree(
+      tx,
+      'plan_entries',
+      entryId,
+      expectedUpdatedAt,
+    )
+    if (disagreed) return disagreed
     const current = await tx.query<{ title: string }>(
       'SELECT title FROM plan_entries WHERE id = $1',
       [entryId],
@@ -717,6 +742,7 @@ function rowToEntry(row: EntryRow): PlanEntry {
     endTime: row.end_time,
     info: row.info,
     sortOrder: row.sort_order,
+    updatedAt: row.updated_at.toISOString(),
     outsideTripDates: isOutsideTripDates(
       row.start_date,
       row.end_date,
@@ -751,6 +777,23 @@ function asHome(value: unknown): { spotId: string; title: string } | null {
 function asLinks(value: unknown): unknown[] {
   if (typeof value === 'string') return JSON.parse(value) as unknown[]
   return Array.isArray(value) ? value : []
+}
+
+async function disagree(
+  tx: PoolClient,
+  table: 'plan_entries',
+  id: string,
+  expected: string | null,
+): Promise<PlanFailure | null> {
+  const stamp = await stampAgrees(tx, table, id, expected)
+  if (stamp === 'ok') return null
+  if (stamp === 'missing') return { ok: false, status: 404 }
+  return {
+    ok: false,
+    status: 409,
+    current: await fetchEntry(tx, id),
+    updatedBy: await latestEditor(tx, id),
+  }
 }
 
 async function write<T>(run: () => Promise<T>): Promise<T | PlanFailure> {

@@ -13,7 +13,23 @@ import {
   type SpotDetail,
   type SpotListQuery,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 import { AuthError } from '../trips/client'
+
+export class ConflictError extends Error {
+  readonly current: Spot
+  readonly updatedBy: { id: string; name: string } | null
+
+  constructor(
+    current: Spot,
+    updatedBy: { id: string; name: string } | null,
+  ) {
+    super('conflict')
+    this.name = 'ConflictError'
+    this.current = current
+    this.updatedBy = updatedBy
+  }
+}
 
 export class SaveError extends Error {
   readonly status: number
@@ -60,12 +76,16 @@ export async function createSpot(
 export async function updateSpot(
   spotId: string,
   body: PatchSpotBody,
+  expectedUpdatedAt?: string,
 ): Promise<Spot> {
   const response = await send(`/api/spots/${spotId}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(
+      expectedUpdatedAt ? { ...body, expectedUpdatedAt } : body,
+    ),
   })
+  if (response.status === 409) throw await conflictError(response)
   if (!response.ok) throw await saveError(response)
   return spotSchema.parse(await response.json())
 }
@@ -112,6 +132,21 @@ export async function reverseAddress(
   return geocodePlaceSchema.parse(await response.json())
 }
 
+async function conflictError(response: Response): Promise<ConflictError> {
+  const body = (await response.json()) as {
+    current?: unknown
+    updatedBy?: { id?: unknown; name?: unknown } | null
+  }
+  const current = spotSchema.parse(body.current)
+  const updatedBy =
+    body.updatedBy &&
+    typeof body.updatedBy.id === 'string' &&
+    typeof body.updatedBy.name === 'string'
+      ? { id: body.updatedBy.id, name: body.updatedBy.name }
+      : null
+  return new ConflictError(current, updatedBy)
+}
+
 async function saveError(response: Response): Promise<SaveError> {
   let fields: Record<string, string> = {}
   try {
@@ -130,7 +165,10 @@ async function saveError(response: Response): Promise<SaveError> {
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, { ...init, credentials: 'include' })
+  const response = await fetch(path, {
+    ...writeInit(init),
+    credentials: 'include',
+  })
   if (response.status === 401) throw new AuthError()
   return response
 }

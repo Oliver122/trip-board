@@ -22,6 +22,7 @@ import {
   type QuotaRequest,
   type SettingsPatch,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 
 const MB = 1024 * 1024
 
@@ -216,6 +217,13 @@ export function activityExportPath(search: string): string {
   return `/api/admin/activity/export${search}`
 }
 
+export async function getOpenStreams(signal?: AbortSignal): Promise<number> {
+  const response = await send('/api/admin/streams', { signal })
+  if (!response.ok) throw new Error('load')
+  const body = (await response.json()) as { openStreams?: unknown }
+  return typeof body.openStreams === 'number' ? body.openStreams : 0
+}
+
 export async function getStorage(signal?: AbortSignal): Promise<AdminStorage> {
   const response = await send('/api/admin/storage', { signal })
   if (!response.ok) throw new Error('load')
@@ -223,9 +231,10 @@ export async function getStorage(signal?: AbortSignal): Promise<AdminStorage> {
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers)
-  if (init.body && !headers.has('content-type')) {
+  const next = writeInit(init)
+  const headers = new Headers(next.headers)
+  if (next.body && !headers.has('content-type')) {
     headers.set('content-type', 'application/json')
   }
-  return fetch(path, { ...init, headers, credentials: 'include' })
+  return fetch(path, { ...next, headers, credentials: 'include' })
 }

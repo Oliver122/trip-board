@@ -7,7 +7,23 @@ import {
   type PlanEntryUpdate,
   type PlanLink,
 } from '@tripboard/shared'
+import { writeInit } from '../api/write'
 import { AuthError } from '../trips/client'
+
+export class ConflictError extends Error {
+  readonly current: PlanEntry
+  readonly updatedBy: { id: string; name: string } | null
+
+  constructor(
+    current: PlanEntry,
+    updatedBy: { id: string; name: string } | null,
+  ) {
+    super('conflict')
+    this.name = 'ConflictError'
+    this.current = current
+    this.updatedBy = updatedBy
+  }
+}
 
 export type PlanWrite = {
   type?: 'bucket' | 'single'
@@ -45,12 +61,16 @@ export async function createPlanEntry(
 export async function updatePlanEntry(
   entryId: string,
   body: PlanWrite,
+  expectedUpdatedAt?: string,
 ): Promise<PlanEntryUpdate> {
   const response = await send(`/api/plan/${entryId}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(
+      expectedUpdatedAt ? { ...body, expectedUpdatedAt } : body,
+    ),
   })
+  if (response.status === 409) throw await conflictError(response)
   if (!response.ok) throw new Error('save')
   return planEntryUpdateSchema.parse(await response.json())
 }
@@ -101,8 +121,25 @@ export async function reorderPlanSpots(
   return planEntrySchema.parse(await response.json())
 }
 
+async function conflictError(response: Response): Promise<ConflictError> {
+  const body = (await response.json()) as {
+    current?: unknown
+    updatedBy?: { id?: unknown; name?: unknown } | null
+  }
+  const updatedBy =
+    body.updatedBy &&
+    typeof body.updatedBy.id === 'string' &&
+    typeof body.updatedBy.name === 'string'
+      ? { id: body.updatedBy.id, name: body.updatedBy.name }
+      : null
+  return new ConflictError(planEntrySchema.parse(body.current), updatedBy)
+}
+
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, { ...init, credentials: 'include' })
+  const response = await fetch(path, {
+    ...writeInit(init),
+    credentials: 'include',
+  })
   if (response.status === 401) throw new AuthError()
   return response
 }
