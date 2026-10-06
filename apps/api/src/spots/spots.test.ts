@@ -287,6 +287,23 @@ describe('spots', () => {
     expect(lat.json().fields.lat).toBe('invalid')
   })
 
+  it('T-18-02 stores a schemeless link as https on create and patch', async () => {
+    const owner = await login('100000000000000662')
+    const tripId = await createTrip(owner.cookie)
+    const created = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      link: 'hotel.jp',
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json().link).toBe('https://hotel.jp')
+
+    const patched = await patchSpot(owner.cookie, created.json().id, {
+      link: 'maps.google.com/xyz',
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json().link).toBe('https://maps.google.com/xyz')
+  })
+
   it('T-09-01 searches title, address, and info without treating % as a wildcard', async () => {
     const owner = await login('100000000000000691')
     const tripId = await createTrip(owner.cookie)

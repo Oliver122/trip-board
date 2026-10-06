@@ -13,7 +13,14 @@ import { maxBoundsFor, toMaxBoundsTuple, type LngLatBounds } from './bounds'
 import { clusterSpots, type MapSpot } from './clusters'
 import { Pin } from './Pin'
 import { mapStyle } from './style'
-import { formatViewportHash, parseViewportHash } from './viewport'
+import {
+  formatViewportHash,
+  initialViewport,
+  readStoredViewport,
+  writeStoredViewport,
+  type Viewport,
+  type ViewportScope,
+} from './viewport'
 
 setWorkerUrl(maplibreWorkerUrl)
 
@@ -35,6 +42,9 @@ export function TripMap({
   onViewport,
   highlightIds = [],
   focus = null,
+  viewportScope = 'board',
+  viewportStorageKey,
+  flyTo = null,
 }: {
   bbox: LngLatBounds
   spots: MapSpot[]
@@ -54,6 +64,9 @@ export function TripMap({
   onViewport?: (bounds: LngLatBounds) => void
   highlightIds?: string[]
   focus?: { key: string; bounds: LngLatBounds } | null
+  viewportScope?: ViewportScope
+  viewportStorageKey?: string
+  flyTo?: { token: string; lng: number; lat: number } | null
 }) {
   const { t, i18n } = useTranslation()
   const { theme } = useTheme()
@@ -72,16 +85,52 @@ export function TripMap({
     () => clusterSpots(spots, camera.bounds, camera.zoom),
     [spots, camera],
   )
-  const hash = parseViewportHash(window.location.hash)
+  const [initialView] = useState<Viewport | null>(() =>
+    initialViewport(
+      window.location.hash,
+      viewportScope,
+      viewportStorageKey ? readStoredViewport(viewportStorageKey) : null,
+    ),
+  )
   const focusRef = useRef(focus)
   focusRef.current = focus
+  const flyRef = useRef(flyTo)
+  flyRef.current = flyTo
+  const flown = useRef<string | null>(null)
+  const alive = useRef(true)
+
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current?.getMap()
     if (map) fitSelection(map, focus)
   }, [focus])
 
+  useEffect(() => {
+    const map = mapRef.current?.getMap()
+    if (map) flyToSpot(map)
+  }, [flyTo])
+
+  function flyToSpot(map: MaplibreMap) {
+    const target = flyRef.current
+    if (!target || flown.current === target.token) return
+    flown.current = target.token
+    map.easeTo({
+      center: [target.lng, target.lat],
+      zoom: Math.max(map.getZoom(), 12),
+    })
+  }
+
   function remember(map: MaplibreMap) {
+    if (!alive.current) return
+    const onSchedule = window.location.pathname.endsWith('/schedule')
+    if (viewportScope === 'schedule' && !onSchedule) return
+    if (viewportScope === 'board' && onSchedule) return
     const center = map.getCenter()
     const zoom = map.getZoom()
     const next = map.getBounds()
@@ -100,11 +149,11 @@ export function TripMap({
       maxLng: next.getEast(),
       maxLat: next.getNorth(),
     })
-    const nextHash = formatViewportHash({
-      lng: center.lng,
-      lat: center.lat,
-      zoom,
-    })
+    const view = { lng: center.lng, lat: center.lat, zoom }
+    if (viewportScope === 'board' && viewportStorageKey) {
+      writeStoredViewport(viewportStorageKey, view)
+    }
+    const nextHash = formatViewportHash(view, viewportScope)
     const url = `${window.location.pathname}${window.location.search}${nextHash}`
     if (window.location.hash !== nextHash) {
       window.history.replaceState(window.history.state, '', url)
@@ -125,8 +174,12 @@ export function TripMap({
         attributionControl={false}
         maxBounds={maxBounds}
         initialViewState={
-          hash
-            ? { longitude: hash.lng, latitude: hash.lat, zoom: hash.zoom }
+          initialView
+            ? {
+                longitude: initialView.lng,
+                latitude: initialView.lat,
+                zoom: initialView.zoom,
+              }
             : {
                 bounds: [
                   [bbox.minLng, bbox.minLat],
@@ -141,6 +194,7 @@ export function TripMap({
           ;(window as BoardWindow).__tripboardMap = map
           remember(map)
           fitSelection(map, focusRef.current)
+          flyToSpot(map)
         }}
         onMoveEnd={(event) => {
           remember(event.target)

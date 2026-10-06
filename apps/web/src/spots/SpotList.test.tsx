@@ -85,6 +85,7 @@ describe('SpotList empty states', () => {
   it('T-07-10 shows the viewport empty state when nothing is in view', () => {
     renderList([kyoto], {
       bounds: { minLng: 139, minLat: 35, maxLng: 140, maxLat: 36 },
+      query: { ...defaultSpotListQuery, visible: true },
     })
     expect(
       screen.getByText(

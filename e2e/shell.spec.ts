@@ -8,6 +8,8 @@ test('T-03-03 switching to German updates the header and survives reload', async
   await setLocale(page, 'en')
   await page.goto('/trips')
   await expect(page.getByTestId('trip-switcher')).toHaveText('Trip')
+  await page.getByRole('button', { name: 'Account menu' }).click()
+  await page.getByRole('menuitem', { name: 'Account & settings' }).click()
 
   const saved = page.waitForResponse(
     (response) =>

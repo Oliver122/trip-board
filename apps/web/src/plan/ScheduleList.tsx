@@ -1,6 +1,21 @@
 import type { PlanEntry, PlanLink, Spot } from '@tripboard/shared'
-import { ChevronDown, ChevronRight, GripVertical, Pencil } from 'lucide-react'
-import { useId, useRef, useState, type DragEvent, type FormEvent } from 'react'
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  GripVertical,
+  Pencil,
+  X,
+} from 'lucide-react'
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type FormEvent,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
@@ -23,6 +38,8 @@ export function ScheduleList({
   onAddSpot,
   onRemoveSpot,
   onReorder,
+  onCreateSpot,
+  createdSpot,
 }: {
   entries: PlanEntry[]
   spots: Spot[]
@@ -41,6 +58,8 @@ export function ScheduleList({
   ) => Promise<void>
   onRemoveSpot: (entryId: string, linkId: string) => Promise<void>
   onReorder: (entryId: string, linkIds: string[]) => Promise<void>
+  onCreateSpot: (entryId: string, query: string) => void
+  createdSpot: { entryId: string; spotId: string } | null
 }) {
   const { t, i18n } = useTranslation()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
@@ -140,16 +159,37 @@ export function ScheduleList({
                 onAddSpot={onAddSpot}
                 onRemoveSpot={onRemoveSpot}
                 onReorder={onReorder}
+                onCreateSpot={onCreateSpot}
+                createdSpotId={
+                  createdSpot?.entryId === entry.id ? createdSpot.spotId : null
+                }
               />
             ) : null}
-            {open && entry.type === 'single' && entry.spots.length > 0 ? (
-              <ul className="m-0 list-none pb-2 pl-14 pr-3">
-                {entry.spots.map((link) => (
-                  <li key={link.id} className="py-1 text-sm">
-                    <VisitLabel link={link} locale={locale} />
-                  </li>
-                ))}
-              </ul>
+            {open && entry.type === 'single' ? (
+              <div className="pb-3 pl-14 pr-3">
+                {entry.spots.length > 0 ? (
+                  <ul className="m-0 list-none pb-2">
+                    {entry.spots.map((link) => (
+                      <li key={link.id} className="py-1 text-sm">
+                        <VisitLabel link={link} locale={locale} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {canEdit ? (
+                  <SpotAdder
+                    entry={entry}
+                    spots={spots}
+                    createdSpotId={
+                      createdSpot?.entryId === entry.id
+                        ? createdSpot.spotId
+                        : null
+                    }
+                    onAdd={onAddSpot}
+                    onCreate={onCreateSpot}
+                  />
+                ) : null}
+              </div>
             ) : null}
           </li>
         )
@@ -167,6 +207,8 @@ function BucketSpots({
   onAddSpot,
   onRemoveSpot,
   onReorder,
+  onCreateSpot,
+  createdSpotId,
 }: {
   entry: PlanEntry
   spots: Spot[]
@@ -184,155 +226,291 @@ function BucketSpots({
   ) => Promise<void>
   onRemoveSpot: (entryId: string, linkId: string) => Promise<void>
   onReorder: (entryId: string, linkIds: string[]) => Promise<void>
+  onCreateSpot: (entryId: string, query: string) => void
+  createdSpotId: string | null
 }) {
   const { t } = useTranslation()
-  const [adding, setAdding] = useState(false)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const rowRefs = useRef(new Map<string, HTMLLIElement>())
+  const beforeTops = useRef<Map<string, number> | null>(null)
+  const focusTarget = useRef<{ id: string; which: 'up' | 'down' } | null>(null)
+  const order = entry.spots.map((link) => link.id).join('\n')
+
+  useLayoutEffect(() => {
+    const before = beforeTops.current
+    beforeTops.current = null
+    if (before) flipRows(before, rowRefs.current)
+    const pending = focusTarget.current
+    focusTarget.current = null
+    if (!pending) return
+    document
+      .querySelector<HTMLButtonElement>(
+        `[data-testid="move-${pending.which}-${pending.id}"]`,
+      )
+      ?.focus()
+  }, [order])
+
+  useLayoutEffect(() => {
+    if (!highlightId) return
+    const timer = window.setTimeout(() => setHighlightId(null), 1000)
+    return () => window.clearTimeout(timer)
+  }, [highlightId])
+
+  function rememberRows() {
+    const next = new Map<string, number>()
+    for (const [id, element] of rowRefs.current) {
+      next.set(id, element.getBoundingClientRect().top)
+    }
+    beforeTops.current = next
+  }
 
   function move(index: number, delta: number) {
-    const ids = entry.spots.map((link) => link.id)
+    const links = entry.spots
+    const link = links[index]
     const target = index + delta
-    const id = ids[index]
-    if (!id || target < 0 || target >= ids.length) return
+    if (!link || target < 0 || target >= links.length) return
+    const ids = links.map((item) => item.id)
     ids.splice(index, 1)
-    ids.splice(target, 0, id)
+    ids.splice(target, 0, link.id)
+    rememberRows()
+    focusTarget.current = { id: link.id, which: delta < 0 ? 'up' : 'down' }
+    setHighlightId(link.id)
+    setAnnouncement(
+      t('schedule.moved', {
+        spot: link.title,
+        position: target + 1,
+        total: ids.length,
+      }),
+    )
     void onReorder(entry.id, ids)
   }
 
   function drop(targetId: string) {
     const sourceId = dragRef.current
     dragRef.current = null
+    setDraggingId(null)
+    setOverId(null)
     if (!sourceId || sourceId === targetId) return
-    const ids = entry.spots.map((link) => link.id)
+    const links = entry.spots
+    const ids = links.map((link) => link.id)
     const from = ids.indexOf(sourceId)
     const to = ids.indexOf(targetId)
     if (from < 0 || to < 0) return
+    const moved = links[from]
     ids.splice(from, 1)
     ids.splice(to, 0, sourceId)
+    rememberRows()
+    if (moved) {
+      setHighlightId(moved.id)
+      setAnnouncement(
+        t('schedule.moved', {
+          spot: moved.title,
+          position: to + 1,
+          total: ids.length,
+        }),
+      )
+    }
     void onReorder(entry.id, ids)
   }
 
   return (
     <div className="pb-3 pl-4 pr-3">
+      <p className="sr-only" aria-live="polite" data-testid="reorder-live">
+        {announcement}
+      </p>
       <ul className="m-0 list-none p-0">
-        {entry.spots.map((link, index) => (
-          <li
-            key={link.id}
-            data-testid={`visit-${link.id}`}
-            className="flex items-center gap-1 border-t border-border py-1"
-            onDragOver={(event) => {
-              if (!canEdit) return
-              event.preventDefault()
-            }}
-            onDrop={() => {
-              if (canEdit) drop(link.id)
-            }}
-          >
-            {canEdit ? (
-              <button
-                type="button"
-                draggable
-                data-testid={`drag-${link.id}`}
-                aria-label={t('schedule.drag', { spot: link.title })}
-                className="inline-flex size-11 shrink-0 cursor-grab items-center justify-center rounded-[8px]"
-                onDragStart={(event) => startDrag(event, link.id, dragRef)}
-                onDragEnd={() => {
-                  dragRef.current = null
-                }}
-              >
-                <GripVertical aria-hidden="true" className="size-4" />
-              </button>
-            ) : null}
-            <div className="min-w-0 flex-1">
-              <span
-                data-testid={`visit-title-${link.id}`}
-                className="block font-medium"
-              >
-                {link.title}
-              </span>
-              <span className="block text-sm text-muted">
-                <VisitLabel link={link} locale={locale} />
-              </span>
-              {link.info ? (
-                <span className="block text-sm">{link.info}</span>
+        {entry.spots.map((link, index) => {
+          const upLabel = t('schedule.moveUp', { spot: link.title })
+          const downLabel = t('schedule.moveDown', { spot: link.title })
+          const removeLabel = t('schedule.removeVisit', {
+            spot: link.title,
+            entry: entry.title,
+          })
+          return (
+            <li
+              key={link.id}
+              ref={(node) => {
+                if (node) rowRefs.current.set(link.id, node)
+                else rowRefs.current.delete(link.id)
+              }}
+              data-testid={`visit-${link.id}`}
+              data-highlighted={highlightId === link.id ? 'true' : 'false'}
+              className={cn(
+                'border-t border-border py-1',
+                highlightId === link.id && 'bg-accent/15',
+                draggingId === link.id && 'opacity-40',
+              )}
+              onDragOver={(event) => {
+                if (!canEdit) return
+                event.preventDefault()
+                setOverId(link.id)
+              }}
+              onDrop={() => {
+                if (canEdit) drop(link.id)
+              }}
+            >
+              {overId === link.id && draggingId && draggingId !== link.id ? (
+                <div
+                  data-testid="drop-indicator"
+                  className="mb-1 h-0.5 bg-foreground"
+                  aria-hidden="true"
+                />
               ) : null}
-            </div>
-            {canEdit ? (
-              <div className="flex shrink-0">
-                {index > 0 ? (
+              <div className="flex items-center gap-1">
+                {canEdit ? (
                   <button
                     type="button"
-                    data-testid={`move-up-${link.id}`}
-                    aria-label={t('schedule.moveUp', { spot: link.title })}
-                    className="inline-flex size-11 items-center justify-center rounded-[8px]"
-                    onClick={() => move(index, -1)}
+                    draggable
+                    data-testid={`drag-${link.id}`}
+                    aria-label={t('schedule.drag', { spot: link.title })}
+                    className="inline-flex size-11 shrink-0 cursor-grab items-center justify-center rounded-[8px]"
+                    onDragStart={(event) => {
+                      setDraggingId(link.id)
+                      startDrag(event, link.id, dragRef)
+                    }}
+                    onDragEnd={() => {
+                      dragRef.current = null
+                      setDraggingId(null)
+                      setOverId(null)
+                    }}
                   >
-                    {t('schedule.up')}
+                    <GripVertical aria-hidden="true" className="size-4" />
                   </button>
                 ) : null}
-                {index < entry.spots.length - 1 ? (
-                  <button
-                    type="button"
-                    data-testid={`move-down-${link.id}`}
-                    aria-label={t('schedule.moveDown', { spot: link.title })}
-                    className="inline-flex size-11 items-center justify-center rounded-[8px]"
-                    onClick={() => move(index, 1)}
+                <div className="min-w-0 flex-1">
+                  <span
+                    data-testid={`visit-title-${link.id}`}
+                    className="block font-medium"
                   >
-                    {t('schedule.down')}
-                  </button>
+                    {link.title}
+                  </span>
+                  <span className="block text-sm text-muted">
+                    <VisitLabel link={link} locale={locale} />
+                  </span>
+                  {link.info ? (
+                    <span className="block text-sm">{link.info}</span>
+                  ) : null}
+                </div>
+                {canEdit ? (
+                  <div className="flex shrink-0">
+                    <button
+                      type="button"
+                      data-testid={`move-up-${link.id}`}
+                      aria-label={upLabel}
+                      title={upLabel}
+                      disabled={index === 0}
+                      className="inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40"
+                      onClick={() => move(index, -1)}
+                    >
+                      <ChevronUp aria-hidden="true" className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`move-down-${link.id}`}
+                      aria-label={downLabel}
+                      title={downLabel}
+                      disabled={index === entry.spots.length - 1}
+                      className="inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40"
+                      onClick={() => move(index, 1)}
+                    >
+                      <ChevronDown aria-hidden="true" className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`remove-visit-${link.id}`}
+                      aria-label={removeLabel}
+                      title={removeLabel}
+                      className="inline-flex size-11 items-center justify-center rounded-[8px]"
+                      onClick={() => {
+                        void onRemoveSpot(entry.id, link.id)
+                      }}
+                    >
+                      <X aria-hidden="true" className="size-4" />
+                    </button>
+                  </div>
                 ) : null}
-                <button
-                  type="button"
-                  data-testid={`remove-visit-${link.id}`}
-                  aria-label={t('schedule.removeVisit', {
-                    spot: link.title,
-                    entry: entry.title,
-                  })}
-                  className="inline-flex size-11 items-center justify-center rounded-[8px]"
-                  onClick={() => {
-                    void onRemoveSpot(entry.id, link.id)
-                  }}
-                >
-                  {t('schedule.remove')}
-                </button>
               </div>
-            ) : null}
-          </li>
-        ))}
+            </li>
+          )
+        })}
       </ul>
       {canEdit ? (
-        adding ? (
-          <AddSpotForm
-            entry={entry}
-            spots={spots}
-            onCancel={() => setAdding(false)}
-            onAdd={async (body) => {
-              await onAddSpot(entry.id, body)
-              setAdding(false)
-            }}
-          />
-        ) : (
-          <Button
-            variant="outline"
-            className="mt-2"
-            data-testid={`add-spot-${entry.id}`}
-            onClick={() => setAdding(true)}
-          >
-            {t('schedule.addSpot')}
-          </Button>
-        )
+        <SpotAdder
+          entry={entry}
+          spots={spots}
+          createdSpotId={createdSpotId}
+          onAdd={onAddSpot}
+          onCreate={onCreateSpot}
+        />
       ) : null}
     </div>
+  )
+}
+
+function SpotAdder({
+  entry,
+  spots,
+  createdSpotId,
+  onAdd,
+  onCreate,
+}: {
+  entry: PlanEntry
+  spots: Spot[]
+  createdSpotId: string | null
+  onAdd: (
+    entryId: string,
+    body: {
+      spotId: string
+      visitDate: string | null
+      visitTime: string | null
+      info: string | null
+    },
+  ) => Promise<void>
+  onCreate: (entryId: string, query: string) => void
+}) {
+  const { t } = useTranslation()
+  const [adding, setAdding] = useState(false)
+  if (!adding) {
+    return (
+      <Button
+        variant="outline"
+        className="mt-2"
+        data-testid={`add-spot-${entry.id}`}
+        onClick={() => setAdding(true)}
+      >
+        {t('schedule.addSpot')}
+      </Button>
+    )
+  }
+  return (
+    <AddSpotForm
+      entry={entry}
+      spots={spots}
+      createdSpotId={createdSpotId}
+      onCreate={(query) => onCreate(entry.id, query)}
+      onCancel={() => setAdding(false)}
+      onAdd={async (body) => {
+        await onAdd(entry.id, body)
+        setAdding(false)
+      }}
+    />
   )
 }
 
 function AddSpotForm({
   entry,
   spots,
+  createdSpotId,
   onCancel,
   onAdd,
+  onCreate,
 }: {
   entry: PlanEntry
   spots: Spot[]
+  createdSpotId: string | null
   onCancel: () => void
   onAdd: (body: {
     spotId: string
@@ -340,18 +518,23 @@ function AddSpotForm({
     visitTime: string | null
     info: string | null
   }) => Promise<void>
+  onCreate: (query: string) => void
 }) {
   const { t } = useTranslation()
   const searchId = useId()
   const timeId = useId()
   const infoId = useId()
   const [query, setQuery] = useState('')
-  const [spotId, setSpotId] = useState<string | null>(null)
+  const [spotId, setSpotId] = useState<string | null>(createdSpotId)
   const [visitDate, setVisitDate] = useState<string | null>(null)
   const [visitTime, setVisitTime] = useState('')
   const [info, setInfo] = useState('')
   const [saving, setSaving] = useState(false)
   const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    if (createdSpotId) setSpotId(createdSpotId)
+  }, [createdSpotId])
+
   const trimmed = query.trim().toLowerCase()
   const matches = spots.filter((spot) =>
     trimmed.length === 0
@@ -410,6 +593,16 @@ function AddSpotForm({
             {spot.title}
           </button>
         ))}
+        <button
+          type="button"
+          role="option"
+          aria-selected={false}
+          data-testid="create-spot"
+          className="min-h-11 w-full rounded-[8px] px-3 text-left"
+          onClick={() => onCreate(query)}
+        >
+          {t('schedule.createSpot', { title: query.trim() })}
+        </button>
       </div>
       {spots.length === 0 ? (
         <p className="text-sm text-muted">{t('schedule.noSpots')}</p>
@@ -488,12 +681,27 @@ function entryRange(
   return t('schedule.dateTime', { date: range, time: entry.startTime })
 }
 
+function flipRows(before: Map<string, number>, rows: Map<string, HTMLElement>) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  for (const [id, element] of rows) {
+    const previous = before.get(id)
+    if (previous == null) continue
+    const delta = previous - element.getBoundingClientRect().top
+    if (Math.abs(delta) < 1) continue
+    element.animate(
+      [{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }],
+      { duration: 180, easing: 'ease-out' },
+    )
+  }
+}
+
 function startDrag(
   event: DragEvent<HTMLButtonElement>,
   linkId: string,
   dragRef: { current: string | null },
 ) {
   dragRef.current = linkId
+  if (!event.dataTransfer) return
   event.dataTransfer.setData('text/plain', linkId)
   event.dataTransfer.effectAllowed = 'move'
 }

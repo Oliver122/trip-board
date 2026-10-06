@@ -1,16 +1,18 @@
 import {
   defaultSpotListQuery,
   normalizePlanDraft,
+  normalizeSpotLink,
   type PlanDraft,
   type PlanEntry,
   type PlanEntryType,
   type Spot,
 } from '@tripboard/shared'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { Button } from '../components/ui/button'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
+import { activeLocale } from '../i18n'
 import { boundsForPoints } from '../map/bounds'
 import { MapView } from '../map/MapView'
 import { parseTrip, type TripMapData } from '../map/trip'
@@ -26,16 +28,32 @@ import {
   type PlanWrite,
 } from '../plan/client'
 import { ScheduleList } from '../plan/ScheduleList'
-import { pinCategory } from '../spots/model'
-import { listSpots } from '../spots/client'
+import {
+  draftsEqual,
+  emptyDraft as emptySpotDraft,
+  pinCategory,
+  type Draft,
+} from '../spots/model'
+import { SpotPanel } from '../spots/SpotPanel'
+import {
+  createSpot,
+  listSpots,
+  reverseAddress,
+  SaveError,
+} from '../spots/client'
 import { useSession } from '../session'
 import { AuthError, getTrip } from '../trips/client'
 
 type DialogState =
   { mode: 'create'; type: PlanEntryType } | { mode: 'edit'; entry: PlanEntry }
 
+type SpotPanelState = {
+  draft: Draft
+  baseline: Draft
+}
+
 export function SchedulePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { reload } = useSession()
   const { id } = useParams()
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -47,6 +65,16 @@ export function SchedulePage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
   const [attempt, setAttempt] = useState(0)
+  const [spotPanel, setSpotPanel] = useState<SpotPanelState | null>(null)
+  const [spotSaving, setSpotSaving] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [spotError, setSpotError] = useState<string | null>(null)
+  const [createdSpot, setCreatedSpot] = useState<{
+    entryId: string
+    spotId: string
+  } | null>(null)
+  const creatingFor = useRef<string | null>(null)
+  const lang = activeLocale(i18n.resolvedLanguage ?? i18n.language)
 
   useEffect(() => {
     if (!toast) return
@@ -122,6 +150,74 @@ export function SchedulePage() {
 
   const tripId = id
   const canEdit = trip.role !== 'visitor'
+
+  function changeSpotDraft(draft: Draft) {
+    setLinkError(null)
+    setSpotError(null)
+    setSpotPanel((current) => (current ? { ...current, draft } : current))
+  }
+
+  async function place(lng: number, lat: number) {
+    setSpotPanel((current) =>
+      current ? { ...current, draft: { ...current.draft, lng, lat } } : current,
+    )
+    const placeResult = await reverseAddress(lat, lng, lang)
+    if (!placeResult) return
+    setSpotPanel((current) => {
+      if (!current) return current
+      if (current.draft.lng !== lng || current.draft.lat !== lat) return current
+      return {
+        ...current,
+        draft: { ...current.draft, address: placeResult.label, lng, lat },
+      }
+    })
+  }
+
+  async function saveSpot() {
+    if (!spotPanel) return
+    const lat = spotPanel.draft.lat
+    const lng = spotPanel.draft.lng
+    if (lat == null || lng == null) return
+    const normalized = normalizeSpotLink(spotPanel.draft.link)
+    if ('error' in normalized) {
+      setLinkError(normalized.error)
+      setSpotError(null)
+      return
+    }
+    const draft = spotPanel.draft
+    const entryId = creatingFor.current
+    setSpotSaving(true)
+    setLinkError(null)
+    setSpotError(null)
+    try {
+      const saved = await createSpot(tripId, {
+        title: draft.title.trim(),
+        lat,
+        lng,
+        baseCategory: draft.baseCategory,
+        address: blank(draft.address),
+        info: blank(draft.info),
+        link: normalized.link,
+        stayFrom: draft.baseCategory === 'home' ? blank(draft.stayFrom) : null,
+        stayTo: draft.baseCategory === 'home' ? blank(draft.stayTo) : null,
+        primary: draft.baseCategory === 'home' && draft.primary,
+      })
+      setSpots((current) => [...current, saved])
+      if (entryId) setCreatedSpot({ entryId, spotId: saved.id })
+      setSpotPanel(null)
+    } catch (error) {
+      if (error instanceof AuthError) {
+        reload()
+        return
+      }
+      if (error instanceof SaveError && error.fields.link) {
+        setLinkError(error.fields.link)
+      }
+      setSpotError(t('board.saveError'))
+    } finally {
+      setSpotSaving(false)
+    }
+  }
   const mapSpots = spots.map((spot) => ({
     id: spot.id,
     title: spot.title,
@@ -234,6 +330,14 @@ export function SchedulePage() {
                 fail(error)
               }
             }}
+            onCreateSpot={(entryId, query) => {
+              creatingFor.current = entryId
+              const draft = { ...emptySpotDraft, title: query.trim() }
+              setLinkError(null)
+              setSpotError(null)
+              setSpotPanel({ draft, baseline: draft })
+            }}
+            createdSpot={createdSpot}
             onReorder={async (entryId, linkIds) => {
               const previous = entries
               setEntries((current) =>
@@ -261,8 +365,56 @@ export function SchedulePage() {
           focus={focus}
           onSelect={() => undefined}
           onHover={() => undefined}
+          placing={spotPanel != null}
+          viewportScope="schedule"
+          draft={
+            spotPanel &&
+            spotPanel.draft.lat != null &&
+            spotPanel.draft.lng != null
+              ? {
+                  lng: spotPanel.draft.lng,
+                  lat: spotPanel.draft.lat,
+                  category: pinCategory(spotPanel.draft.baseCategory),
+                }
+              : null
+          }
+          onPlace={(lng, lat) => {
+            void place(lng, lat)
+          }}
+          onDraftMove={(lng, lat) => {
+            void place(lng, lat)
+          }}
         />
       </div>
+      {spotPanel ? (
+        <SpotPanel
+          mode="add"
+          draft={spotPanel.draft}
+          tripId={tripId}
+          lang={lang}
+          saving={spotSaving}
+          linkError={linkError}
+          formError={spotError}
+          spot={null}
+          spots={spots}
+          plans={[]}
+          entries={entries}
+          onDraft={changeSpotDraft}
+          onClose={() => {
+            if (!spotPanel) return
+            if (!draftsEqual(spotPanel.draft, spotPanel.baseline)) {
+              if (!window.confirm(t('board.discard'))) return
+            }
+            setSpotPanel(null)
+          }}
+          onSubmit={() => {
+            void saveSpot()
+          }}
+          onDelete={() => undefined}
+          onAddToPlan={async () => undefined}
+          onRemoveFromPlan={async () => undefined}
+        />
+      ) : null}
       {dialog ? (
         <EntryDialog
           mode={dialog.mode}
@@ -298,6 +450,11 @@ export function SchedulePage() {
       ) : null}
     </main>
   )
+}
+
+function blank(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed.length === 0 ? null : trimmed
 }
 
 function emptyDraft(type: PlanEntryType): PlanDraft {

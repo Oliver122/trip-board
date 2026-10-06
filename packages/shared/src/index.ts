@@ -78,6 +78,7 @@ export {
   entryFallsInStay,
   expandTripBBox,
   homeStayErrors,
+  normalizeSpotLink,
   patchSpotSchema,
   spotCategories,
   spotCategorySchema,

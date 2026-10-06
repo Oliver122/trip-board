@@ -36,7 +36,7 @@ export const defaultSpotListQuery: SpotListQuery = {
   by: null,
   entry: null,
   sort: 'scheduled',
-  visible: true,
+  visible: false,
 }
 
 const displayCategorySet = new Set<string>(displayCategories)
@@ -76,6 +76,7 @@ export function spotSearchPattern(query: string): string | null {
 
 export function parseSpotListQuery(
   search: string | URLSearchParams,
+  listFollowsMap = false,
 ): SpotListQuery {
   const params =
     typeof search === 'string' ? new URLSearchParams(search) : search
@@ -91,6 +92,9 @@ export function parseSpotListQuery(
   const entry = z.string().uuid().safeParse(params.get('entry'))
   const sort = spotSortSchema.safeParse(params.get('sort'))
   const visibleRaw = params.get('visible')
+  let visible = listFollowsMap
+  if (visibleRaw === '0' || visibleRaw === 'false') visible = false
+  else if (visibleRaw === '1' || visibleRaw === 'true') visible = true
   return {
     q: params.get('q') ?? '',
     cat,
@@ -98,11 +102,14 @@ export function parseSpotListQuery(
     by: by.success ? by.data : null,
     entry: entry.success ? entry.data : null,
     sort: sort.success ? sort.data : 'scheduled',
-    visible: visibleRaw === '0' || visibleRaw === 'false' ? false : true,
+    visible,
   }
 }
 
-export function spotListSearchParams(query: SpotListQuery): URLSearchParams {
+export function spotListSearchParams(
+  query: SpotListQuery,
+  listFollowsMap = false,
+): URLSearchParams {
   const params = new URLSearchParams()
   if (query.q.length > 0) params.set('q', query.q)
   if (query.cat.length > 0) params.set('cat', query.cat.join(','))
@@ -110,7 +117,9 @@ export function spotListSearchParams(query: SpotListQuery): URLSearchParams {
   if (query.by) params.set('by', query.by)
   if (query.entry) params.set('entry', query.entry)
   if (query.sort !== 'scheduled') params.set('sort', query.sort)
-  if (!query.visible) params.set('visible', '0')
+  if (query.visible !== listFollowsMap) {
+    params.set('visible', query.visible ? '1' : '0')
+  }
   return params
 }
 

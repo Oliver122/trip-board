@@ -15,6 +15,18 @@ import {
 } from '@tripboard/shared'
 import { AuthError } from '../trips/client'
 
+export class SaveError extends Error {
+  readonly status: number
+  readonly fields: Record<string, string>
+
+  constructor(status: number, fields: Record<string, string>) {
+    super('save')
+    this.name = 'SaveError'
+    this.status = status
+    this.fields = fields
+  }
+}
+
 export async function listSpots(
   tripId: string,
   query: SpotListQuery,
@@ -41,7 +53,7 @@ export async function createSpot(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw new Error('save')
+  if (!response.ok) throw await saveError(response)
   return spotSchema.parse(await response.json())
 }
 
@@ -54,7 +66,7 @@ export async function updateSpot(
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw new Error('save')
+  if (!response.ok) throw await saveError(response)
   return spotSchema.parse(await response.json())
 }
 
@@ -98,6 +110,23 @@ export async function reverseAddress(
   const response = await send(`/api/geocode/reverse?${params}`, { signal })
   if (!response.ok) return null
   return geocodePlaceSchema.parse(await response.json())
+}
+
+async function saveError(response: Response): Promise<SaveError> {
+  let fields: Record<string, string> = {}
+  try {
+    const body = (await response.json()) as { fields?: unknown }
+    if (body.fields && typeof body.fields === 'object') {
+      fields = Object.fromEntries(
+        Object.entries(body.fields).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      )
+    }
+  } catch {
+    /* empty body */
+  }
+  return new SaveError(response.status, fields)
 }
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {

@@ -2,6 +2,7 @@ import { joinPreviewSchema, type JoinPreview } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
+import { LanguageSwitch } from '../components/Preferences'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button, buttonVariants } from '../components/ui/button'
 import { cn } from '../lib/utils'
@@ -73,6 +74,9 @@ export function JoinPage() {
   return (
     <main className="grid flex-1 place-items-center bg-background px-4 py-8">
       <section className="w-full max-w-md rounded-card border border-border bg-card p-6 text-foreground shadow-panel">
+        <div className="mb-4">
+          <LanguageSwitch />
+        </div>
         {state === 'loading' ? <LoadingState /> : null}
         {state === 'error' ? (
           <ErrorState

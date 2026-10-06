@@ -148,6 +148,8 @@
     "info": "Info",
     "infoPlaceholder": "e.g. opens at 12",
     "link": "Link",
+    "linkInvalid": "Enter a web address, like hotel.jp",
+    "linkTooLong": "That link is too long.",
     "createdBy": "Added by {{name}} · {{time}}",
     "panelAdd": "New spot",
     "panelEdit": "Edit spot",
@@ -230,6 +232,8 @@
     "loadError": "Could not load the schedule.",
     "saveError": "Could not save the schedule.",
     "noSpots": "No spots in this trip yet.",
+    "createSpot": "Create new spot '{{title}}'",
+    "moved": "{{spot}} moved to position {{position}} of {{total}}",
     "outsideTrip": "Outside the trip dates",
     "home": "⌂ {{title}}",
     "errors": {
@@ -285,7 +289,9 @@
     "joinError": "Could not join the trip."
   },
   "account": {
-    "title": "Account",
+    "title": "Account & settings",
+    "settings": "Settings",
+    "listFollowsMap": "List follows map",
     "signedIn": "Signed in as {{name}}",
     "storage": "Storage",
     "quota": "{{used}}/{{max}} · {{usedMb}} MB of {{maxMb}} MB",

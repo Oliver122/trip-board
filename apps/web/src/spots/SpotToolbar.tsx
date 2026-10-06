@@ -10,6 +10,7 @@ import { ArrowUpDown, Download, ListFilter, Search, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
+import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { ExportDialog } from './ExportDialog'
@@ -38,6 +39,7 @@ export function SpotToolbar({
   onQuery: (query: SpotListQuery) => void
 }) {
   const { t } = useTranslation()
+  const { enabled: listFollowsMap } = useListFollowsMap()
   const phone = useMediaQuery(phoneQuery)
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<Panel | null>(null)
@@ -69,7 +71,7 @@ export function SpotToolbar({
 
   function reset() {
     setOpen(null)
-    onQuery(defaultSpotListQuery)
+    onQuery({ ...defaultSpotListQuery, visible: listFollowsMap })
   }
 
   return (

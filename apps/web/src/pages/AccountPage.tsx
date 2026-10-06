@@ -7,6 +7,7 @@ import {
   listMyQuotaRequests,
 } from '../admin/client'
 import { LanguageSwitch, ThemeSwitch } from '../components/Preferences'
+import { useListFollowsMap } from '../list-follows-map'
 import { Button } from '../components/ui/button'
 import { getQuota } from '../images/client'
 import { megabytes } from '../images/format'
@@ -16,7 +17,10 @@ import { useSession } from '../session'
 export function AccountPage() {
   const { t } = useTranslation()
   const { user } = useSession()
+  const { enabled: listFollowsMap, setEnabled: setListFollowsMap } =
+    useListFollowsMap()
   const storageId = useId()
+  const settingsId = useId()
   const [quota, setQuota] = useState<Quota | null>(null)
   const [requests, setRequests] = useState<QuotaRequest[]>([])
   const [requestOpen, setRequestOpen] = useState(false)
@@ -92,10 +96,28 @@ export function AccountPage() {
           }}
         />
       ) : null}
-      <div className="flex flex-wrap gap-3">
-        <LanguageSwitch />
-        <ThemeSwitch />
-      </div>
+      <section aria-labelledby={settingsId} className="space-y-4">
+        <h2 id={settingsId} className="text-base font-semibold">
+          {t('account.settings')}
+        </h2>
+        <div>
+          <p className="mb-2 text-sm font-semibold">{t('header.language')}</p>
+          <LanguageSwitch />
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-semibold">{t('header.theme')}</p>
+          <ThemeSwitch />
+        </div>
+        <label className="flex min-h-11 items-center gap-2">
+          <input
+            type="checkbox"
+            data-testid="list-follows-map"
+            checked={listFollowsMap}
+            onChange={(event) => setListFollowsMap(event.target.checked)}
+          />
+          {t('account.listFollowsMap')}
+        </label>
+      </section>
     </main>
   )
 }

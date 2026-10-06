@@ -1,4 +1,5 @@
 import {
+  normalizeSpotLink,
   parseSpotListQuery,
   spotListSearchParams,
   type PlanEntry,
@@ -14,6 +15,7 @@ import { useParams, useSearchParams } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
+import { useListFollowsMap } from '../list-follows-map'
 import type { LngLatBounds } from '../map/bounds'
 import { MapView } from '../map/MapView'
 import { parseTrip, type TripMapData } from '../map/trip'
@@ -26,8 +28,10 @@ import {
   getSpot,
   listSpots,
   reverseAddress,
+  SaveError,
   updateSpot,
 } from '../spots/client'
+import { viewportStorageKey } from '../map/viewport'
 import {
   draftFromSpot,
   draftsEqual,
@@ -51,15 +55,21 @@ type Panel = {
 export function BoardPage() {
   const { t, i18n } = useTranslation()
   const { reload } = useSession()
+  const { enabled: listFollowsMap } = useListFollowsMap()
   const { id } = useParams()
   const [params, setParams] = useSearchParams()
   const paramKey = params.toString()
-  const urlQuery = useMemo(() => parseSpotListQuery(paramKey), [paramKey])
+  const urlQuery = useMemo(
+    () => parseSpotListQuery(paramKey, listFollowsMap),
+    [listFollowsMap, paramKey],
+  )
   const [query, setQuery] = useState(urlQuery)
   const queryRef = useRef(query)
   queryRef.current = query
   const setParamsRef = useRef(setParams)
   setParamsRef.current = setParams
+  const followsRef = useRef(listFollowsMap)
+  followsRef.current = listFollowsMap
   const tRef = useRef(t)
   tRef.current = t
   const lang = activeLocale(i18n.resolvedLanguage ?? i18n.language)
@@ -77,6 +87,13 @@ export function BoardPage() {
   const [entries, setEntries] = useState<PlanEntry[]>([])
   const detailEpoch = useRef(0)
   const [saving, setSaving] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [flyTo, setFlyTo] = useState<{
+    token: string
+    lng: number
+    lat: number
+  } | null>(null)
   const [toast, setToast] = useState('')
   const [attempt, setAttempt] = useState(0)
 
@@ -101,7 +118,9 @@ export function BoardPage() {
       if (trimmed === current.q) return
       const next = { ...current, q: trimmed }
       setQuery(next)
-      setParamsRef.current(spotListSearchParams(next), { replace: true })
+      setParamsRef.current(spotListSearchParams(next, followsRef.current), {
+        replace: true,
+      })
     }, searchDebounceMs)
     return () => window.clearTimeout(timer)
   }, [searchDraft])
@@ -202,7 +221,7 @@ export function BoardPage() {
   function updateQuery(next: SpotListQuery) {
     setQuery(next)
     setSearchDraft(next.q)
-    setParams(spotListSearchParams(next), { replace: true })
+    setParams(spotListSearchParams(next, listFollowsMap), { replace: true })
   }
 
   const canEdit = trip.role !== 'visitor'
@@ -226,6 +245,8 @@ export function BoardPage() {
 
   function openAdd() {
     setSelectedId(null)
+    setLinkError(null)
+    setFormError(null)
     setPanel({
       mode: 'add',
       draft: emptyDraft,
@@ -240,6 +261,9 @@ export function BoardPage() {
     if (!spot) return
     const draft = draftFromSpot(spot)
     setSelectedId(spotId)
+    setLinkError(null)
+    setFormError(null)
+    setFlyTo({ token: `${spotId}-${Date.now()}`, lng: spot.lng, lat: spot.lat })
     setPanel({
       mode: canEdit ? 'edit' : 'view',
       draft,
@@ -281,6 +305,8 @@ export function BoardPage() {
   }
 
   function changeDraft(draft: Draft) {
+    setLinkError(null)
+    setFormError(null)
     setPanel((current) => (current ? { ...current, draft } : current))
   }
 
@@ -307,6 +333,12 @@ export function BoardPage() {
     const lat = panel.draft.lat
     const lng = panel.draft.lng
     if (lat == null || lng == null) return
+    const normalized = normalizeSpotLink(panel.draft.link)
+    if ('error' in normalized) {
+      setLinkError(normalized.error)
+      setFormError(null)
+      return
+    }
     const draft = panel.draft
     const body = {
       title: draft.title.trim(),
@@ -315,26 +347,29 @@ export function BoardPage() {
       baseCategory: draft.baseCategory,
       address: blank(draft.address),
       info: blank(draft.info),
-      link: blank(draft.link),
+      link: normalized.link,
       stayFrom: draft.baseCategory === 'home' ? blank(draft.stayFrom) : null,
       stayTo: draft.baseCategory === 'home' ? blank(draft.stayTo) : null,
       primary: draft.baseCategory === 'home' && draft.primary,
     }
     const snapshot = spots
+    const mode = panel.mode
+    const existing = panel.spot
     setSaving(true)
-    setPanel(null)
+    setLinkError(null)
+    setFormError(null)
     try {
-      if (panel.mode === 'add') {
+      if (mode === 'add') {
         const tempId = temporaryId()
         setSpots((current) => [
           ...current,
-          optimistic(tripId, tempId, draft, panel.spot),
+          optimistic(tripId, tempId, draft, existing, normalized.link),
         ])
         const saved = await createSpot(tripId, body)
         setSpots((current) => placeSaved(current, saved, tempId))
         setSelectedId(saved.id)
-      } else if (panel.spot) {
-        const spotId = panel.spot.id
+      } else if (existing) {
+        const spotId = existing.id
         setSpots((current) =>
           current.map((spot) => {
             if (spot.id === spotId) {
@@ -347,12 +382,17 @@ export function BoardPage() {
         const saved = await updateSpot(spotId, body)
         setSpots((current) => placeSaved(current, saved, spotId))
       }
+      setPanel(null)
     } catch (error) {
       if (error instanceof AuthError) {
         reload()
         return
       }
       setSpots(snapshot)
+      if (error instanceof SaveError && error.fields.link) {
+        setLinkError(error.fields.link)
+      }
+      setFormError(t('board.saveError'))
       setToast(t('board.saveError'))
       return
     } finally {
@@ -420,6 +460,9 @@ export function BoardPage() {
             void place(lng, lat)
           }}
           onViewport={setBounds}
+          viewportScope="board"
+          viewportStorageKey={viewportStorageKey('board', tripId)}
+          flyTo={flyTo}
         />
         {canEdit ? (
           <Button
@@ -455,6 +498,8 @@ export function BoardPage() {
           tripId={tripId}
           lang={lang}
           saving={saving}
+          linkError={linkError}
+          formError={formError}
           spot={panel.spot}
           spots={spots}
           plans={panel.plans}
@@ -541,6 +586,7 @@ function optimistic(
   id: string,
   draft: Draft,
   previous: Spot | null,
+  link: string | null,
 ): Spot {
   const now = new Date().toISOString()
   return {
@@ -558,7 +604,7 @@ function optimistic(
     stayTo: draft.baseCategory === 'home' ? blank(draft.stayTo) : null,
     primary: draft.baseCategory === 'home' && draft.primary,
     info: blank(draft.info),
-    link: blank(draft.link),
+    link,
     createdBy: previous?.createdBy ?? null,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,

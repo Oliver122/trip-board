@@ -148,6 +148,8 @@
     "info": "Info",
     "infoPlaceholder": "z. B. öffnet um 12",
     "link": "Link",
+    "linkInvalid": "Gib eine Webadresse ein, zum Beispiel hotel.jp",
+    "linkTooLong": "Dieser Link ist zu lang.",
     "createdBy": "Hinzugefügt von {{name}} · {{time}}",
     "panelAdd": "Neuer Ort",
     "panelEdit": "Ort bearbeiten",
@@ -230,6 +232,8 @@
     "loadError": "Der Zeitplan konnte nicht geladen werden.",
     "saveError": "Der Zeitplan konnte nicht gespeichert werden.",
     "noSpots": "In dieser Reise gibt es noch keine Orte.",
+    "createSpot": "Neuen Ort „{{title}}“ anlegen",
+    "moved": "{{spot}} auf Position {{position}} von {{total}} verschoben",
     "outsideTrip": "Außerhalb der Reisedaten",
     "home": "⌂ {{title}}",
     "errors": {
@@ -285,7 +289,9 @@
     "joinError": "Der Reise konnte nicht beigetreten werden."
   },
   "account": {
-    "title": "Konto",
+    "title": "Konto & Einstellungen",
+    "settings": "Einstellungen",
+    "listFollowsMap": "Liste folgt der Karte",
     "signedIn": "Angemeldet als {{name}}",
     "storage": "Speicher",
     "quota": "{{used}}/{{max}} · {{usedMb}} MB von {{maxMb}} MB",

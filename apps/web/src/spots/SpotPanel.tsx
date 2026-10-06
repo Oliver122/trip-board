@@ -1,4 +1,5 @@
 import {
+  normalizeSpotLink,
   staysOverlap,
   type GeocodeLang,
   type GeocodePlace,
@@ -31,6 +32,8 @@ export function SpotPanel({
   tripId,
   lang,
   saving,
+  linkError = null,
+  formError = null,
   spot,
   spots,
   plans,
@@ -47,6 +50,8 @@ export function SpotPanel({
   tripId: string
   lang: GeocodeLang
   saving: boolean
+  linkError?: string | null
+  formError?: string | null
   spot: Spot | null
   spots: Spot[]
   plans: SpotPlan[]
@@ -80,6 +85,8 @@ export function SpotPanel({
   const skipSearch = useRef(false)
   const ready =
     draft.title.trim().length > 0 && draft.lat != null && draft.lng != null
+  const normalizedLink = normalizeSpotLink(draft.link)
+  const linkHref = 'link' in normalizedLink ? normalizedLink.link : null
 
   useEffect(() => {
     if (readOnly || !addressFocused) return
@@ -334,11 +341,32 @@ export function SpotPanel({
             id={linkId}
             value={draft.link}
             readOnly={readOnly}
+            aria-invalid={linkError ? true : undefined}
+            aria-describedby={linkError ? `${linkId}-error` : undefined}
             onChange={(event) =>
               onDraft({ ...draft, link: event.target.value })
             }
             className={inputClass}
           />
+          {linkError ? (
+            <p id={`${linkId}-error`} role="alert" data-testid="link-error">
+              {t(
+                linkError === 'too_long'
+                  ? 'board.linkTooLong'
+                  : 'board.linkInvalid',
+              )}
+            </p>
+          ) : null}
+          {linkHref ? (
+            <a
+              href={linkHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="spot-link"
+            >
+              {linkHref}
+            </a>
+          ) : null}
 
           {spot?.createdBy ? (
             <p className="text-sm text-muted">
@@ -361,41 +389,51 @@ export function SpotPanel({
         </div>
 
         {readOnly ? null : (
-          <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
-            {confirming ? (
-              <>
-                <p>{t('board.confirmDelete')}</p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setConfirming(false)}
-                  >
-                    {t('board.cancel')}
-                  </Button>
-                  <Button onClick={onDelete} disabled={saving}>
-                    {t('board.deleteSpot')}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                {mode === 'edit' ? (
-                  <Button variant="outline" onClick={() => setConfirming(true)}>
-                    {t('board.delete')}
-                  </Button>
-                ) : (
-                  <span />
-                )}
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={onClose}>
-                    {t('board.cancel')}
-                  </Button>
-                  <Button type="submit" disabled={!ready || saving}>
-                    {mode === 'add' ? t('board.add') : t('board.save')}
-                  </Button>
-                </div>
-              </>
-            )}
+          <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
+            {formError ? (
+              <p role="alert" data-testid="form-error">
+                {formError}
+              </p>
+            ) : null}
+            <div className="flex items-center justify-between gap-2">
+              {confirming ? (
+                <>
+                  <p>{t('board.confirmDelete')}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirming(false)}
+                    >
+                      {t('board.cancel')}
+                    </Button>
+                    <Button onClick={onDelete} disabled={saving}>
+                      {t('board.deleteSpot')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {mode === 'edit' ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirming(true)}
+                    >
+                      {t('board.delete')}
+                    </Button>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={onClose}>
+                      {t('board.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={!ready || saving}>
+                      {mode === 'add' ? t('board.add') : t('board.save')}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </form>
