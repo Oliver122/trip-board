@@ -78,9 +78,13 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     }
   })
 
-  const hub = new TripHub(config.DATABASE_URL, (message) => {
-    app.log.info(message)
-  }, now)
+  const hub = new TripHub(
+    config.DATABASE_URL,
+    (message) => {
+      app.log.info(message)
+    },
+    now,
+  )
   await hub.start()
   app.decorate('tripHub', hub)
   app.addHook('onClose', async () => {
