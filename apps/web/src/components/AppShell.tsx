@@ -6,7 +6,6 @@ import { onMembersRefresh } from '../live/bus'
 import { MembersDialog } from '../members/MembersDialog'
 import { cn } from '../lib/utils'
 import { activeLocale } from '../i18n'
-import { useSession } from '../session'
 import { getTrip } from '../trips/client'
 import {
   MAX_VISIBLE_MEMBERS,
@@ -18,7 +17,6 @@ import { hoverClass } from './ui/hover'
 
 export function AppShell() {
   const { t, i18n } = useTranslation()
-  const { user } = useSession()
   const schedule = useMatch('/trips/:id/schedule')
   const settings = useMatch('/trips/:id/settings')
   const board = useMatch('/trips/:id')
