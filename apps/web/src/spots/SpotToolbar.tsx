@@ -53,7 +53,9 @@ export function SpotToolbar({
   useEffect(() => {
     if (!open) return
     const onPointer = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(null)
+      const target = event.target
+      if (!(target instanceof Node) || !target.isConnected) return
+      if (!rootRef.current?.contains(target)) setOpen(null)
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(null)

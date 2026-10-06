@@ -15,7 +15,7 @@ export const hoverClass = {
   card: `${pointer} ${motion} hover:border-foreground/40 hover:shadow-lift`,
   cluster: `${pointer} ${motion} hover:scale-105`,
   avatar: `avatar-lift ${pointer} ${motion} hover:z-10 hover:-translate-y-0.5`,
-  link: `${pointer} ${motion} hover:underline`,
+  link: `${pointer} ${motion} text-foreground hover:underline`,
   grab: `cursor-grab ${motion} text-muted hover:bg-hover hover:text-foreground active:cursor-grabbing active:bg-hover`,
   pin: pointer,
 } as const

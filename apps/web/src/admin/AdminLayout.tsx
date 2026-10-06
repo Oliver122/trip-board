@@ -136,7 +136,10 @@ function AdminLayout() {
                 </NavLink>
               ))}
             </nav>
-            <main className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-8">
+            <main
+              tabIndex={0}
+              className="min-h-0 flex-1 overflow-auto px-4 py-6 md:px-8"
+            >
               {warning && level ? (
                 <Link
                   to="/admin/storage"

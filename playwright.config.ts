@@ -29,6 +29,13 @@ export default defineConfig({
         ...devices['Desktop Firefox'],
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
+        launchOptions: {
+          firefoxUserPrefs: {
+            'webgl.force-enabled': true,
+            'webgl.disabled': false,
+            'layers.acceleration.force-enabled': true,
+          },
+        },
       },
       grepInvert: /@chromium/,
     },

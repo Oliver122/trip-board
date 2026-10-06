@@ -53,6 +53,20 @@ jobs:
       - run: pnpm db:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=tripboard \
+            -e MINIO_ROOT_PASSWORD=tripboard-secret \
+            cgr.dev/chainguard/minio:latest server /data --console-address :9001
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:9000/minio/health/live; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "MinIO did not become healthy." >&2
+          exit 1
       - run: pnpm test
 
   build:
@@ -162,7 +176,7 @@ jobs:
           path: blob-report
           merge-multiple: true
       - run: pnpm exec playwright merge-reports --reporter html blob-report
-      - run: pnpm exec playwright merge-reports -c scripts/merge-json.config.mjs blob-report
+      - run: pnpm exec playwright merge-reports --reporter json blob-report > e2e-report.json
       - name: Write the job summary
         env:
           REPORT_PATH: e2e-report.json

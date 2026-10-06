@@ -1,7 +1,9 @@
 import { appendFileSync, readFileSync } from 'node:fs'
 
 const reportPath = process.env.REPORT_PATH || 'e2e-report.json'
-const report = JSON.parse(readFileSync(reportPath, 'utf8'))
+const raw = readFileSync(reportPath, 'utf8')
+const start = raw.indexOf('{')
+const report = JSON.parse(start === -1 ? raw : raw.slice(start))
 const tests = []
 walk(report.suites ?? [], [], tests)
 

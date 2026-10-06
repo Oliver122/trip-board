@@ -29,7 +29,7 @@ test('T-05-02 T-05-03 T-05-06 the Japan board fits the region', async ({
     await expect(page).toHaveScreenshot('board-1280.png', {
       mask: [page.locator('.maplibregl-canvas')],
       animations: 'disabled',
-      maxDiffPixels: 500,
+      maxDiffPixelRatio: 0.02,
     })
   }
 

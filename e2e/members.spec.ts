@@ -1,12 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
-test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
-
 test('T-13-11 a logged-out visitor joins from a copied invite and sees a read-only board', async ({
   page,
   browser,
+  browserName,
 }) => {
+  test.skip(
+    browserName === 'webkit',
+    'WebKit does not support the clipboard-write permission',
+  )
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
   await login(page, freshDiscordId())
   const tripId = await createJapan(page)
   await page.setViewportSize({ width: 1280, height: 800 })
