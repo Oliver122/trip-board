@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { activeLocale } from '../i18n'
 import type { AppLocale } from '../lib/locale'
+import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 import { dateAllowed, daysInMonth, monthsCovering } from './dates'
 
@@ -40,8 +41,9 @@ export function VisitDatePicker({
                   disabled={!allowed}
                   className={cn(
                     'inline-flex size-11 items-center justify-center rounded-[8px] border border-border text-sm',
+                    allowed && hoverClass.item,
                     value === day && 'bg-accent text-accent-foreground',
-                    !allowed && 'text-muted',
+                    !allowed && 'cursor-not-allowed text-muted',
                   )}
                   onClick={() => onChange(day)}
                 >

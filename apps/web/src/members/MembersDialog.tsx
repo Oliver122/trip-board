@@ -8,6 +8,7 @@ import { Copy, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { onMembersRefresh } from '../live/bus'
@@ -154,6 +155,7 @@ export function MembersDialog({
           title={t('members.leaveTitle')}
           body={t('members.leaveBody')}
           confirmLabel={t('members.leaveConfirm')}
+          danger
           busy={busy}
           onCancel={() => setConfirm(null)}
           onConfirm={() => {
@@ -167,11 +169,7 @@ export function MembersDialog({
       ) : null}
       {status === 'ready' && !confirm ? (
         <div className="space-y-4">
-          {error ? (
-            <p role="alert" className="text-danger">
-              {error}
-            </p>
-          ) : null}
+          {error ? <ErrorNotice>{error}</ErrorNotice> : null}
           <ul className="space-y-2" aria-label={t('members.title')}>
             {members.map((member) => (
               <li
@@ -216,7 +214,7 @@ export function MembersDialog({
                       </option>
                     </select>
                     <Button
-                      variant="ghost"
+                      variant="danger"
                       aria-label={t('members.remove', { name: member.name })}
                       disabled={busy}
                       onClick={() => {
@@ -316,7 +314,7 @@ export function MembersDialog({
                               : t('invite.copy')}
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="danger"
                             aria-label={t('invite.revoke')}
                             disabled={busy}
                             onClick={() => {
@@ -351,7 +349,7 @@ export function MembersDialog({
             </section>
           ) : (
             <Button
-              variant="outline"
+              variant="danger"
               disabled={busy}
               onClick={() => setConfirm({ kind: 'leave' })}
             >
@@ -394,7 +392,7 @@ function TransferForm({
         ))}
       </select>
       <Button
-        variant="ghost"
+        variant="outline"
         disabled={busy || !userId}
         onClick={() => {
           const member = members.find((item) => item.userId === userId)
@@ -412,6 +410,7 @@ function Confirm({
   body,
   confirmLabel,
   busy,
+  danger = false,
   onCancel,
   onConfirm,
 }: {
@@ -419,6 +418,7 @@ function Confirm({
   body: string
   confirmLabel: string
   busy: boolean
+  danger?: boolean
   onCancel: () => void
   onConfirm: () => void
 }) {
@@ -431,7 +431,11 @@ function Confirm({
         <Button variant="outline" disabled={busy} onClick={onCancel}>
           {t('members.cancel')}
         </Button>
-        <Button disabled={busy} onClick={onConfirm}>
+        <Button
+          variant={danger ? 'dangerSolid' : 'default'}
+          disabled={busy}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
       </div>

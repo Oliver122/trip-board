@@ -1,6 +1,6 @@
 # Requirements — iterative build plan
 
-The site is built in **20 small steps**. Each step ships something that works, can be checked on its own, and is finished only when its **Definition of Done (DoD)** passes. Each DoD is a list of test requirements.
+The site is built in **22 small steps**. Each step ships something that works, can be checked on its own, and is finished only when its **Definition of Done (DoD)** passes. Each DoD is a list of test requirements.
 
 Sources: [`docs/PROJECT_SCOPE.md`](../docs/PROJECT_SCOPE.md) (what), [`docs/DESIGN.md`](../docs/DESIGN.md) (how it looks), [`docs/database/DATABASE.md`](../docs/database/DATABASE.md) (data), [`docs/STITCH_DESIGN_GUIDE.md`](../docs/STITCH_DESIGN_GUIDE.md) (visual prompt).
 
@@ -37,6 +37,8 @@ flowchart LR
     S16 --> S17[17 Admin: dashboard, activity, storage]
     S15 --> S18[18 Quality of life]
     S18 --> S19[19 Live collaboration]
+    S19 --> S20[20 User interaction polish]
+    S15 --> S21[21 CI/CD]
 ```
 
 | # | Step | Result you can check |
@@ -61,6 +63,8 @@ flowchart LR
 | 17 | [Admin: dashboard, activity, storage](./17-admin-insights.md) | Graphs, “who is doing what” feed, database & storage usage with warnings |
 | 18 | [Quality of life](./18-quality-of-life.md) | Forgiving links, list independent of zoom, icon reorder with feedback, language in settings, new spot from schedule |
 | 19 | [Live collaboration](./19-live-collaboration.md) | Two people on one trip see each other’s changes without reload; conflicts are detected |
+| 20 | [User interaction polish](./20-user-interaction-polish.md) | Every button reacts on hover, errors are red, header shows member avatars instead of placeholders |
+| 21 | [CI/CD](./21-ci-cd.md) | Pull requests run e2e on Chromium, Firefox and WebKit with a downloadable report; merge needs a green `ci-passed`; each merge to `main` deploys |
 
 Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any order. Step 16 can come before 15.
 
@@ -81,6 +85,7 @@ Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any or
 | `db` | `psql` / Vitest | migrated database |
 | `e2e` | Playwright (Chromium; WebKit from step 15) | full stack with seeded data |
 | `a11y` | `@axe-core/playwright` | rendered pages |
+| `ci` | GitHub Actions run | a throwaway pull request or a merge to `main` |
 | `manual` | person + checklist | only where automation is not worth it (e.g. real Discord login) |
 
 **Test doubles**

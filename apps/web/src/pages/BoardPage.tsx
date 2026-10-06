@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router'
+import { Toast, type ToastMessage } from '../components/Toast'
 import { ErrorState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
@@ -111,7 +112,10 @@ export function BoardPage() {
     lng: number
     lat: number
   } | null>(null)
-  const [toast, setToast] = useState('')
+  const [toast, setToastState] = useState<ToastMessage | null>(null)
+  const setToast = (message: string, kind: ToastMessage['kind'] = 'error') => {
+    setToastState(message ? { message, kind } : null)
+  }
   const [banner, setBanner] = useState<LiveNotice | null>(null)
   const [conflict, setConflict] = useState<{
     current: Spot
@@ -124,12 +128,6 @@ export function BoardPage() {
   useLayoutEffect(() => {
     setOverlay(document.getElementById('trip-map-overlay'))
   }, [])
-
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(''), 4000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
 
   useEffect(() => {
     if (liveError === seenLiveError.current) return
@@ -152,6 +150,7 @@ export function BoardPage() {
         setBanner(null)
         setToast(
           t('live.deleted', { name: notice.actorName || t('live.someone') }),
+          'info',
         )
       } else if (!draftsEqual(panel.draft, panel.baseline)) {
         setBanner(notice)
@@ -679,15 +678,7 @@ export function BoardPage() {
           onTheirs={useTheirs}
         />
       ) : null}
-      {toast ? (
-        <p
-          role="alert"
-          data-testid="toast"
-          className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-card bg-foreground px-4 py-3 text-background shadow-panel"
-        >
-          {toast}
-        </p>
-      ) : null}
+      {toast ? <Toast toast={toast} onClose={() => setToast('')} /> : null}
     </>
   )
 }

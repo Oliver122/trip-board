@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 
 export type ChartColumn = { key: string; label: string }
 
@@ -33,7 +35,10 @@ export function InsightChart({
         </h2>
         <button
           type="button"
-          className="inline-flex min-h-11 items-center rounded-[8px] border border-border px-3"
+          className={cn(
+            hoverClass.secondary,
+            'inline-flex min-h-11 items-center rounded-[8px] px-3',
+          )}
           aria-pressed={table}
           onClick={() => setTable((value) => !value)}
         >

@@ -2,15 +2,15 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { ThemeSwitch } from './Preferences'
+import { cn } from '../lib/utils'
 import { useSession } from '../session'
+import { ThemeSwitch } from './Preferences'
+import { hoverClass } from './ui/hover'
 
 export function Header({
-  tripSwitcher,
   tabs,
   members,
 }: {
-  tripSwitcher?: ReactNode
   tabs?: ReactNode
   members?: ReactNode
 }) {
@@ -21,12 +21,14 @@ export function Header({
     <header className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-background px-4 py-2 md:px-8">
       <Link
         to="/trips"
-        className="inline-flex min-h-11 items-center gap-2 font-semibold"
+        className={cn(
+          hoverClass.link,
+          'inline-flex min-h-11 items-center gap-2 font-semibold',
+        )}
       >
         <MapPin aria-hidden="true" className="size-4" />
         {t('appName')}
       </Link>
-      <div data-slot="trip-switcher">{tripSwitcher}</div>
       <div data-slot="tabs">{tabs}</div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <div data-slot="members">{members}</div>
@@ -76,7 +78,10 @@ function AvatarMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('header.account')}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full px-1"
+        className={cn(
+          hoverClass.ghost,
+          'inline-flex min-h-11 items-center gap-2 rounded-full px-1',
+        )}
         onClick={() => setOpen((value) => !value)}
       >
         {user.avatarUrl ? (
@@ -105,7 +110,10 @@ function AvatarMenu() {
           <Link
             to="/account"
             role="menuitem"
-            className="flex min-h-11 items-center rounded-[8px] px-3"
+            className={cn(
+              hoverClass.item,
+              'flex min-h-11 items-center rounded-[8px] px-3',
+            )}
             onClick={() => setOpen(false)}
           >
             {t('account.title')}
@@ -114,7 +122,10 @@ function AvatarMenu() {
             <Link
               to="/admin"
               role="menuitem"
-              className="flex min-h-11 items-center rounded-[8px] px-3"
+              className={cn(
+                hoverClass.item,
+                'flex min-h-11 items-center rounded-[8px] px-3',
+              )}
               onClick={() => setOpen(false)}
             >
               {t('header.admin')}
@@ -123,7 +134,10 @@ function AvatarMenu() {
           <button
             type="button"
             role="menuitem"
-            className="flex min-h-11 w-full items-center rounded-[8px] px-3 text-left"
+            className={cn(
+              hoverClass.item,
+              'flex min-h-11 w-full items-center rounded-[8px] px-3 text-left',
+            )}
             onClick={() => {
               void logout()
             }}

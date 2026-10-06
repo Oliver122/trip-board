@@ -15,8 +15,17 @@
   --border: #e4e4e7;
   --accent: #18181b;
   --accent-foreground: #fafafa;
-  --danger: #9f1239;
+  --accent-hover: color-mix(in srgb, var(--accent) 82%, white);
+  --accent-pressed: color-mix(in srgb, var(--accent) 68%, white);
+  --hover: #f4f4f5;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-solid: #b91c1c;
+  --danger-solid-hover: color-mix(in srgb, var(--danger-solid) 88%, black);
+  --danger-solid-pressed: color-mix(in srgb, var(--danger-solid) 75%, black);
   --panel-shadow: 0 12px 32px rgb(24 24 27 / 0.08);
+  --shadow-lift: 0 16px 40px rgb(24 24 27 / 0.16);
   --cat-must-go: #e5484d;
   --cat-maybe: #30a46c;
   --cat-planned: #3e63dd;
@@ -32,8 +41,15 @@
   --border: #27272a;
   --accent: #fafafa;
   --accent-foreground: #18181b;
-  --danger: #fda4af;
+  --accent-hover: color-mix(in srgb, var(--accent) 82%, black);
+  --accent-pressed: color-mix(in srgb, var(--accent) 68%, black);
+  --hover: #27272a;
+  --danger: #f87171;
+  --danger-soft: rgb(248 113 113 / 0.12);
+  --danger-border: #7f1d1d;
+  --danger-solid: #dc2626;
   --panel-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  --shadow-lift: 0 16px 40px rgb(0 0 0 / 0.55);
   --cat-must-go: #f2555a;
   --cat-maybe: #3dd68c;
   --cat-planned: #5b7fff;
@@ -48,7 +64,15 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-hover: var(--hover);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-danger-solid: var(--danger-solid);
+  --color-danger-solid-hover: var(--danger-solid-hover);
+  --color-danger-solid-pressed: var(--danger-solid-pressed);
   --color-cat-must-go: var(--cat-must-go);
   --color-cat-maybe: var(--cat-maybe);
   --color-cat-planned: var(--cat-planned);
@@ -57,6 +81,7 @@
   --radius-card: 10px;
   --radius-input: 8px;
   --shadow-panel: var(--panel-shadow);
+  --shadow-lift: var(--shadow-lift);
 }
 
 html {
@@ -74,4 +99,23 @@ body {
 :focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+.avatar-lift {
+  position: relative;
+  cursor: pointer;
+  transition: transform 150ms;
+}
+
+@media (hover: hover) {
+  .avatar-lift:hover {
+    z-index: 10;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-lift {
+    transition-duration: 0s;
+  }
 }

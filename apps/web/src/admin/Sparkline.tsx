@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 
 export function Sparkline({
   values,
@@ -39,7 +41,7 @@ export function Sparkline({
         })}
       </svg>
       <p className="sr-only">{values.join(', ')}</p>
-      <Link to={href} className="underline">
+      <Link to={href} className={cn(hoverClass.link, 'underline')}>
         {t('admin.spark.view')}
       </Link>
     </section>

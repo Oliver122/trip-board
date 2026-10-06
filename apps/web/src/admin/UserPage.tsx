@@ -2,6 +2,9 @@ import type { AdminUserDetail } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
+import { ErrorNotice } from '../components/notice'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { Dialog } from '../spots/Dialog'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
@@ -82,7 +85,7 @@ export function UserPage() {
   return (
     <>
       <p className="mb-2">
-        <Link to="/admin/users" className="underline">
+        <Link to="/admin/users" className={cn(hoverClass.link, 'underline')}>
           {t('admin.nav.users')}
         </Link>
       </p>
@@ -96,9 +99,7 @@ export function UserPage() {
         })}
       </p>
       {actionError ? (
-        <p role="alert" className="mb-3">
-          {actionError}
-        </p>
+        <ErrorNotice className="mb-3">{actionError}</ErrorNotice>
       ) : null}
       <div className="mb-6 flex flex-wrap gap-2">
         <Button onClick={() => setExtend(true)}>
@@ -198,7 +199,10 @@ export function UserPage() {
               {detail.trips.map((trip) => (
                 <tr key={trip.id}>
                   <td className="px-2 py-2">
-                    <Link to={`/admin/trips/${trip.id}`} className="underline">
+                    <Link
+                      to={`/admin/trips/${trip.id}`}
+                      className={cn(hoverClass.link, 'underline')}
+                    >
                       {trip.name}
                     </Link>
                   </td>
@@ -238,7 +242,7 @@ function SuspendButton({ onSuspend }: { onSuspend: (reason: string) => void }) {
   if (user?.id === params.id) return null
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="danger" onClick={() => setOpen(true)}>
         {t('admin.user.suspend')}
       </Button>
       {open ? (
@@ -265,7 +269,9 @@ function SuspendButton({ onSuspend }: { onSuspend: (reason: string) => void }) {
                 className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
               />
             </label>
-            <Button type="submit">{t('admin.user.suspend')}</Button>
+            <Button type="submit" variant="dangerSolid">
+              {t('admin.user.suspend')}
+            </Button>
           </form>
         </Dialog>
       ) : null}
@@ -358,7 +364,7 @@ function ExtendDialog({
           />
         </label>
         {below ? <p role="status">{t('admin.user.belowUsage')}</p> : null}
-        {error ? <p role="alert">{error}</p> : null}
+        {error ? <ErrorNotice>{error}</ErrorNotice> : null}
         <div className="flex gap-2">
           <Button type="submit">{t('trips.save')}</Button>
           <Button variant="outline" onClick={onClose}>

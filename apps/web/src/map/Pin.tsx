@@ -1,5 +1,6 @@
 import { Calendar, House } from 'lucide-react'
 import type { Category } from '../components/category'
+import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 
 const glyph: Record<Category, string> = {
@@ -37,6 +38,7 @@ export function Pin({
       aria-pressed={selected}
       data-testid={testId}
       className={cn(
+        hoverClass.pin,
         'inline-flex items-center justify-center rounded-full border-0 p-0 text-sm font-semibold text-white',
         selected
           ? 'is-selected size-9 shadow-panel ring-[3px] ring-white'

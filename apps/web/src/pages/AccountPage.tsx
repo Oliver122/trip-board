@@ -8,6 +8,7 @@ import {
 } from '../admin/client'
 import { LanguageSwitch, ThemeSwitch } from '../components/Preferences'
 import { useListFollowsMap } from '../list-follows-map'
+import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { getQuota } from '../images/client'
 import { megabytes } from '../images/format'
@@ -58,7 +59,7 @@ export function AccountPage() {
         </h2>
         {status === 'loading' ? <p>{t('account.quotaLoading')}</p> : null}
         {status === 'error' ? (
-          <p role="alert">{t('account.quotaError')}</p>
+          <ErrorNotice>{t('account.quotaError')}</ErrorNotice>
         ) : null}
         {quota ? (
           <>
@@ -218,7 +219,7 @@ function RequestDialog({
             className="mt-1 min-h-24 w-full rounded-[8px] border border-border bg-card px-3 py-2"
           />
         </label>
-        {error ? <p role="alert">{error}</p> : null}
+        {error ? <ErrorNotice>{error}</ErrorNotice> : null}
         <Button type="submit">{t('account.requestSubmit')}</Button>
       </form>
     </Dialog>

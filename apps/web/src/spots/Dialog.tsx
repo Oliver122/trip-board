@@ -1,5 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 
 const focusableSelector = [
   'a[href]',
@@ -78,7 +80,10 @@ export function Dialog({
           </h2>
           <button
             type="button"
-            className="inline-flex size-11 items-center justify-center rounded-[8px]"
+            className={cn(
+              hoverClass.ghost,
+              'inline-flex size-11 items-center justify-center rounded-[8px]',
+            )}
             aria-label={closeLabel}
             onClick={onClose}
           >

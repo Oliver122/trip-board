@@ -1,6 +1,7 @@
 import type { Trip } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { AuthError, deleteTrip } from './client'
 import { DialogFrame } from './CreateTripDialog'
@@ -69,24 +70,25 @@ export function DeleteTripDialog({
         <label htmlFor={inputId} className="mb-1 block">
           {t('trips.confirmName')}
         </label>
-        <input
-          id={inputId}
-          ref={inputRef}
-          value={typed}
-          onChange={(event) => setTyped(event.target.value)}
-          className="w-full min-h-11 rounded-[8px] border border-border bg-card px-3"
-          autoComplete="off"
-        />
-        {error ? (
-          <p role="alert" className="mt-1 text-danger">
-            {error}
-          </p>
-        ) : null}
+        <FieldError message={error}>
+          <input
+            id={inputId}
+            ref={inputRef}
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            className="w-full min-h-11 rounded-[8px] border border-border bg-card px-3"
+            autoComplete="off"
+          />
+        </FieldError>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
             {t('trips.cancel')}
           </Button>
-          <Button type="submit" disabled={!matches || saving}>
+          <Button
+            type="submit"
+            variant="dangerSolid"
+            disabled={!matches || saving}
+          >
             {t('trips.delete')}
           </Button>
         </div>

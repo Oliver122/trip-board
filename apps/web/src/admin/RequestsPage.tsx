@@ -2,6 +2,9 @@ import type { QuotaRequest } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { ErrorNotice } from '../components/notice'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { megabytes } from '../images/format'
@@ -62,7 +65,7 @@ export function RequestsPage() {
               <p className="font-semibold">
                 <Link
                   to={`/admin/users/${request.userId}`}
-                  className="underline"
+                  className={cn(hoverClass.link, 'underline')}
                 >
                   {request.displayName ?? request.username}
                 </Link>
@@ -155,11 +158,11 @@ function DecisionForm({
           className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
         />
       </label>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorNotice>{error}</ErrorNotice> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit">{t('admin.requests.approve')}</Button>
         <Button
-          variant="outline"
+          variant="danger"
           onClick={() => {
             void rejectRequest(request.id, note.trim())
               .then(onDone)

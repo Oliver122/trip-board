@@ -2,6 +2,8 @@ import type { AdminTrip } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { ErrorState, LoadingState } from '../components/states'
 import { megabytes } from '../images/format'
 import { formatDate } from '../lib/format'
@@ -78,7 +80,10 @@ export function TripsPage() {
                   <td className="px-2 py-1">
                     <Link
                       to={`/admin/trips/${trip.id}`}
-                      className="inline-flex min-h-11 items-center underline"
+                      className={cn(
+                        hoverClass.item,
+                        'inline-flex min-h-11 items-center underline',
+                      )}
                     >
                       {trip.name}
                     </Link>

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { ErrorState, EmptyState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { formatDate, formatTime } from '../lib/format'
 import { activeLocale } from '../i18n'
 import { activitySentence } from './activity-text'
@@ -98,7 +100,10 @@ export function ActivityPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t('admin.nav.activity')}</h1>
         <a
-          className="inline-flex min-h-11 items-center underline"
+          className={cn(
+            hoverClass.link,
+            'inline-flex min-h-11 items-center underline',
+          )}
           href={activityExportPath(query)}
         >
           {t('admin.activity.export')}
@@ -136,13 +141,9 @@ export function ActivityPage() {
         <Button type="submit">{t('admin.activity.apply')}</Button>
       </form>
       {pending > 0 ? (
-        <button
-          type="button"
-          className="mb-4 inline-flex min-h-11 items-center rounded-[8px] bg-accent px-3 text-accent-foreground"
-          onClick={() => void showNew()}
-        >
+        <Button className="mb-4" onClick={() => void showNew()}>
           {t('admin.activity.newCount', { count: pending })}
-        </button>
+        </Button>
       ) : null}
       {error ? <ErrorState /> : null}
       {!error && !events ? <LoadingState /> : null}

@@ -1,7 +1,10 @@
 import type { PlanEntry, SpotPlan } from '@tripboard/shared'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { activeLocale } from '../i18n'
 import { formatDate } from '../lib/format'
 import { VisitDatePicker } from '../plan/VisitDatePicker'
@@ -82,7 +85,10 @@ export function InPlans({
                 {canEdit ? (
                   <button
                     type="button"
-                    className="inline-flex size-11 items-center justify-center rounded-[8px]"
+                    className={cn(
+                      hoverClass.danger,
+                      'inline-flex size-11 items-center justify-center rounded-[8px]',
+                    )}
                     aria-label={t('board.removeFromPlan', {
                       entry: plan.title,
                     })}
@@ -150,9 +156,7 @@ export function InPlans({
               </>
             ) : null}
             {failed ? (
-              <p role="alert" className="text-sm text-danger">
-                {t('schedule.saveError')}
-              </p>
+              <ErrorNotice>{t('schedule.saveError')}</ErrorNotice>
             ) : null}
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setOpen(false)}>

@@ -6,6 +6,7 @@ import {
 } from '@tripboard/shared'
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { Dialog } from '../spots/Dialog'
 import { clearedVisitCount } from './dates'
@@ -79,79 +80,85 @@ export function EntryDialog({
           <label htmlFor={titleId} className="block">
             {t('schedule.fieldTitle')}
           </label>
-          <input
-            id={titleId}
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className={inputClass}
-          />
-          <FieldError code={errors.title} />
+          <FieldError message={fieldText(t, errors.title)}>
+            <input
+              id={titleId}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
 
           <label htmlFor={startId} className="block">
             {t(type === 'bucket' ? 'schedule.startDate' : 'schedule.date')}
           </label>
-          <input
-            id={startId}
-            type="date"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-            className={inputClass}
-          />
-          <FieldError code={errors.startDate} />
+          <FieldError message={fieldText(t, errors.startDate)}>
+            <input
+              id={startId}
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
 
           {type === 'bucket' ? (
             <>
               <label htmlFor={endId} className="block">
                 {t('schedule.endDate')}
               </label>
-              <input
-                id={endId}
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                className={inputClass}
-              />
-              <FieldError code={errors.endDate} />
+              <FieldError message={fieldText(t, errors.endDate)}>
+                <input
+                  id={endId}
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  className={inputClass}
+                />
+              </FieldError>
             </>
           ) : null}
 
           <label htmlFor={startTimeId} className="block">
             {t('schedule.startTime')}
           </label>
-          <input
-            id={startTimeId}
-            type="time"
-            step={60}
-            value={startTime}
-            onChange={(event) => setStartTime(event.target.value)}
-            className={inputClass}
-          />
-          <FieldError code={errors.startTime} />
+          <FieldError message={fieldText(t, errors.startTime)}>
+            <input
+              id={startTimeId}
+              type="time"
+              step={60}
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
 
           <label htmlFor={endTimeId} className="block">
             {t('schedule.endTime')}
           </label>
-          <input
-            id={endTimeId}
-            type="time"
-            step={60}
-            value={endTime}
-            onChange={(event) => setEndTime(event.target.value)}
-            className={inputClass}
-          />
-          <FieldError code={errors.endTime} />
+          <FieldError message={fieldText(t, errors.endTime)}>
+            <input
+              id={endTimeId}
+              type="time"
+              step={60}
+              value={endTime}
+              onChange={(event) => setEndTime(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
 
           <label htmlFor={infoId} className="block">
             {t('schedule.info')}
           </label>
-          <textarea
-            id={infoId}
-            rows={3}
-            value={info}
-            onChange={(event) => setInfo(event.target.value)}
-            className={inputClass}
-          />
-          <FieldError code={errors.info} />
+          <FieldError message={fieldText(t, errors.info)}>
+            <textarea
+              id={infoId}
+              rows={3}
+              value={info}
+              onChange={(event) => setInfo(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
 
           {cleared > 0 ? (
             <p role="status" data-testid="clear-warning">
@@ -167,7 +174,11 @@ export function EntryDialog({
                 <Button variant="outline" onClick={() => setConfirming(false)}>
                   {t('schedule.cancel')}
                 </Button>
-                <Button onClick={onDelete} disabled={saving}>
+                <Button
+                  variant="dangerSolid"
+                  onClick={onDelete}
+                  disabled={saving}
+                >
                   {t('schedule.delete')}
                 </Button>
               </div>
@@ -175,7 +186,7 @@ export function EntryDialog({
           ) : (
             <>
               {mode === 'edit' && onDelete ? (
-                <Button variant="outline" onClick={() => setConfirming(true)}>
+                <Button variant="danger" onClick={() => setConfirming(true)}>
                   {t('schedule.delete')}
                 </Button>
               ) : (
@@ -200,11 +211,9 @@ export function EntryDialog({
   )
 }
 
-function FieldError({ code }: { code?: string }) {
-  const { t } = useTranslation()
+function fieldText(t: (key: string) => string, code?: string): string | null {
   if (!code) return null
   const key = `schedule.errors.${code}`
   const message = t(key)
-  if (message === key) return null
-  return <p className="text-sm text-danger">{message}</p>
+  return message === key ? null : message
 }

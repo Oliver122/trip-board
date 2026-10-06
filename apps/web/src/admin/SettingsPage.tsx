@@ -2,6 +2,7 @@ import type { AppSettings } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState, LoadingState } from '../components/states'
+import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { megabytes } from '../images/format'
 import { useCapacityRefresh } from './AdminLayout'
@@ -108,7 +109,9 @@ export function SettingsPage() {
         </label>
       </fieldset>
       {saved ? <p role="status">{t('admin.settings.saved')}</p> : null}
-      {saveError ? <p role="alert">{t('admin.user.errors.save')}</p> : null}
+      {saveError ? (
+        <ErrorNotice>{t('admin.user.errors.save')}</ErrorNotice>
+      ) : null}
       <Button type="submit">{t('trips.save')}</Button>
     </form>
   )
