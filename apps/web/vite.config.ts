@@ -18,6 +18,16 @@ function apiProxy(apiPort: number) {
   }
 }
 
+function devHosts(origin: string): string[] {
+  const hosts = new Set(['localhost', '127.0.0.1'])
+  try {
+    hosts.add(new URL(origin).hostname)
+  } catch {
+    // WEB_ORIGIN is optional while the config is loading.
+  }
+  return [...hosts]
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '../..', '')
   const webPort = Number(env.WEB_PORT || defaultWebPort)
@@ -44,6 +54,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: '127.0.0.1',
+      allowedHosts: devHosts(env.WEB_ORIGIN || 'http://127.0.0.1:5180'),
       port: webPort,
       strictPort: true,
       proxy: apiProxy(apiPort),
