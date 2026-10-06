@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { loadConfig } from './config.js'
 import { createPool } from './db.js'
 import { buildApp } from './app.js'
+import { startHousekeeping } from './housekeeping/jobs.js'
 import { createS3Storage } from './images/storage.js'
-import { drainBlobDeletions } from './images/worker.js'
 
 const rootEnv = resolve(
   fileURLToPath(new URL('.', import.meta.url)),
@@ -18,18 +18,12 @@ export async function start() {
   const pool = createPool(config.DATABASE_URL)
   const storage = createS3Storage(config)
   const app = await buildApp(pool, { config, storage })
-  const cleanup = setInterval(() => {
-    void drainBlobDeletions(pool, storage, new Date()).catch(
-      (error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error)
-        console.error(message)
-      },
-    )
-  }, 60_000)
-  cleanup.unref()
+  const stopHousekeeping = startHousekeeping(pool, storage, () => new Date(), {
+    url: config.ADMIN_DISCORD_WEBHOOK_URL,
+  })
 
   app.addHook('onClose', async () => {
-    clearInterval(cleanup)
+    stopHousekeeping()
     await pool.end()
   })
 

@@ -308,7 +308,10 @@ Every admin write (quota change, suspend, role change, settings change, request 
 A user can ask for more images or bytes, with a message. At most one pending request per user. An admin approves (sets the user's override in the same transaction) or rejects, with an optional note. `decided_at` is set exactly when the status leaves `pending`.
 
 ### metrics_daily
-One row per day for the admin graphs: totals (users, trips, spots, plan entries, images, image bytes, database size) plus per-day numbers (new users, active users, events). Filled by `snapshot_daily_metrics(day)`, which is idempotent (upsert). Kept permanently; it's tiny.
+One row per day for the admin graphs: totals (users, trips, spots, plan entries, images, image bytes, database size) plus per-day numbers (new users, active users, events). Filled by `snapshot_daily_metrics(day)`, which is idempotent (upsert). Kept permanently; it's tiny. A job at 00:05 UTC snapshots yesterday. `pnpm db:metrics` fills any missing days from the earliest user or activity event through yesterday.
+
+### webhook_notices
+One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it was last posted. When `ADMIN_DISCORD_WEBHOOK_URL` is set, each warning is sent at most once that day.
 
 ---
 

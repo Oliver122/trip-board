@@ -111,6 +111,16 @@ function AvatarMenu() {
           >
             {t('account.title')}
           </Link>
+          {user.appRole === 'admin' ? (
+            <Link
+              to="/admin"
+              role="menuitem"
+              className="flex min-h-11 items-center rounded-[8px] px-3"
+              onClick={() => setOpen(false)}
+            >
+              {t('header.admin')}
+            </Link>
+          ) : null}
           <button
             type="button"
             role="menuitem"

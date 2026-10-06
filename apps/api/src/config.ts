@@ -14,6 +14,9 @@ const envSchema = z.object({
   DISCORD_REDIRECT_URI: z.string().url().optional(),
   DISCORD_API_ORIGIN: z.string().url().default('https://discord.com'),
   ADMIN_DISCORD_IDS: z.string().default(''),
+  ADMIN_DISCORD_WEBHOOK_URL: z
+    .union([z.string().url(), z.literal('')])
+    .default(''),
   NOMINATIM_BASE_URL: z
     .string()
     .url()

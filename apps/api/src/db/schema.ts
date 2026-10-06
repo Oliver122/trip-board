@@ -631,6 +631,11 @@ export const quotaRequests = pgTable(
   ],
 )
 
+export const webhookNotices = pgTable('webhook_notices', {
+  kind: text('kind').primaryKey(),
+  sentOn: date('sent_on').notNull(),
+})
+
 export const metricsDaily = pgTable('metrics_daily', {
   day: date('day').primaryKey(),
   usersTotal: integer('users_total').notNull(),

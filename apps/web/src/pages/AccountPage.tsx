@@ -1,9 +1,16 @@
-import type { Quota } from '@tripboard/shared'
+import type { Quota, QuotaRequest } from '@tripboard/shared'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  bytesFromMb,
+  createQuotaRequest,
+  listMyQuotaRequests,
+} from '../admin/client'
 import { LanguageSwitch, ThemeSwitch } from '../components/Preferences'
+import { Button } from '../components/ui/button'
 import { getQuota } from '../images/client'
 import { megabytes } from '../images/format'
+import { Dialog } from '../spots/Dialog'
 import { useSession } from '../session'
 
 export function AccountPage() {
@@ -11,14 +18,20 @@ export function AccountPage() {
   const { user } = useSession()
   const storageId = useId()
   const [quota, setQuota] = useState<Quota | null>(null)
+  const [requests, setRequests] = useState<QuotaRequest[]>([])
+  const [requestOpen, setRequestOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
     const controller = new AbortController()
-    void getQuota(controller.signal)
-      .then((next) => {
+    void Promise.all([
+      getQuota(controller.signal),
+      listMyQuotaRequests(controller.signal),
+    ])
+      .then(([next, page]) => {
         if (controller.signal.aborted) return
         setQuota(next)
+        setRequests(page.requests)
         setStatus('ready')
       })
       .catch(() => {
@@ -59,13 +72,149 @@ export function AccountPage() {
                 maxMb: megabytes(quota.maxBytes),
               })}
             </p>
+            <RequestStatus requests={requests} />
+            {requests.some((request) => request.status === 'pending') ? (
+              <p>{t('account.requestPending')}</p>
+            ) : (
+              <Button variant="outline" onClick={() => setRequestOpen(true)}>
+                {t('account.requestMore')}
+              </Button>
+            )}
           </>
         ) : null}
       </section>
+      {requestOpen ? (
+        <RequestDialog
+          onClose={() => setRequestOpen(false)}
+          onCreated={(request) => {
+            setRequests((current) => [request, ...current])
+            setRequestOpen(false)
+          }}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <LanguageSwitch />
         <ThemeSwitch />
       </div>
     </main>
   )
+}
+
+function RequestStatus({ requests }: { requests: QuotaRequest[] }) {
+  const { t } = useTranslation()
+  const latest = requests.find((request) => request.status !== 'pending')
+  if (!latest || latest.status === 'pending') return null
+  if (latest.status === 'rejected') {
+    return (
+      <div>
+        <p>{t('account.requestRejected')}</p>
+        {latest.decisionNote ? (
+          <p>{t('account.requestNote', { note: latest.decisionNote })}</p>
+        ) : null}
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p>{t('account.requestApproved', { change: changeLabel(t, latest) })}</p>
+      {latest.decisionNote ? (
+        <p>{t('account.requestNote', { note: latest.decisionNote })}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function RequestDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (request: QuotaRequest) => void
+}) {
+  const { t } = useTranslation()
+  const [images, setImages] = useState('')
+  const [storage, setStorage] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  return (
+    <Dialog
+      title={t('account.requestTitle')}
+      closeLabel={t('trips.cancel')}
+      onClose={onClose}
+    >
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const body: { images?: number; bytes?: number; message?: string } = {}
+          if (images.trim()) body.images = Number(images)
+          if (storage.trim()) body.bytes = bytesFromMb(Number(storage))
+          if (message.trim()) body.message = message.trim()
+          if (!body.images && !body.bytes) {
+            setError(t('account.requestInvalid'))
+            return
+          }
+          setError(null)
+          void createQuotaRequest(body)
+            .then(onCreated)
+            .catch((reason: unknown) => {
+              const code = reason instanceof Error ? reason.message : 'save'
+              setError(
+                code === 'invalid'
+                  ? t('account.requestInvalid')
+                  : t('account.requestError'),
+              )
+            })
+        }}
+      >
+        <label className="block">
+          {t('account.requestImages')}
+          <input
+            type="number"
+            min={1}
+            value={images}
+            onChange={(event) => setImages(event.target.value)}
+            className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+          />
+        </label>
+        <label className="block">
+          {t('account.requestBytes')}
+          <input
+            type="number"
+            min={1}
+            value={storage}
+            onChange={(event) => setStorage(event.target.value)}
+            className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+          />
+        </label>
+        <label className="block">
+          {t('account.requestMessage')}
+          <textarea
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            className="mt-1 min-h-24 w-full rounded-[8px] border border-border bg-card px-3 py-2"
+          />
+        </label>
+        {error ? <p role="alert">{error}</p> : null}
+        <Button type="submit">{t('account.requestSubmit')}</Button>
+      </form>
+    </Dialog>
+  )
+}
+
+function changeLabel(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  request: QuotaRequest,
+) {
+  const parts: string[] = []
+  if (request.requestedImages) {
+    parts.push(t('account.plusImages', { count: request.requestedImages }))
+  }
+  if (request.requestedBytes) {
+    parts.push(
+      t('account.plusMb', { count: megabytes(request.requestedBytes) }),
+    )
+  }
+  return parts.join(', ')
 }

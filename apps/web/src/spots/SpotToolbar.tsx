@@ -10,6 +10,7 @@ import { ArrowUpDown, Download, ListFilter, Search, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { ExportDialog } from './ExportDialog'
 import { pinCategory } from './model'
@@ -37,6 +38,7 @@ export function SpotToolbar({
   onQuery: (query: SpotListQuery) => void
 }) {
   const { t } = useTranslation()
+  const phone = useMediaQuery(phoneQuery)
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<Panel | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
@@ -72,10 +74,24 @@ export function SpotToolbar({
 
   return (
     <div ref={rootRef} className="relative border-b border-border">
+      {phone ? (
+        <div className="px-3 py-2">
+          <Button
+            variant="outline"
+            data-testid="filters"
+            aria-expanded={open != null}
+            aria-controls={filterId}
+            onClick={() => setOpen((current) => (current ? null : 'filter'))}
+          >
+            <ListFilter aria-hidden="true" className="size-4" />
+            {t('board.filters')}
+          </Button>
+        </div>
+      ) : null}
       <div
         role="toolbar"
         aria-label={t('board.toolbar')}
-        className="flex gap-1 px-3 py-2"
+        className={cn('flex gap-1 px-3 py-2', phone && 'hidden')}
       >
         <Button
           variant="outline"
@@ -150,7 +166,7 @@ export function SpotToolbar({
           ))}
         </ul>
       ) : null}
-      {open === 'search' ? (
+      {open === 'search' || (phone && open != null) ? (
         <div
           id={searchId}
           role="region"
@@ -169,7 +185,7 @@ export function SpotToolbar({
           <p className="mt-2 text-sm text-muted">{t('board.searchHint')}</p>
         </div>
       ) : null}
-      {open === 'filter' ? (
+      {open === 'filter' || (phone && open != null) ? (
         <div
           id={filterId}
           role="region"
@@ -278,9 +294,25 @@ export function SpotToolbar({
           <Button variant="outline" className="mt-3" onClick={reset}>
             {t('board.reset')}
           </Button>
+          {phone ? (
+            <Button
+              variant="outline"
+              className="mt-3 ml-2"
+              aria-label={t('board.export')}
+              aria-expanded={exportOpen}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setOpen(null)
+                setExportOpen(true)
+              }}
+            >
+              <Download aria-hidden="true" className="size-4" />
+              {t('board.export')}
+            </Button>
+          ) : null}
         </div>
       ) : null}
-      {open === 'sort' ? (
+      {open === 'sort' || (phone && open != null) ? (
         <div
           id={sortId}
           role="region"

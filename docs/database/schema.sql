@@ -421,6 +421,12 @@ CREATE TABLE activity_events (
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 
+-- One row per warning kind, so a Discord capacity alert posts at most once per day.
+CREATE TABLE webhook_notices (
+  kind text PRIMARY KEY,
+  sent_on date NOT NULL
+);
+
 CREATE INDEX activity_events_created_at_idx ON activity_events (created_at DESC);
 CREATE INDEX activity_events_actor_idx      ON activity_events (actor_id, created_at DESC);
 CREATE INDEX activity_events_trip_idx       ON activity_events (trip_id, created_at DESC);

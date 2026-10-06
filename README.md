@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–14 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, and export).
+**Status:** steps 00–15 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, and hardening).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -119,19 +119,41 @@ PDF is an A4 itinerary: trip title, dates, and members, then the schedule day by
 
 The calendar file has one event per bucket (all-day across the bucket’s dates), one per single entry, and one per visit that has a time. Location is the address, the description is the info text, and `GEO` is the latitude and longitude. Event ids stay the same across downloads. Times use the trip timezone (`TZID`).
 
+## Hardening
+
+From 640 px to 1023 px the list column is 280 px and the spot panel stays a sheet on the right, so the list remains visible. Below 640 px the map is full screen and the list is a bottom sheet (`peek`, `half`, `full`) dragged from the handle or moved with the arrow keys. The toolbar becomes one **Filters** button, and the spot panel and dialogs fill the screen. The panel’s close control is named **Back**.
+
+Every API response sends `Content-Security-Policy` (`self`, `https://tiles.openfreemap.org`, the blob origin, and `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`. Production also sends `Strict-Transport-Security`. A user, or an anonymous IP, is limited to 300 requests a minute; the 301st is `429` with `Retry-After`. Unexpected errors are `{error:"internal", requestId}` and the same id is in the JSON log line and the `x-request-id` header.
+
+Housekeeping deletes expired sessions hourly, invites that expired or were revoked more than 90 days ago, geocode cache older than 30 days, and activity older than 180 days. Blob deletions still drain once a minute. Spot titles are text, and links that open a new tab use `rel="noopener noreferrer"`. The map library loads only when a board or schedule opens. `pnpm check:bundle` fails when the first-route JavaScript exceeds 250 kB gzip.
+
+## Admin
+
+Platform admins (`users.app_role = admin`) open **Admin** from the account menu. `/admin` has its own sidebar: Dashboard, Users, Trips, Activity, Storage, Requests, Settings, and Audit log. Someone who is not an admin gets the normal 404 page, and every `/admin/*` API route answers **404** for them and **401** when logged out.
+
+Discord ids in `ADMIN_DISCORD_IDS` are promoted on login. Removing an id does not demote that user; demote them in the user detail. The last remaining admin cannot be demoted or suspended. Suspending someone deletes their sessions immediately. They cannot log in, and the login page shows the reason.
+
+**Extend storage** sets `max_images` / `max_bytes` for one user, or clears the override. A limit below current usage blocks new uploads and deletes nothing. Raising the default quota in Settings applies to users without an override. Approving a storage request adds the amount to the current effective limit. Users ask from the account page (`POST /me/quota-requests`); one request can be pending at a time.
+
+Every admin write inserts an `admin_audit_log` row in the same transaction, with before and after values. Trip detail for an admin who is not a member shows counts, members, and activity. Spot content stays on the member routes.
+
+The dashboard reads `GET /admin/stats` and `GET /admin/metrics`. A job at 00:05 UTC stores yesterday in `metrics_daily` (`pnpm db:metrics` backfills missing days). The activity feed polls every 15 seconds while the tab is visible and can download the same filter as CSV. Storage shows database and image use against the capacities from Settings. At or above the warning percent, every admin page shows a banner (red at 95% or more). If `ADMIN_DISCORD_WEBHOOK_URL` is set, that channel gets the capacity warning at most once per UTC day per resource, and a message for each new storage request. Activity older than 180 days is deleted daily; daily metrics are kept.
+
 ## Scripts
 
-| Script            | What it does                                                                                             |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`        | Starts the Vite web app and the Fastify API together                                                     |
-| `pnpm build`      | Typechecks the API and shared package, and builds the web app                                            |
-| `pnpm lint`       | ESLint and Prettier                                                                                      |
-| `pnpm typecheck`  | `tsc --noEmit` in each package                                                                           |
-| `pnpm test`       | Unit and API tests (Vitest). The Postgres-up health test runs when `DATABASE_URL` is set                 |
-| `pnpm test:e2e`   | Playwright: login, trips, and the map board                                                              |
-| `pnpm db:migrate` | Applies the Drizzle table migration and the rules migration (triggers, views, trigram index)             |
-| `pnpm db:seed`    | Loads the Japan 2026 seed (3 users, 1 trip, 6 spots, 90 days of activity and metrics). Safe to run again |
-| `pnpm db:check`   | Migrates a temporary database and runs `docs/database/checks.sql` (42 `ok` lines)                        |
+| Script              | What it does                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`          | Starts the Vite web app and the Fastify API together                                                     |
+| `pnpm build`        | Typechecks the API and shared package, and builds the web app                                            |
+| `pnpm lint`         | ESLint and Prettier                                                                                      |
+| `pnpm typecheck`    | `tsc --noEmit` in each package                                                                           |
+| `pnpm test`         | Unit and API tests (Vitest). The Postgres-up health test runs when `DATABASE_URL` is set                 |
+| `pnpm test:e2e`     | Playwright on Chromium, WebKit, and an iPhone 14 viewport                                                |
+| `pnpm check:bundle` | Fails when the first-route JS bundle exceeds 250 kB gzip, or the map library is in that bundle           |
+| `pnpm db:migrate`   | Applies the Drizzle table migration and the rules migration (triggers, views, trigram index)             |
+| `pnpm db:seed`      | Loads the Japan 2026 seed (3 users, 1 trip, 6 spots, 90 days of activity and metrics). Safe to run again |
+| `pnpm db:check`     | Migrates a temporary database and runs `docs/database/checks.sql` (42 `ok` lines)                        |
+| `pnpm db:metrics`   | Backfills missing `metrics_daily` rows through yesterday (UTC)                                           |
 
 ## Verify the database design
 

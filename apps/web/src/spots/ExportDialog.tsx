@@ -50,14 +50,14 @@ export function ExportDialog({
 
   return (
     <div
-      className="fixed inset-0 z-40 grid place-items-center bg-foreground/40 p-4"
+      className="fixed inset-0 z-40 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
       onMouseDown={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-md rounded-card bg-card p-6 text-foreground shadow-panel"
+        className="relative w-full max-w-md rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-w-none max-sm:rounded-none"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={titleId} className="pr-10 text-lg font-semibold">

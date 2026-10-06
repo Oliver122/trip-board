@@ -17,6 +17,7 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "members": "Members",
+    "admin": "Admin",
     "tripSwitcher": "Trip"
   },
   "state": {
@@ -92,6 +93,9 @@
     "search": "Search",
     "searchHint": "Searches title, address, and info",
     "filter": "Filter",
+    "filters": "Filters",
+    "back": "Back",
+    "sheet": "Resize the spot list",
     "sort": "Sort",
     "export": "Export",
     "exportTitle": "Export “{{name}}”",
@@ -286,7 +290,285 @@
     "storage": "Storage",
     "quota": "{{used}}/{{max}} · {{usedMb}} MB of {{maxMb}} MB",
     "quotaLoading": "Loading storage",
-    "quotaError": "Could not load storage usage."
+    "quotaError": "Could not load storage usage.",
+    "requestMore": "Request more storage",
+    "requestTitle": "Request more storage",
+    "requestImages": "Extra images",
+    "requestBytes": "Extra storage (MB)",
+    "requestMessage": "Message",
+    "requestSubmit": "Send request",
+    "requestPending": "Request pending",
+    "requestApproved": "Approved: {{change}}",
+    "requestRejected": "Rejected",
+    "requestNote": "Note: {{note}}",
+    "requestError": "Could not send the request.",
+    "requestInvalid": "Enter an image count or an amount of storage.",
+    "plusImages": "+{{count}} images",
+    "plusMb": "+{{count}} MB"
+  },
+  "admin": {
+    "label": "Admin",
+    "brandSep": " · {{label}}",
+    "back": "Back to app",
+    "later": "This page arrives in a later step.",
+    "more": "Load more",
+    "nav": {
+      "label": "Admin",
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "trips": "Trips",
+      "activity": "Activity",
+      "storage": "Storage",
+      "requests": "Requests",
+      "requestsCount": "Requests {{count}}",
+      "settings": "Settings",
+      "audit": "Audit log"
+    },
+    "users": {
+      "search": "Search by name or Discord id",
+      "filters": "Filters",
+      "filterAll": "All users",
+      "filterAdmins": "Admins",
+      "filterSuspended": "Suspended",
+      "filterQuota": "Over 80% quota",
+      "filterInactive": "Inactive 90 days",
+      "empty": "No users match.",
+      "missing": "This user is not available.",
+      "roleAdmin": "Admin",
+      "roleUser": "User",
+      "suspended": "Suspended",
+      "active": "Active",
+      "never": "Never",
+      "tripCounts": "{{joined}}/{{owned}}",
+      "col": {
+        "username": "Name",
+        "discordId": "Discord id",
+        "role": "Role",
+        "tripsMember": "Trips",
+        "spotsCreated": "Spots",
+        "usedBytes": "Storage",
+        "lastSeenAt": "Last active",
+        "createdAt": "Joined"
+      }
+    },
+    "user": {
+      "extend": "Extend storage",
+      "suspend": "Suspend",
+      "unsuspend": "Unsuspend",
+      "makeAdmin": "Make admin",
+      "removeAdmin": "Remove admin",
+      "logoutAll": "Log out everywhere",
+      "images": "Images",
+      "imagesCount": "{{used}}/{{max}} images",
+      "bytes": "{{used}} MB of {{max}} MB",
+      "megabytes": "{{value}} MB",
+      "storageMb": "Storage (MB)",
+      "limitOverride": "Limit: override",
+      "limitDefault": "Limit: default",
+      "nearLimit": "Near the limit",
+      "belowUsage": "This limit is below current usage. New uploads are blocked. Nothing is deleted.",
+      "reset": "Reset to default",
+      "reason": "Reason",
+      "trips": "Trips",
+      "noTrips": "No trips.",
+      "role": "Role",
+      "actions": "Recent actions",
+      "noActions": "No recent actions.",
+      "actionLine": "{{action}} · {{date}}",
+      "meta": "{{username}} · {{discordId}}",
+      "errors": {
+        "save": "Could not save the change.",
+        "self": "You cannot suspend your own account.",
+        "last_admin": "The last admin cannot be removed or suspended."
+      }
+    },
+    "trips": {
+      "search": "Search trips",
+      "empty": "No trips match.",
+      "missing": "This trip is not available.",
+      "none": "—",
+      "col": {
+        "name": "Name",
+        "owner": "Owner",
+        "members": "Members",
+        "spots": "Spots",
+        "plans": "Plans",
+        "images": "Images",
+        "storage": "Storage",
+        "created": "Created"
+      }
+    },
+    "requests": {
+      "empty": "No requests.",
+      "usage": "{{images}}/{{maxImages}} images · {{used}} MB of {{max}} MB",
+      "extraMb": "Extra storage (MB)",
+      "note": "Note",
+      "approve": "Approve",
+      "reject": "Reject",
+      "plusImages": "+{{count}} images",
+      "plusMb": "+{{count}} MB",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      }
+    },
+    "settings": {
+      "quota": "Default quota",
+      "storageMb": "Storage (MB)",
+      "capacity": "Capacity",
+      "databaseMb": "Database (MB)",
+      "imagesMb": "Image storage (MB)",
+      "warn": "Warning threshold (%)",
+      "switches": "Switches",
+      "uploads": "Uploads enabled",
+      "signups": "New signups enabled",
+      "saved": "Saved. The new values apply now."
+    },
+    "audit": {
+      "admin": "Admin id",
+      "target": "Target user id",
+      "action": "Action",
+      "empty": "No audit entries.",
+      "col": {
+        "when": "When",
+        "admin": "Admin",
+        "action": "Action",
+        "target": "Target",
+        "reason": "Reason"
+      }
+    },
+    "capacity": {
+      "bannerAmber": "{{resource}} is above the warning threshold",
+      "bannerRed": "{{resource}} is above 95% of capacity",
+      "db": "Database",
+      "blob": "Images"
+    },
+    "dashboard": {
+      "range": "Range",
+      "d7": "7 days",
+      "d30": "30 days",
+      "d90": "90 days",
+      "all": "All",
+      "users": "Users",
+      "usersNew": "+{{count}} in this range",
+      "active": "Active 7 days",
+      "activeDetail": "{{day}} in 24 hours · {{month}} in 30 days",
+      "trips": "Trips",
+      "database": "Database",
+      "images": "Images",
+      "events": "Events",
+      "charts": {
+        "active": "Active users per day",
+        "activity": "Activity per day",
+        "storage": "Storage growth",
+        "signups": "Signups per day",
+        "users": "Top users by storage",
+        "trips": "Top trips by activity"
+      },
+      "series": {
+        "active": "Active users",
+        "spots": "Spots",
+        "plans": "Plans",
+        "images": "Images",
+        "other": "Other",
+        "database": "Database",
+        "blobs": "Images",
+        "capacity": "Capacity",
+        "signups": "Signups",
+        "bytes": "Storage",
+        "events": "Events"
+      },
+      "showTable": "Show as table",
+      "showChart": "Show as chart",
+      "day": "Day",
+      "name": "Name",
+      "empty": "No data in this range."
+    },
+    "activity": {
+      "live": "Live, updates every 15 seconds",
+      "newCount": "{{count}} new",
+      "user": "User id",
+      "trip": "Trip id",
+      "action": "Action",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply filters",
+      "export": "Download CSV",
+      "empty": "No activity matches.",
+      "someone": "Someone",
+      "actions": {
+        "user": {
+          "login": "{{actor}} signed in",
+          "locale_update": "{{actor}} changed the language to {{locale}}"
+        },
+        "trip": {
+          "create": "{{actor}} created {{trip}}",
+          "update": "{{actor}} updated {{trip}}",
+          "delete": "{{actor}} deleted {{trip}}",
+          "transfer": "{{actor}} transferred {{trip}}"
+        },
+        "member": {
+          "join": "{{actor}} joined {{trip}} as {{role}}",
+          "role_update": "{{actor}} changed a role on {{trip}} from {{from}} to {{to}}",
+          "remove": "{{actor}} removed a member from {{trip}}",
+          "leave": "{{actor}} left {{trip}}"
+        },
+        "invite": {
+          "create": "{{actor}} created an invite for {{trip}}",
+          "revoke": "{{actor}} revoked an invite for {{trip}}"
+        },
+        "spot": {
+          "create": "{{actor}} added {{spot}} to {{trip}}",
+          "update": "{{actor}} updated {{spot}}",
+          "delete": "{{actor}} deleted {{spot}}"
+        },
+        "plan": {
+          "create": "{{actor}} created the plan {{plan}}",
+          "update": "{{actor}} updated the plan {{plan}}",
+          "delete": "{{actor}} deleted the plan {{plan}}",
+          "spot_add": "{{actor}} added {{spot}} to {{plan}}",
+          "spot_remove": "{{actor}} removed {{spot}} from {{plan}}"
+        },
+        "image": {
+          "upload": "{{actor}} uploaded a photo of {{spot}}",
+          "delete": "{{actor}} deleted a photo of {{spot}}"
+        },
+        "export": {
+          "download": "{{actor}} exported {{trip}} as {{format}}"
+        },
+        "quota": {
+          "request": "{{actor}} requested more storage"
+        }
+      }
+    },
+    "storage": {
+      "database": "Database",
+      "images": "Images",
+      "of": "{{used}} of {{capacity}}",
+      "summary": "{{growth}} · {{forecast}}",
+      "growth": "{{value}} over 30 days",
+      "fullDays_one": "Full in about {{count}} day",
+      "fullDays_other": "Full in about {{count}} days",
+      "fullMonths_one": "Full in about {{count}} month",
+      "fullMonths_other": "Full in about {{count}} months",
+      "fullYears_one": "Full in about {{count}} year",
+      "fullYears_other": "Full in about {{count}} years",
+      "noForecast": "No growth to forecast",
+      "tables": "Tables",
+      "table": "Table",
+      "data": "Data",
+      "index": "Index",
+      "rows": "Rows",
+      "biggestUsers": "Biggest users",
+      "biggestTrips": "Biggest trips",
+      "emptyUsers": "No image storage yet.",
+      "emptyTrips": "No trip is storing images."
+    },
+    "spark": {
+      "title": "Activity (30 days)",
+      "view": "View all in Activity"
+    }
   },
   "notFound": {
     "title": "Page not found",

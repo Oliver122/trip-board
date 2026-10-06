@@ -9,6 +9,15 @@ import { joinPreviewPlugin } from './join-preview'
 const defaultWebPort = 5180
 const defaultApiPort = 4080
 
+function apiProxy(apiPort: number) {
+  return {
+    '/api': {
+      target: `http://127.0.0.1:${apiPort}`,
+      rewrite: (path: string) => path.replace(/^\/api/, ''),
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '../..', '')
   const webPort = Number(env.WEB_PORT || defaultWebPort)
@@ -16,6 +25,15 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [joinPreviewPlugin(apiPort), react(), tailwindcss()],
+    build: {
+      modulePreload: {
+        resolveDependencies(_filename, deps) {
+          return deps.filter(
+            (dep) => !dep.includes('maplibre') && !/MapView|TripMap/.test(dep),
+          )
+        },
+      },
+    },
     optimizeDeps: {
       exclude: ['maplibre-gl'],
     },
@@ -28,12 +46,11 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: webPort,
       strictPort: true,
-      proxy: {
-        '/api': {
-          target: `http://127.0.0.1:${apiPort}`,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-        },
-      },
+      proxy: apiProxy(apiPort),
+    },
+    preview: {
+      host: '127.0.0.1',
+      proxy: apiProxy(apiPort),
     },
   }
 })

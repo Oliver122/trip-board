@@ -11,6 +11,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { formatDate, formatTime } from '../lib/format'
 import { searchAddress } from './client'
 import { CopyAddress } from './CopyAddress'
@@ -62,6 +63,7 @@ export function SpotPanel({
   onRemoveFromPlan: (entryId: string, linkId: string) => Promise<void>
 }) {
   const { t, i18n } = useTranslation()
+  const phone = useMediaQuery(phoneQuery)
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const titleId = useId()
   const addressId = useId()
@@ -160,7 +162,11 @@ export function SpotPanel({
   }
 
   return (
-    <Dialog title={title} closeLabel={t('board.close')} onClose={onClose}>
+    <Dialog
+      title={title}
+      closeLabel={phone ? t('board.back') : t('board.close')}
+      onClose={onClose}
+    >
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
         <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
           <label htmlFor={titleId} className="block">

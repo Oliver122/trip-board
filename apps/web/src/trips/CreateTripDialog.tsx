@@ -144,14 +144,14 @@ export function CreateTripDialog({
 
   return (
     <div
-      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4"
+      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
       onMouseDown={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel"
+        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={titleId} className="mb-4 text-lg font-semibold">
@@ -297,14 +297,14 @@ export function DialogFrame({
 
   return (
     <div
-      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4"
+      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
       onMouseDown={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel"
+        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id={titleId} className="mb-4 text-lg font-semibold">

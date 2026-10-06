@@ -12,7 +12,7 @@ import { useParams } from 'react-router'
 import { Button } from '../components/ui/button'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
 import { boundsForPoints } from '../map/bounds'
-import { TripMap } from '../map/TripMap'
+import { MapView } from '../map/MapView'
 import { parseTrip, type TripMapData } from '../map/trip'
 import { EntryDialog } from '../plan/EntryDialog'
 import {
@@ -252,7 +252,7 @@ export function SchedulePage() {
         )}
       </section>
       <div className="relative min-h-[40vh] flex-1">
-        <TripMap
+        <MapView
           bbox={trip.bbox}
           spots={mapSpots}
           selectedId={null}

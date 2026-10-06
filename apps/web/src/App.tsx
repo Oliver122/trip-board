@@ -1,4 +1,15 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
+import { ActivityPage } from './admin/ActivityPage'
+import { AdminGate } from './admin/AdminLayout'
+import { AuditPage } from './admin/AuditPage'
+import { DashboardPage } from './admin/DashboardPage'
+import { RequestsPage } from './admin/RequestsPage'
+import { SettingsPage } from './admin/SettingsPage'
+import { StoragePage } from './admin/StoragePage'
+import { TripPage } from './admin/TripPage'
+import { TripsPage as AdminTripsPage } from './admin/TripsPage'
+import { UserPage } from './admin/UserPage'
+import { UsersPage } from './admin/UsersPage'
 import { AppShell } from './components/AppShell'
 import { AccountPage } from './pages/AccountPage'
 import { BoardPage } from './pages/BoardPage'
@@ -64,6 +75,25 @@ export function App() {
                 }
               />
               <Route path="*" element={<NotFoundPage />} />
+            </Route>
+            <Route
+              path="/admin"
+              element={
+                <RequireAuth>
+                  <AdminGate />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<DashboardPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="users/:id" element={<UserPage />} />
+              <Route path="trips" element={<AdminTripsPage />} />
+              <Route path="trips/:id" element={<TripPage />} />
+              <Route path="activity" element={<ActivityPage />} />
+              <Route path="storage" element={<StoragePage />} />
+              <Route path="requests" element={<RequestsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="audit" element={<AuditPage />} />
             </Route>
           </Routes>
         </SessionProvider>

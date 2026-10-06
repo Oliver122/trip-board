@@ -15,7 +15,7 @@ import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import type { LngLatBounds } from '../map/bounds'
-import { TripMap } from '../map/TripMap'
+import { MapView } from '../map/MapView'
 import { parseTrip, type TripMapData } from '../map/trip'
 import { useSession } from '../session'
 import { AuthError, getTrip } from '../trips/client'
@@ -325,7 +325,7 @@ export function BoardPage() {
     setPanel(null)
     try {
       if (panel.mode === 'add') {
-        const tempId = `temp-${crypto.randomUUID()}`
+        const tempId = temporaryId()
         setSpots((current) => [
           ...current,
           optimistic(tripId, tempId, draft, panel.spot),
@@ -389,9 +389,9 @@ export function BoardPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <div className="relative min-h-[50vh] flex-1 lg:min-h-0">
-        <TripMap
+    <div className="relative flex min-h-0 flex-1 flex-col sm:flex-row">
+      <div className="relative min-h-0 flex-1">
+        <MapView
           bbox={trip.bbox}
           spots={mapSpots}
           selectedId={selectedId}
@@ -424,7 +424,7 @@ export function BoardPage() {
         {canEdit ? (
           <Button
             data-testid="add-new"
-            className="absolute bottom-12 left-4 z-10 shadow-panel"
+            className="absolute bottom-36 left-4 z-10 shadow-panel sm:bottom-12"
             onClick={openAdd}
           >
             <Plus aria-hidden="true" className="size-4" />
@@ -513,6 +513,14 @@ export function BoardPage() {
       ) : null}
     </div>
   )
+}
+
+function temporaryId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const hex = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+  return `temp-${hex}`
 }
 
 function placeSaved(spots: Spot[], saved: Spot, replaceId: string): Spot[] {

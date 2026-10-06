@@ -17,6 +17,7 @@
     "themeDark": "Dunkel",
     "themeSystem": "System",
     "members": "Mitglieder",
+    "admin": "Admin",
     "tripSwitcher": "Reise"
   },
   "state": {
@@ -92,6 +93,9 @@
     "search": "Suche",
     "searchHint": "Sucht in Titel, Adresse und Info",
     "filter": "Filter",
+    "filters": "Filter",
+    "back": "Zurück",
+    "sheet": "Ortsliste in der Größe ändern",
     "sort": "Sortieren",
     "export": "Export",
     "exportTitle": "Export „{{name}}“",
@@ -286,7 +290,285 @@
     "storage": "Speicher",
     "quota": "{{used}}/{{max}} · {{usedMb}} MB von {{maxMb}} MB",
     "quotaLoading": "Speicher wird geladen",
-    "quotaError": "Speichernutzung konnte nicht geladen werden."
+    "quotaError": "Speichernutzung konnte nicht geladen werden.",
+    "requestMore": "Mehr Speicher anfragen",
+    "requestTitle": "Mehr Speicher anfragen",
+    "requestImages": "Zusätzliche Bilder",
+    "requestBytes": "Zusätzlicher Speicher (MB)",
+    "requestMessage": "Nachricht",
+    "requestSubmit": "Anfrage senden",
+    "requestPending": "Anfrage offen",
+    "requestApproved": "Genehmigt: {{change}}",
+    "requestRejected": "Abgelehnt",
+    "requestNote": "Hinweis: {{note}}",
+    "requestError": "Die Anfrage konnte nicht gesendet werden.",
+    "requestInvalid": "Gib eine Bildanzahl oder eine Speichermenge ein.",
+    "plusImages": "+{{count}} Bilder",
+    "plusMb": "+{{count}} MB"
+  },
+  "admin": {
+    "label": "Admin",
+    "brandSep": " · {{label}}",
+    "back": "Zurück zur App",
+    "later": "Diese Seite kommt in einem späteren Schritt.",
+    "more": "Mehr laden",
+    "nav": {
+      "label": "Admin",
+      "dashboard": "Übersicht",
+      "users": "Nutzer",
+      "trips": "Reisen",
+      "activity": "Aktivität",
+      "storage": "Speicher",
+      "requests": "Anfragen",
+      "requestsCount": "Anfragen {{count}}",
+      "settings": "Einstellungen",
+      "audit": "Protokoll"
+    },
+    "users": {
+      "search": "Nach Name oder Discord-ID suchen",
+      "filters": "Filter",
+      "filterAll": "Alle Nutzer",
+      "filterAdmins": "Admins",
+      "filterSuspended": "Gesperrt",
+      "filterQuota": "Über 80 % Kontingent",
+      "filterInactive": "Inaktiv seit 90 Tagen",
+      "empty": "Keine passenden Nutzer.",
+      "missing": "Dieser Nutzer ist nicht verfügbar.",
+      "roleAdmin": "Admin",
+      "roleUser": "Nutzer",
+      "suspended": "Gesperrt",
+      "active": "Aktiv",
+      "never": "Nie",
+      "tripCounts": "{{joined}}/{{owned}}",
+      "col": {
+        "username": "Name",
+        "discordId": "Discord-ID",
+        "role": "Rolle",
+        "tripsMember": "Reisen",
+        "spotsCreated": "Orte",
+        "usedBytes": "Speicher",
+        "lastSeenAt": "Zuletzt aktiv",
+        "createdAt": "Beigetreten"
+      }
+    },
+    "user": {
+      "extend": "Speicher erweitern",
+      "suspend": "Sperren",
+      "unsuspend": "Entsperren",
+      "makeAdmin": "Zum Admin machen",
+      "removeAdmin": "Admin entfernen",
+      "logoutAll": "Überall abmelden",
+      "images": "Bilder",
+      "imagesCount": "{{used}}/{{max}} Bilder",
+      "bytes": "{{used}} MB von {{max}} MB",
+      "megabytes": "{{value}} MB",
+      "storageMb": "Speicher (MB)",
+      "limitOverride": "Limit: Überschreibung",
+      "limitDefault": "Limit: Standard",
+      "nearLimit": "Nahe am Limit",
+      "belowUsage": "Dieses Limit liegt unter der aktuellen Nutzung. Neue Uploads werden blockiert. Es wird nichts gelöscht.",
+      "reset": "Auf Standard zurücksetzen",
+      "reason": "Grund",
+      "trips": "Reisen",
+      "noTrips": "Keine Reisen.",
+      "role": "Rolle",
+      "actions": "Letzte Aktionen",
+      "noActions": "Keine letzten Aktionen.",
+      "actionLine": "{{action}} · {{date}}",
+      "meta": "{{username}} · {{discordId}}",
+      "errors": {
+        "save": "Die Änderung konnte nicht gespeichert werden.",
+        "self": "Du kannst dein eigenes Konto nicht sperren.",
+        "last_admin": "Der letzte Admin kann nicht entfernt oder gesperrt werden."
+      }
+    },
+    "trips": {
+      "search": "Reisen suchen",
+      "empty": "Keine passenden Reisen.",
+      "missing": "Diese Reise ist nicht verfügbar.",
+      "none": "—",
+      "col": {
+        "name": "Name",
+        "owner": "Owner",
+        "members": "Mitglieder",
+        "spots": "Orte",
+        "plans": "Pläne",
+        "images": "Bilder",
+        "storage": "Speicher",
+        "created": "Erstellt"
+      }
+    },
+    "requests": {
+      "empty": "Keine Anfragen.",
+      "usage": "{{images}}/{{maxImages}} Bilder · {{used}} MB von {{max}} MB",
+      "extraMb": "Zusätzlicher Speicher (MB)",
+      "note": "Notiz",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "plusImages": "+{{count}} Bilder",
+      "plusMb": "+{{count}} MB",
+      "status": {
+        "pending": "Offen",
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt"
+      }
+    },
+    "settings": {
+      "quota": "Standardkontingent",
+      "storageMb": "Speicher (MB)",
+      "capacity": "Kapazität",
+      "databaseMb": "Datenbank (MB)",
+      "imagesMb": "Bildspeicher (MB)",
+      "warn": "Warnschwelle (%)",
+      "switches": "Schalter",
+      "uploads": "Uploads aktiv",
+      "signups": "Neue Anmeldungen aktiv",
+      "saved": "Gespeichert. Die neuen Werte gelten sofort."
+    },
+    "audit": {
+      "admin": "Admin-ID",
+      "target": "Ziel-Nutzer-ID",
+      "action": "Aktion",
+      "empty": "Keine Protokolleinträge.",
+      "col": {
+        "when": "Wann",
+        "admin": "Admin",
+        "action": "Aktion",
+        "target": "Ziel",
+        "reason": "Grund"
+      }
+    },
+    "capacity": {
+      "bannerAmber": "{{resource}} liegt über der Warnschwelle",
+      "bannerRed": "{{resource}} liegt über 95 % der Kapazität",
+      "db": "Datenbank",
+      "blob": "Bilder"
+    },
+    "dashboard": {
+      "range": "Zeitraum",
+      "d7": "7 Tage",
+      "d30": "30 Tage",
+      "d90": "90 Tage",
+      "all": "Alles",
+      "users": "Nutzer",
+      "usersNew": "+{{count}} in diesem Zeitraum",
+      "active": "Aktiv 7 Tage",
+      "activeDetail": "{{day}} in 24 Stunden · {{month}} in 30 Tagen",
+      "trips": "Reisen",
+      "database": "Datenbank",
+      "images": "Bilder",
+      "events": "Ereignisse",
+      "charts": {
+        "active": "Aktive Nutzer pro Tag",
+        "activity": "Aktivität pro Tag",
+        "storage": "Speicherwachstum",
+        "signups": "Anmeldungen pro Tag",
+        "users": "Nutzer mit dem meisten Speicher",
+        "trips": "Reisen mit der meisten Aktivität"
+      },
+      "series": {
+        "active": "Aktive Nutzer",
+        "spots": "Orte",
+        "plans": "Pläne",
+        "images": "Bilder",
+        "other": "Sonstiges",
+        "database": "Datenbank",
+        "blobs": "Bilder",
+        "capacity": "Kapazität",
+        "signups": "Anmeldungen",
+        "bytes": "Speicher",
+        "events": "Ereignisse"
+      },
+      "showTable": "Als Tabelle zeigen",
+      "showChart": "Als Diagramm zeigen",
+      "day": "Tag",
+      "name": "Name",
+      "empty": "Keine Daten in diesem Zeitraum."
+    },
+    "activity": {
+      "live": "Live, Aktualisierung alle 15 Sekunden",
+      "newCount": "{{count}} neu",
+      "user": "Nutzer-ID",
+      "trip": "Reise-ID",
+      "action": "Aktion",
+      "from": "Von",
+      "to": "Bis",
+      "apply": "Filter anwenden",
+      "export": "CSV herunterladen",
+      "empty": "Keine Aktivität dazu.",
+      "someone": "Jemand",
+      "actions": {
+        "user": {
+          "login": "{{actor}} hat sich angemeldet",
+          "locale_update": "{{actor}} hat die Sprache auf {{locale}} geändert"
+        },
+        "trip": {
+          "create": "{{actor}} hat {{trip}} erstellt",
+          "update": "{{actor}} hat {{trip}} aktualisiert",
+          "delete": "{{actor}} hat {{trip}} gelöscht",
+          "transfer": "{{actor}} hat {{trip}} übertragen"
+        },
+        "member": {
+          "join": "{{actor}} ist {{trip}} als {{role}} beigetreten",
+          "role_update": "{{actor}} hat eine Rolle in {{trip}} von {{from}} auf {{to}} geändert",
+          "remove": "{{actor}} hat ein Mitglied aus {{trip}} entfernt",
+          "leave": "{{actor}} hat {{trip}} verlassen"
+        },
+        "invite": {
+          "create": "{{actor}} hat eine Einladung für {{trip}} erstellt",
+          "revoke": "{{actor}} hat eine Einladung für {{trip}} widerrufen"
+        },
+        "spot": {
+          "create": "{{actor}} hat {{spot}} zu {{trip}} hinzugefügt",
+          "update": "{{actor}} hat {{spot}} aktualisiert",
+          "delete": "{{actor}} hat {{spot}} gelöscht"
+        },
+        "plan": {
+          "create": "{{actor}} hat den Plan {{plan}} erstellt",
+          "update": "{{actor}} hat den Plan {{plan}} aktualisiert",
+          "delete": "{{actor}} hat den Plan {{plan}} gelöscht",
+          "spot_add": "{{actor}} hat {{spot}} zu {{plan}} hinzugefügt",
+          "spot_remove": "{{actor}} hat {{spot}} aus {{plan}} entfernt"
+        },
+        "image": {
+          "upload": "{{actor}} hat ein Foto von {{spot}} hochgeladen",
+          "delete": "{{actor}} hat ein Foto von {{spot}} gelöscht"
+        },
+        "export": {
+          "download": "{{actor}} hat {{trip}} als {{format}} exportiert"
+        },
+        "quota": {
+          "request": "{{actor}} hat mehr Speicher angefragt"
+        }
+      }
+    },
+    "storage": {
+      "database": "Datenbank",
+      "images": "Bilder",
+      "of": "{{used}} von {{capacity}}",
+      "summary": "{{growth}} · {{forecast}}",
+      "growth": "{{value}} in 30 Tagen",
+      "fullDays_one": "Voll in etwa {{count}} Tag",
+      "fullDays_other": "Voll in etwa {{count}} Tagen",
+      "fullMonths_one": "Voll in etwa {{count}} Monat",
+      "fullMonths_other": "Voll in etwa {{count}} Monaten",
+      "fullYears_one": "Voll in etwa {{count}} Jahr",
+      "fullYears_other": "Voll in etwa {{count}} Jahren",
+      "noForecast": "Kein Wachstum für eine Prognose",
+      "tables": "Tabellen",
+      "table": "Tabelle",
+      "data": "Daten",
+      "index": "Index",
+      "rows": "Zeilen",
+      "biggestUsers": "Größte Nutzer",
+      "biggestTrips": "Größte Reisen",
+      "emptyUsers": "Noch kein Bildspeicher.",
+      "emptyTrips": "Keine Reise speichert Bilder."
+    },
+    "spark": {
+      "title": "Aktivität (30 Tage)",
+      "view": "Alles in Aktivität ansehen"
+    }
   },
   "notFound": {
     "title": "Seite nicht gefunden",

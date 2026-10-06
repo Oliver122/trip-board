@@ -70,7 +70,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pointer-events-auto relative flex h-full w-full max-w-md flex-col bg-card text-foreground shadow-panel"
+        className="pointer-events-auto relative flex h-full w-full max-w-md flex-col bg-card text-foreground shadow-panel max-sm:max-w-none sm:mr-[280px] lg:mr-0"
       >
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 id={titleId} className="text-lg font-semibold">

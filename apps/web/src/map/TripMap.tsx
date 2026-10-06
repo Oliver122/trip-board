@@ -293,7 +293,7 @@ export function TripMap({
         <a
           href="https://openfreemap.org/"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="text-foreground underline"
         >
           {t('board.attributionOfm')}
@@ -302,7 +302,7 @@ export function TripMap({
         <a
           href="https://www.openstreetmap.org/copyright"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           className="text-foreground underline"
         >
           {t('board.attributionOsm')}

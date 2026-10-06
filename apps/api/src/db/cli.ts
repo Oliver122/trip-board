@@ -6,6 +6,7 @@ import { runChecks } from './checks.js'
 import { applyMigrations } from './migrate.js'
 import { createTestDatabase } from './test-db.js'
 import { repoRoot } from './paths.js'
+import { backfillMetrics } from '../admin/metrics-job.js'
 import { seedDatabase } from './seed.js'
 
 loadDotenv({ path: resolve(repoRoot, '.env') })
@@ -22,6 +23,9 @@ try {
     await applyMigrations(pool)
     await seedDatabase(pool)
     console.log('Seed applied.')
+  } else if (command === 'metrics') {
+    const created = await backfillMetrics(pool, new Date())
+    console.log(`Backfilled ${created} metric day(s).`)
   } else if (command === 'check') {
     const scratch = await createTestDatabase()
     try {
@@ -31,7 +35,7 @@ try {
       await scratch.drop()
     }
   } else {
-    console.error('Usage: tsx src/db/cli.ts <migrate|seed|check>')
+    console.error('Usage: tsx src/db/cli.ts <migrate|seed|check|metrics>')
     process.exitCode = 1
   }
 } catch (error) {

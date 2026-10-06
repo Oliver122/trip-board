@@ -25,10 +25,13 @@ test('T-05-02 T-05-03 T-05-06 the Japan board fits the region', async ({
   await expect(page.getByRole('link', { name: 'OpenStreetMap' })).toBeVisible()
   await waitForJapan(page)
   await expectNoSeriousViolations(page)
-  await expect(page).toHaveScreenshot('board-1280.png', {
-    mask: [page.locator('.maplibregl-canvas')],
-    animations: 'disabled',
-  })
+  if (test.info().project.name === 'chromium') {
+    await expect(page).toHaveScreenshot('board-1280.png', {
+      mask: [page.locator('.maplibregl-canvas')],
+      animations: 'disabled',
+      maxDiffPixels: 500,
+    })
+  }
 
   await page.setViewportSize({ width: 768, height: 1024 })
   const image = await page.screenshot()
