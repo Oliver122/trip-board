@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice } from './notice'
 import { Button } from './ui/button'
 
 export function LoadingState({ label }: { label?: string }) {
@@ -35,11 +36,8 @@ export function ErrorState({
 }) {
   const { t } = useTranslation()
   return (
-    <div
-      role="alert"
-      className="rounded-card border border-border bg-card px-4 py-6"
-    >
-      <p className="text-danger">{message ?? t('state.error')}</p>
+    <div className="space-y-3">
+      <ErrorNotice>{message ?? t('state.error')}</ErrorNotice>
       {retry ? (
         <Button className="mt-3" onClick={retry}>
           {t('state.retry')}

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { megabytes } from '../images/format'
 import { formatDate } from '../lib/format'
 import { activeLocale } from '../i18n'
@@ -111,7 +113,10 @@ export function UsersPage() {
                   >
                     <button
                       type="button"
-                      className="inline-flex min-h-11 items-center font-semibold"
+                      className={cn(
+                        hoverClass.ghost,
+                        'inline-flex min-h-11 items-center font-semibold',
+                      )}
                       onClick={() => toggleSort(key)}
                     >
                       {t(`admin.users.col.${key}`)}
@@ -126,7 +131,10 @@ export function UsersPage() {
                   <td className="px-2 py-1">
                     <Link
                       to={`/admin/users/${user.id}`}
-                      className="inline-flex min-h-11 items-center underline"
+                      className={cn(
+                        hoverClass.item,
+                        'inline-flex min-h-11 items-center underline',
+                      )}
                     >
                       {user.displayName ?? user.username}
                     </Link>

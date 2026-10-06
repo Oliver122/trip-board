@@ -168,13 +168,17 @@ test('T-18-09 language lives in settings and still persists', async ({
       response.ok(),
   )
   await page.getByRole('button', { name: 'DE' }).click()
-  await expect(page.getByTestId('trip-switcher')).toHaveText('Reise')
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Hell' }),
+  ).toBeVisible()
   await saved
   await page.reload()
   await expect(
     page.getByRole('heading', { name: 'Konto & Einstellungen' }),
   ).toBeVisible()
-  await expect(page.getByTestId('trip-switcher')).toHaveText('Reise')
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Hell' }),
+  ).toBeVisible()
 })
 
 test('T-18-10 the login page keeps a language switch', async ({ page }) => {

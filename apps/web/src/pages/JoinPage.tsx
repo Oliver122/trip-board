@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { LanguageSwitch } from '../components/Preferences'
+import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button, buttonVariants } from '../components/ui/button'
 import { cn } from '../lib/utils'
@@ -111,9 +112,7 @@ export function JoinPage() {
               {roleName(t, preview.role)}
             </p>
             {joinError ? (
-              <p role="alert" className="mb-3 text-danger">
-                {joinError}
-              </p>
+              <ErrorNotice className="mb-3">{joinError}</ErrorNotice>
             ) : null}
             {session.status === 'loading' ? <LoadingState /> : null}
             {session.status === 'anonymous' || session.status === 'error' ? (

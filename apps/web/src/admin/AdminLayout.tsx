@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Outlet, Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '../components/Preferences'
+import { hoverClass } from '../components/ui/hover'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { cn } from '../lib/utils'
 import { useSession } from '../session'
@@ -97,7 +98,13 @@ function AdminLayout() {
                 {t('admin.brandSep', { label: t('admin.label') })}
               </span>
             </p>
-            <Link to="/trips" className="inline-flex min-h-11 items-center">
+            <Link
+              to="/trips"
+              className={cn(
+                hoverClass.link,
+                'inline-flex min-h-11 items-center',
+              )}
+            >
               {t('admin.back')}
             </Link>
             <div className="ml-auto flex items-center gap-2">
@@ -116,8 +123,10 @@ function AdminLayout() {
                   end={end}
                   className={({ isActive }) =>
                     cn(
-                      'inline-flex min-h-11 shrink-0 items-center rounded-[8px] px-3',
-                      isActive && 'bg-accent text-accent-foreground',
+                      'inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-[8px] px-3',
+                      isActive
+                        ? 'bg-accent text-accent-foreground'
+                        : hoverClass.tab,
                     )
                   }
                 >
@@ -134,6 +143,7 @@ function AdminLayout() {
                   data-testid="capacity-banner"
                   data-level={level}
                   className={cn(
+                    hoverClass.card,
                     'mb-4 block rounded-[8px] border border-border bg-card px-4 py-3 text-foreground',
                     level === 'red'
                       ? 'border-l-4 border-l-danger'

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { hoverClass } from '../components/ui/hover'
 import i18n from '../i18n'
 import { Dialog } from './Dialog'
 
@@ -20,7 +21,9 @@ describe('spot dialog', () => {
     const view = render(
       <Dialog title="New spot" closeLabel="Close" onClose={onClose}>
         <input aria-label="Title" />
-        <button type="button">{label}</button>
+        <button type="button" className={hoverClass.ghost}>
+          {label}
+        </button>
       </Dialog>,
     )
 

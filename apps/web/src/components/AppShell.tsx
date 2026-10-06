@@ -1,11 +1,20 @@
+import type { Trip } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useMatch } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { onMembersRefresh } from '../live/bus'
 import { MembersDialog } from '../members/MembersDialog'
-import { Header } from './Header'
-import { activeLocale } from '../i18n'
 import { cn } from '../lib/utils'
+import { activeLocale } from '../i18n'
 import { useSession } from '../session'
+import { getTrip } from '../trips/client'
+import {
+  MAX_VISIBLE_MEMBERS,
+  MemberAvatars,
+  memberGroupLabel,
+} from '../trips/TripCard'
+import { Header } from './Header'
+import { hoverClass } from './ui/hover'
 
 export function AppShell() {
   const { t, i18n } = useTranslation()
@@ -15,9 +24,34 @@ export function AppShell() {
   const board = useMatch('/trips/:id')
   const tripId = schedule?.params.id ?? settings?.params.id ?? board?.params.id
   const [membersOpen, setMembersOpen] = useState(false)
+  const [members, setMembers] = useState<Trip['members']>([])
 
   useEffect(() => {
     setMembersOpen(false)
+  }, [tripId])
+
+  useEffect(() => {
+    if (!tripId) {
+      setMembers([])
+      return
+    }
+    let cancelled = false
+    const load = () => {
+      void getTrip(tripId)
+        .then((trip) => {
+          if (!cancelled) setMembers(trip.members)
+        })
+        .catch(() => undefined)
+    }
+    load()
+    const stop = onMembersRefresh((next) => {
+      if (next) setMembers(next)
+      else load()
+    })
+    return () => {
+      cancelled = true
+      stop()
+    }
   }, [tripId])
 
   useEffect(() => {
@@ -29,35 +63,46 @@ export function AppShell() {
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       <Header
-        tripSwitcher={
-          user ? (
-            <span
-              data-testid="trip-switcher"
-              className="inline-flex min-h-11 items-center rounded-[8px] border border-border px-3 text-sm"
-            >
-              {t('header.tripSwitcher')}
-            </span>
-          ) : null
-        }
         tabs={
           tripId ? (
             <nav aria-label={t('nav.label')} className="flex gap-1">
               <NavLink
                 to={`/trips/${tripId}`}
                 end
-                className={({ isActive }) => tabClass(isActive)}
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex min-h-11 cursor-pointer items-center rounded-[8px] px-3',
+                    isActive
+                      ? 'bg-accent text-accent-foreground'
+                      : hoverClass.tab,
+                  )
+                }
               >
                 {t('nav.board')}
               </NavLink>
               <NavLink
                 to={`/trips/${tripId}/schedule`}
-                className={({ isActive }) => tabClass(isActive)}
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex min-h-11 cursor-pointer items-center rounded-[8px] px-3',
+                    isActive
+                      ? 'bg-accent text-accent-foreground'
+                      : hoverClass.tab,
+                  )
+                }
               >
                 {t('nav.schedule')}
               </NavLink>
               <NavLink
                 to={`/trips/${tripId}/settings`}
-                className={({ isActive }) => tabClass(isActive)}
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex min-h-11 cursor-pointer items-center rounded-[8px] px-3',
+                    isActive
+                      ? 'bg-accent text-accent-foreground'
+                      : hoverClass.tab,
+                  )
+                }
               >
                 {t('trips.settings')}
               </NavLink>
@@ -65,18 +110,20 @@ export function AppShell() {
           ) : null
         }
         members={
-          tripId ? (
+          tripId && members.length > 0 ? (
             <button
               type="button"
-              className="inline-flex min-h-11 items-center rounded-[8px] px-3 text-sm"
+              className={cn(hoverClass.ghost, 'rounded-[8px] px-1')}
+              aria-label={memberGroupLabel(t, members)}
               onClick={() => setMembersOpen(true)}
             >
-              {t('header.members')}
+              <MemberAvatars
+                members={members}
+                max={MAX_VISIBLE_MEMBERS}
+                ring="background"
+                labelled={false}
+              />
             </button>
-          ) : user ? (
-            <span className="inline-flex min-h-11 items-center px-1 text-sm">
-              {t('header.members')}
-            </span>
           ) : null
         }
       />
@@ -87,12 +134,5 @@ export function AppShell() {
         <Outlet />
       </div>
     </div>
-  )
-}
-
-function tabClass(isActive: boolean) {
-  return cn(
-    'inline-flex min-h-11 items-center rounded-[8px] px-3',
-    isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
   )
 }

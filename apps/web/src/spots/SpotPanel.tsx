@@ -10,9 +10,12 @@ import {
 } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { phoneQuery, useMediaQuery } from '../lib/media'
+import { cn } from '../lib/utils'
 import { formatDate, formatTime } from '../lib/format'
 import { searchAddress } from './client'
 import { CopyAddress } from './CopyAddress'
@@ -222,7 +225,10 @@ export function SpotPanel({
                   <button
                     type="button"
                     role="option"
-                    className="w-full px-3 py-2 text-left hover:bg-background"
+                    className={cn(
+                      hoverClass.item,
+                      'w-full px-3 py-2 text-left',
+                    )}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => choose(place)}
                   >
@@ -339,32 +345,36 @@ export function SpotPanel({
           <label htmlFor={linkId} className="block">
             {t('board.link')}
           </label>
-          <input
-            id={linkId}
-            value={draft.link}
-            readOnly={readOnly}
-            aria-invalid={linkError ? true : undefined}
-            aria-describedby={linkError ? `${linkId}-error` : undefined}
-            onChange={(event) =>
-              onDraft({ ...draft, link: event.target.value })
+          <FieldError
+            message={
+              linkError
+                ? t(
+                    linkError === 'too_long'
+                      ? 'board.linkTooLong'
+                      : 'board.linkInvalid',
+                  )
+                : null
             }
-            className={inputClass}
-          />
-          {linkError ? (
-            <p id={`${linkId}-error`} role="alert" data-testid="link-error">
-              {t(
-                linkError === 'too_long'
-                  ? 'board.linkTooLong'
-                  : 'board.linkInvalid',
-              )}
-            </p>
-          ) : null}
+            id={`${linkId}-error`}
+            testId="link-error"
+          >
+            <input
+              id={linkId}
+              value={draft.link}
+              readOnly={readOnly}
+              onChange={(event) =>
+                onDraft({ ...draft, link: event.target.value })
+              }
+              className={inputClass}
+            />
+          </FieldError>
           {linkHref ? (
             <a
               href={linkHref}
               target="_blank"
               rel="noopener noreferrer"
               data-testid="spot-link"
+              className={hoverClass.link}
             >
               {linkHref}
             </a>
@@ -399,9 +409,7 @@ export function SpotPanel({
         {readOnly ? null : (
           <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
             {formError ? (
-              <p role="alert" data-testid="form-error">
-                {formError}
-              </p>
+              <ErrorNotice testId="form-error">{formError}</ErrorNotice>
             ) : null}
             <div className="flex items-center justify-between gap-2">
               {confirming ? (
@@ -414,7 +422,11 @@ export function SpotPanel({
                     >
                       {t('board.cancel')}
                     </Button>
-                    <Button onClick={onDelete} disabled={saving}>
+                    <Button
+                      variant="dangerSolid"
+                      onClick={onDelete}
+                      disabled={saving}
+                    >
                       {t('board.deleteSpot')}
                     </Button>
                   </div>
@@ -423,7 +435,7 @@ export function SpotPanel({
                 <>
                   {mode === 'edit' ? (
                     <Button
-                      variant="outline"
+                      variant="danger"
                       onClick={() => setConfirming(true)}
                     >
                       {t('board.delete')}

@@ -3,6 +3,7 @@ import type { AppLocale } from '../lib/locale'
 import { cn } from '../lib/utils'
 import { useTheme, type ThemeChoice } from '../theme'
 import { useLocaleSwitcher } from '../use-locale'
+import { hoverClass } from './ui/hover'
 
 const themeOrder: ThemeChoice[] = ['light', 'dark', 'system']
 
@@ -54,10 +55,10 @@ function LocaleButton({
       type="button"
       aria-pressed={selected}
       className={cn(
-        'min-h-11 px-3 text-sm',
+        'min-h-11 cursor-pointer px-3 text-sm',
         selected
           ? 'bg-accent text-accent-foreground'
-          : 'bg-card text-foreground',
+          : cn(hoverClass.tab, 'bg-card text-foreground'),
       )}
       onClick={() => {
         void onSelect(locale)
@@ -85,10 +86,10 @@ export function ThemeSwitch() {
             type="button"
             aria-pressed={selected}
             className={cn(
-              'min-h-11 px-3 text-sm',
+              'min-h-11 cursor-pointer px-3 text-sm',
               selected
                 ? 'bg-accent text-accent-foreground'
-                : 'bg-card text-foreground',
+                : cn(hoverClass.tab, 'bg-card text-foreground'),
             )}
             onClick={() => setTheme(choice)}
           >

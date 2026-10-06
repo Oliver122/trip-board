@@ -1,4 +1,6 @@
 import { LocateFixed, Minus, Plus } from 'lucide-react'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { setWorkerUrl, type Map as MaplibreMap } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -317,7 +319,10 @@ export function TripMap({
             >
               <button
                 type="button"
-                className="inline-flex size-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground shadow-panel"
+                className={cn(
+                  hoverClass.cluster,
+                  'inline-flex size-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground shadow-panel',
+                )}
                 data-testid="cluster"
                 aria-label={t('board.cluster', { count: item.count })}
                 onClick={() => {
@@ -446,7 +451,7 @@ export function TripMap({
           href="https://openfreemap.org/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-foreground underline"
+          className={cn(hoverClass.link, 'text-foreground underline')}
         >
           {t('board.attributionOfm')}
         </a>
@@ -455,7 +460,7 @@ export function TripMap({
           href="https://www.openstreetmap.org/copyright"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-foreground underline"
+          className={cn(hoverClass.link, 'text-foreground underline')}
         >
           {t('board.attributionOsm')}
         </a>

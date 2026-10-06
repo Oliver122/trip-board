@@ -2,6 +2,8 @@ import type { AdminStorage } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { ErrorState, LoadingState } from '../components/states'
 import { activeLocale } from '../i18n'
 import { getStorage } from './client'
@@ -160,7 +162,9 @@ function UsageCard({
           growth:
             growth === null
               ? t('admin.storage.noForecast')
-              : t('admin.storage.growth', { value: signedBytes(growth, locale) }),
+              : t('admin.storage.growth', {
+                  value: signedBytes(growth, locale),
+                }),
           forecast: forecastText(forecast, t),
         })}
       </p>
@@ -219,7 +223,10 @@ function RankList({
             {rows.map((row) => (
               <tr key={row.id}>
                 <td className="px-2 py-2">
-                  <Link to={row.href} className="underline">
+                  <Link
+                    to={row.href}
+                    className={cn(hoverClass.link, 'underline')}
+                  >
                     {row.name}
                   </Link>
                 </td>

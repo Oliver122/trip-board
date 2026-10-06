@@ -7,7 +7,9 @@ test('T-03-03 switching to German updates the header and survives reload', async
   await login(page, '100000000000000304')
   await setLocale(page, 'en')
   await page.goto('/trips')
-  await expect(page.getByTestId('trip-switcher')).toHaveText('Trip')
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Light' }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Account menu' }).click()
   await page.getByRole('menuitem', { name: 'Account & settings' }).click()
 
@@ -18,11 +20,15 @@ test('T-03-03 switching to German updates the header and survives reload', async
       response.ok(),
   )
   await page.getByRole('button', { name: 'DE' }).click()
-  await expect(page.getByTestId('trip-switcher')).toHaveText('Reise')
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Hell' }),
+  ).toBeVisible()
   await saved
 
   await page.reload()
-  await expect(page.getByTestId('trip-switcher')).toHaveText('Reise')
+  await expect(
+    page.getByRole('banner').getByRole('button', { name: 'Hell' }),
+  ).toBeVisible()
 })
 
 test('T-03-06 dark mode sets the html class and survives reload', async ({

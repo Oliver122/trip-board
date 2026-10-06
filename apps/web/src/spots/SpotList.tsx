@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { CategoryStrip, type Category } from '../components/category'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
@@ -149,7 +150,10 @@ export function SpotList({
           type="button"
           data-testid="sheet-handle"
           aria-label={t('board.sheet')}
-          className="flex w-full touch-none flex-col items-center py-2"
+          className={cn(
+            hoverClass.ghost,
+            'flex w-full touch-none flex-col items-center py-2',
+          )}
           onPointerDown={onHandlePointerDown}
           onKeyDown={(event) => {
             if (event.key === 'ArrowUp') {
@@ -232,6 +236,7 @@ export function SpotList({
                   id={`spot-card-${spot.id}`}
                   data-testid={`card-${spot.id}`}
                   className={cn(
+                    hoverClass.card,
                     'flex w-full items-stretch gap-3 border-b border-border text-left',
                     selectedId === spot.id && 'bg-background',
                   )}

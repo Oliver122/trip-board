@@ -2,6 +2,9 @@ import type { Quota, SpotImage } from '@tripboard/shared'
 import { X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice } from '../components/notice'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import {
   deleteImage,
   getQuota,
@@ -115,7 +118,9 @@ export function Gallery({
   return (
     <section className="space-y-3" aria-label={t('board.photo')}>
       {status === 'loading' ? <p>{t('board.imagesLoading')}</p> : null}
-      {status === 'error' ? <p role="alert">{t('board.imageError')}</p> : null}
+      {status === 'error' ? (
+        <ErrorNotice>{t('board.imageError')}</ErrorNotice>
+      ) : null}
       {quota ? (
         <p data-testid="quota-counter">
           {t('board.quota', {
@@ -165,7 +170,7 @@ export function Gallery({
           className="h-2 w-full"
         />
       ) : null}
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <ErrorNotice>{error}</ErrorNotice> : null}
       {status === 'ready' && images.length === 0 ? (
         <p className="text-sm text-muted">{t('board.imagesEmpty')}</p>
       ) : null}
@@ -175,7 +180,10 @@ export function Gallery({
             <li key={image.id} className="relative">
               <button
                 type="button"
-                className="block w-full overflow-hidden rounded-[8px]"
+                className={cn(
+                  hoverClass.card,
+                  'block w-full overflow-hidden rounded-[8px] border border-transparent',
+                )}
                 aria-label={t('board.photo')}
                 onClick={() => setOpen(image)}
               >
@@ -189,7 +197,10 @@ export function Gallery({
                 <button
                   type="button"
                   aria-label={t('board.deleteImage')}
-                  className="absolute top-1 right-1 inline-flex size-8 items-center justify-center rounded-[8px] bg-card"
+                  className={cn(
+                    hoverClass.danger,
+                    'absolute top-1 right-1 inline-flex size-8 items-center justify-center rounded-[8px] bg-card',
+                  )}
                   onClick={() => {
                     void remove(image.id)
                   }}
@@ -212,7 +223,10 @@ export function Gallery({
           <button
             type="button"
             aria-label={t('board.close')}
-            className="absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-[8px] bg-card"
+            className={cn(
+              hoverClass.ghost,
+              'absolute top-3 right-3 inline-flex size-11 items-center justify-center rounded-[8px] bg-card',
+            )}
             onClick={() => setOpen(null)}
           >
             <X aria-hidden="true" className="size-4" />

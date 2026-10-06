@@ -10,6 +10,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
+import { Toast, type ToastMessage } from '../components/Toast'
 import { Button } from '../components/ui/button'
 import { EmptyState, ErrorState } from '../components/states'
 import { activeLocale } from '../i18n'
@@ -79,7 +80,10 @@ export function SchedulePage() {
     body: PlanWrite
   } | null>(null)
   const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState('')
+  const [toast, setToastState] = useState<ToastMessage | null>(null)
+  const setToast = (message: string, kind: ToastMessage['kind'] = 'error') => {
+    setToastState(message ? { message, kind } : null)
+  }
   const [attempt, setAttempt] = useState(0)
   const [planError, setPlanError] = useState(false)
   const [spotPanel, setSpotPanel] = useState<SpotPanelState | null>(null)
@@ -96,12 +100,6 @@ export function SchedulePage() {
   const lang = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const tripId = id ?? trip.id
   const canEdit = trip.role !== 'visitor'
-
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(''), 4000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
 
   const seenLiveError = useRef(0)
   useEffect(() => {
@@ -122,6 +120,7 @@ export function SchedulePage() {
         setDialog(null)
         setToast(
           t('live.deleted', { name: notice.actorName || t('live.someone') }),
+          'info',
         )
       }
       dismissNotice(notice.token)
@@ -503,15 +502,7 @@ export function SchedulePage() {
           onTheirs={useTheirs}
         />
       ) : null}
-      {toast ? (
-        <p
-          role="alert"
-          data-testid="toast"
-          className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-card bg-foreground px-4 py-3 text-background shadow-panel"
-        >
-          {toast}
-        </p>
-      ) : null}
+      {toast ? <Toast toast={toast} onClose={() => setToast('')} /> : null}
     </main>
   )
 }

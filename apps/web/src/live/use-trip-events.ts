@@ -1,4 +1,8 @@
-import { defaultSpotListQuery, type PlanEntry, type Trip } from '@tripboard/shared'
+import {
+  defaultSpotListQuery,
+  type PlanEntry,
+  type Trip,
+} from '@tripboard/shared'
 import { useEffect, useRef } from 'react'
 import { clientId } from '../api/write'
 import { listPlan } from '../plan/client'
@@ -79,10 +83,13 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
           const trip = await getTrip(tripId)
           if (closed) return
           refreshRef.current.setTrip(trip)
-          if (resources.has('member')) emitMembersRefresh()
+          if (resources.has('member')) emitMembersRefresh(trip.members)
         }
         if (resources.has('image')) refreshRef.current.bumpImages()
-        if (resources.has('trip') && folded.changes.some((event) => event.action === 'trip.delete')) {
+        if (
+          resources.has('trip') &&
+          folded.changes.some((event) => event.action === 'trip.delete')
+        ) {
           refreshRef.current.onLostAccess()
         }
         refreshRef.current.onNotices(folded.changes)

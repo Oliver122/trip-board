@@ -10,6 +10,7 @@ import { ArrowUpDown, Download, ListFilter, Search, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
 import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
@@ -157,7 +158,10 @@ export function SpotToolbar({
             <li key={chip.key}>
               <button
                 type="button"
-                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-background px-3 text-sm"
+                className={cn(
+                  hoverClass.ghost,
+                  'inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-background px-3 text-sm text-foreground',
+                )}
                 aria-label={t('board.removeFilter', { label: chip.label })}
                 onClick={chip.remove}
               >

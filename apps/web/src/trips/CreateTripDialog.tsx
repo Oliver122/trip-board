@@ -8,7 +8,10 @@ import {
   type ReactNode,
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { ApiError, AuthError, createTrip } from './client'
 import { fieldMessage } from './fields'
 
@@ -159,36 +162,35 @@ export function CreateTripDialog({
         </h2>
         <form onSubmit={(event) => void onSubmit(event)} noValidate>
           {formError ? (
-            <p role="alert" className="mb-3 text-danger">
-              {formError}
-            </p>
+            <ErrorNotice className="mb-3">{formError}</ErrorNotice>
           ) : null}
           <label htmlFor={nameId} className="mb-1 block">
             {t('trips.name')}
           </label>
-          <input
-            id={nameId}
-            ref={nameRef}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className={inputClass}
-            aria-invalid={nameError ? true : undefined}
-          />
-          <FieldError message={nameError} />
+          <FieldError message={nameError}>
+            <input
+              id={nameId}
+              ref={nameRef}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
           <label htmlFor={regionId} className="mb-1 mt-3 block">
             {t('trips.region')}
           </label>
-          <input
-            id={regionId}
-            role="combobox"
-            aria-expanded={results.length > 0}
-            aria-controls={results.length > 0 ? listId : undefined}
-            aria-autocomplete="list"
-            value={query}
-            onChange={(event) => onQuery(event.target.value)}
-            className={inputClass}
-            aria-invalid={regionError ? true : undefined}
-          />
+          <FieldError message={regionError}>
+            <input
+              id={regionId}
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls={results.length > 0 ? listId : undefined}
+              aria-autocomplete="list"
+              value={query}
+              onChange={(event) => onQuery(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
           {results.length > 0 ? (
             <ul
               id={listId}
@@ -201,7 +203,11 @@ export function CreateTripDialog({
                     type="button"
                     role="option"
                     aria-selected={selected?.label === region.label}
-                    className="min-h-11 w-full rounded-[8px] px-3 text-left"
+                    className={cn(
+                      hoverClass.item,
+                      'min-h-11 w-full rounded-[8px] px-3 text-left',
+                      selected?.label === region.label && 'bg-hover',
+                    )}
                     onClick={() => pick(region)}
                   >
                     {region.label}
@@ -210,42 +216,41 @@ export function CreateTripDialog({
               ))}
             </ul>
           ) : null}
-          <FieldError message={regionError} />
           <label htmlFor={zoneId} className="mb-1 mt-3 block">
             {t('trips.timezone')}
           </label>
-          <input
-            id={zoneId}
-            value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
-            className={inputClass}
-            aria-invalid={zoneError ? true : undefined}
-          />
-          <FieldError message={zoneError} />
+          <FieldError message={zoneError}>
+            <input
+              id={zoneId}
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
           <label htmlFor={startId} className="mb-1 mt-3 block">
             {t('trips.startDate')}
           </label>
-          <input
-            id={startId}
-            type="date"
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-            className={inputClass}
-            aria-invalid={startError ? true : undefined}
-          />
-          <FieldError message={startError} />
+          <FieldError message={startError}>
+            <input
+              id={startId}
+              type="date"
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
           <label htmlFor={endId} className="mb-1 mt-3 block">
             {t('trips.endDate')}
           </label>
-          <input
-            id={endId}
-            type="date"
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            className={inputClass}
-            aria-invalid={endError ? true : undefined}
-          />
-          <FieldError message={endError} />
+          <FieldError message={endError}>
+            <input
+              id={endId}
+              type="date"
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+              className={inputClass}
+            />
+          </FieldError>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>
               {t('trips.cancel')}
@@ -257,15 +262,6 @@ export function CreateTripDialog({
         </form>
       </div>
     </div>
-  )
-}
-
-function FieldError({ message }: { message: string }) {
-  if (!message) return null
-  return (
-    <p role="alert" className="mt-1 text-danger">
-      {message}
-    </p>
   )
 }
 

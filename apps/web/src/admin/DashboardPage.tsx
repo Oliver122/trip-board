@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { formatDate } from '../lib/format'
 import { activeLocale } from '../i18n'
 import { getMetrics, getOpenStreams, getStats } from './client'
@@ -86,7 +88,12 @@ export function DashboardPage() {
               key={item}
               type="button"
               aria-pressed={item === range}
-              className="inline-flex min-h-11 items-center rounded-[8px] border border-border px-3"
+              className={cn(
+                'inline-flex min-h-11 cursor-pointer items-center rounded-[8px] border border-border px-3',
+                item === range
+                  ? 'bg-accent text-accent-foreground'
+                  : hoverClass.tab,
+              )}
               onClick={() => setParams(item === '30d' ? {} : { range: item })}
             >
               {t(

@@ -17,7 +17,9 @@ import {
   type FormEvent,
 } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { formatDate } from '../lib/format'
 import type { AppLocale } from '../lib/locale'
@@ -85,7 +87,10 @@ export function ScheduleList({
               {entry.type === 'bucket' ? (
                 <button
                   type="button"
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-[8px]"
+                  className={cn(
+                    hoverClass.ghost,
+                    'inline-flex size-11 shrink-0 items-center justify-center rounded-[8px]',
+                  )}
                   aria-expanded={open}
                   aria-label={t(
                     open ? 'schedule.collapse' : 'schedule.expand',
@@ -117,7 +122,10 @@ export function ScheduleList({
               <button
                 type="button"
                 data-testid={`entry-${entry.id}`}
-                className="min-h-11 min-w-0 flex-1 rounded-[8px] px-2 py-1 text-left"
+                className={cn(
+                  hoverClass.item,
+                  'min-h-11 min-w-0 flex-1 rounded-[8px] px-2 py-1 text-left',
+                )}
                 onClick={() => onSelect(entry.id)}
               >
                 <span className="block font-semibold">
@@ -141,7 +149,10 @@ export function ScheduleList({
               {canEdit ? (
                 <button
                   type="button"
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-[8px]"
+                  className={cn(
+                    hoverClass.ghost,
+                    'inline-flex size-11 shrink-0 items-center justify-center rounded-[8px]',
+                  )}
                   aria-label={t('schedule.editEntry', { title: entry.title })}
                   onClick={() => onEdit(entry)}
                 >
@@ -366,7 +377,10 @@ function BucketSpots({
                     draggable
                     data-testid={`drag-${link.id}`}
                     aria-label={t('schedule.drag', { spot: link.title })}
-                    className="inline-flex size-11 shrink-0 cursor-grab items-center justify-center rounded-[8px]"
+                    className={cn(
+                      hoverClass.grab,
+                      'inline-flex size-11 shrink-0 items-center justify-center rounded-[8px]',
+                    )}
                     onDragStart={(event) => {
                       setDraggingId(link.id)
                       startDrag(event, link.id, dragRef)
@@ -402,7 +416,10 @@ function BucketSpots({
                       aria-label={upLabel}
                       title={upLabel}
                       disabled={index === 0}
-                      className="inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40"
+                      className={cn(
+                        hoverClass.ghost,
+                        'inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40',
+                      )}
                       onClick={() => move(index, -1)}
                     >
                       <ChevronUp aria-hidden="true" className="size-4" />
@@ -413,7 +430,10 @@ function BucketSpots({
                       aria-label={downLabel}
                       title={downLabel}
                       disabled={index === entry.spots.length - 1}
-                      className="inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40"
+                      className={cn(
+                        hoverClass.ghost,
+                        'inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40',
+                      )}
                       onClick={() => move(index, 1)}
                     >
                       <ChevronDown aria-hidden="true" className="size-4" />
@@ -423,7 +443,10 @@ function BucketSpots({
                       data-testid={`remove-visit-${link.id}`}
                       aria-label={removeLabel}
                       title={removeLabel}
-                      className="inline-flex size-11 items-center justify-center rounded-[8px]"
+                      className={cn(
+                        hoverClass.danger,
+                        'inline-flex size-11 items-center justify-center rounded-[8px]',
+                      )}
                       onClick={() => {
                         void onRemoveSpot(entry.id, link.id)
                       }}
@@ -585,8 +608,9 @@ function AddSpotForm({
             role="option"
             aria-selected={spot.id === spotId}
             className={cn(
+              hoverClass.item,
               'min-h-11 w-full rounded-[8px] px-3 text-left',
-              spot.id === spotId && 'bg-background',
+              spot.id === spotId && 'bg-hover',
             )}
             onClick={() => setSpotId(spot.id)}
           >
@@ -598,7 +622,10 @@ function AddSpotForm({
           role="option"
           aria-selected={false}
           data-testid="create-spot"
-          className="min-h-11 w-full rounded-[8px] px-3 text-left"
+          className={cn(
+            hoverClass.item,
+            'min-h-11 w-full rounded-[8px] px-3 text-left',
+          )}
           onClick={() => onCreate(query)}
         >
           {t('schedule.createSpot', { title: query.trim() })}
@@ -639,11 +666,7 @@ function AddSpotForm({
           />
         </>
       ) : null}
-      {failed ? (
-        <p role="alert" className="text-sm text-danger">
-          {t('schedule.saveError')}
-        </p>
-      ) : null}
+      {failed ? <ErrorNotice>{t('schedule.saveError')}</ErrorNotice> : null}
       <div className="flex gap-2">
         <Button variant="outline" onClick={onCancel}>
           {t('schedule.cancel')}

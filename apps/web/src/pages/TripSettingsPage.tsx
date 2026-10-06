@@ -2,7 +2,10 @@ import type { Trip } from '@tripboard/shared'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { activeLocale } from '../i18n'
 import { useSession } from '../session'
 import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
@@ -22,7 +25,7 @@ export function TripSettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-8 md:px-8">
-      <Link to="/trips" className="text-sm text-muted">
+      <Link to="/trips" className={cn(hoverClass.link, 'text-sm text-muted')}>
         {t('trips.back')}
       </Link>
       <SettingsForm
@@ -176,25 +179,19 @@ function SettingsForm({
             {t('trips.settings')}
           </h2>
           {formError ? (
-            <p role="alert" className="mb-3 text-danger">
-              {formError}
-            </p>
+            <ErrorNotice className="mb-3">{formError}</ErrorNotice>
           ) : null}
           <label htmlFor="trip-settings-name" className="mb-1 block">
             {t('trips.name')}
           </label>
-          <input
-            id="trip-settings-name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
-            aria-invalid={nameError ? true : undefined}
-          />
-          {nameError ? (
-            <p role="alert" className="mt-1 text-danger">
-              {nameError}
-            </p>
-          ) : null}
+          <FieldError message={nameError}>
+            <input
+              id="trip-settings-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+            />
+          </FieldError>
           <label htmlFor="trip-settings-start" className="mb-1 mt-3 block">
             {t('trips.startDate')}
           </label>
@@ -208,19 +205,15 @@ function SettingsForm({
           <label htmlFor="trip-settings-end" className="mb-1 mt-3 block">
             {t('trips.endDate')}
           </label>
-          <input
-            id="trip-settings-end"
-            type="date"
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
-            aria-invalid={endError ? true : undefined}
-          />
-          {endError ? (
-            <p role="alert" className="mt-1 text-danger">
-              {endError}
-            </p>
-          ) : null}
+          <FieldError message={endError}>
+            <input
+              id="trip-settings-end"
+              type="date"
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+              className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+            />
+          </FieldError>
           <Button className="mt-4" type="submit" disabled={saving}>
             {t('trips.save')}
           </Button>
@@ -239,7 +232,7 @@ function SettingsForm({
       ) : null}
       {trip.role === 'owner' ? (
         <div className="mt-8">
-          <Button variant="outline" onClick={onDelete}>
+          <Button variant="danger" onClick={onDelete}>
             {t('trips.delete')}
           </Button>
         </div>

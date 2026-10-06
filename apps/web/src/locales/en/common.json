@@ -17,8 +17,13 @@
     "themeDark": "Dark",
     "themeSystem": "System",
     "members": "Members",
-    "admin": "Admin",
-    "tripSwitcher": "Trip"
+    "membersList": "Members: {{list}}",
+    "membersAnd": "and",
+    "membersMore": "and {{count}} more",
+    "admin": "Admin"
+  },
+  "toast": {
+    "close": "Close"
   },
   "state": {
     "loading": "Loading…",

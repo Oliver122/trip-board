@@ -2,6 +2,8 @@ import type { AdminTripDetail } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { ErrorState, LoadingState } from '../components/states'
 import { megabytes } from '../images/format'
 import { activeLocale } from '../i18n'
@@ -40,7 +42,7 @@ export function TripPage() {
   return (
     <>
       <p className="mb-2">
-        <Link to="/admin/trips" className="underline">
+        <Link to="/admin/trips" className={cn(hoverClass.link, 'underline')}>
           {t('admin.nav.trips')}
         </Link>
       </p>
@@ -84,7 +86,10 @@ export function TripPage() {
             {detail.members.map((member) => (
               <tr key={member.id}>
                 <td className="px-2 py-2">
-                  <Link to={`/admin/users/${member.id}`} className="underline">
+                  <Link
+                    to={`/admin/users/${member.id}`}
+                    className={cn(hoverClass.link, 'underline')}
+                  >
                     {member.displayName ?? member.username}
                   </Link>
                 </td>

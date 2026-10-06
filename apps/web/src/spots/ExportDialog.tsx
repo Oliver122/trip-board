@@ -4,6 +4,8 @@ import {
   type SpotListQuery,
 } from '@tripboard/shared'
 import { X } from 'lucide-react'
+import { hoverClass } from '../components/ui/hover'
+import { cn } from '../lib/utils'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { buttonVariants } from '../components/ui/button'
@@ -65,7 +67,10 @@ export function ExportDialog({
         </h2>
         <button
           type="button"
-          className="absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-[8px]"
+          className={cn(
+            hoverClass.ghost,
+            'absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-[8px]',
+          )}
           aria-label={t('board.close')}
           onClick={onClose}
         >
@@ -112,7 +117,7 @@ export function ExportDialog({
         </fieldset>
         <div className="mt-4 flex justify-end">
           <a
-            className={buttonVariants()}
+            className={buttonVariants({ variant: 'outline' })}
             href={`/api/trips/${tripId}/export?${params.toString()}`}
           >
             {t('board.download')}
