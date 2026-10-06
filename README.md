@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–13 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, and invites).
+**Status:** steps 00–14 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, and export).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -69,7 +69,7 @@ The spot panel shows thumbnails, a drop zone, upload progress, a lightbox, and t
 
 The list toolbar searches, filters, and sorts the same spots the map draws. Search waits 250 ms, then matches title, address, and info without regard to case (`ÖFFNET` matches `öffnet`). `%` and `_` are literal characters. Filters are category (more than one), scheduled or not, and who added the spot. “Only visible on map” stays on unless the URL says `visible=0`. The default sort is scheduled first: spots with a visit time, a “Not scheduled yet” divider, then the rest by category (must go, maybe, home) and title. Other sorts are `datetime`, `category`, `az`, and `newest`. An unknown `sort` is `400`.
 
-The view is the query string `?q=&cat=&status=&by=&sort=&visible=`. Active filters show as chips; Reset clears them. The count reads “6 spots”, or “2 of 6 spots” while a filter is on. When nothing matches, the list says “No spots match your filters”. `GET /trips/:id/spots` accepts those parameters (except `visible`, which follows the map) and returns `{spots, total}` in that order, which is also what export will use.
+The view is the query string `?q=&cat=&status=&by=&sort=&visible=`. Active filters show as chips; Reset clears them. The count reads “6 spots”, or “2 of 6 spots” while a filter is on. When nothing matches, the list says “No spots match your filters”. `GET /trips/:id/spots` accepts those parameters (except `visible`, which follows the map) and returns `{spots, total}` in that order. Export uses that same list.
 
 ## Spots and geocoding
 
@@ -106,6 +106,18 @@ The spot panel’s **In plans** section lists the entries that include the spot.
 `GET /join/:code` is public and returns the trip name, owner name, member count, and role. An unknown code is `404`. An expired or revoked code is `410` with `expired` or `revoked`. `POST /join/:code` adds the signed-in user with that role. Someone who is already a member keeps their current role. Join attempts are limited to 10 per minute per IP.
 
 The join page shows that preview and a **Join trip** button. Signed-out visitors get **Continue with Discord** with `next=/join/<code>`. A link-preview bot (for example `Discordbot`) that requests `GET /join/:code` receives HTML with Open Graph tags: the trip name as `og:title` and “Join on Trip Board” as the description. An expired code’s HTML omits the trip name. In development, the Vite server forwards those bot requests to the API. A production host that serves the static app should do the same for `GET /join/:code` when the user agent is a crawler, or Discord will preview the empty app shell.
+
+## Export
+
+**Export** on the board opens a dialog. **Full list** is the default. **Current view** sends the same search, category, status, added-by, plan entry, and sort parameters as the list, and the label shows how many of those filters are on (each selected category counts as one). The map’s “only visible” toggle stays on the board.
+
+`GET /trips/:id/export?format=csv|pdf|ics` is open to every member, including visitors. Someone who is not a member gets `404`. An unknown format or sort is `400`. The download is named from the trip, for example `japan-2026-2026-10-06.csv`, using the trip timezone for the date. A successful download writes `export.download` in the same transaction.
+
+CSV is UTF-8 with a byte-order mark, one row per visit, plus one row for each spot that has no visit. Headers and category labels follow the profile language. A cell that starts with `=`, `+`, `-`, or `@` is prefixed with `'` so Excel does not treat it as a formula.
+
+PDF is an A4 itinerary: trip title, dates, and members, then the schedule day by day (each bucket or single with its spots and home), then spots that are not on a plan, grouped by category. Dates follow the profile language. The file uses a standard Latin font, so characters outside that set are replaced.
+
+The calendar file has one event per bucket (all-day across the bucket’s dates), one per single entry, and one per visit that has a time. Location is the address, the description is the info text, and `GEO` is the latitude and longitude. Event ids stay the same across downloads. Times use the trip timezone (`TZID`).
 
 ## Scripts
 

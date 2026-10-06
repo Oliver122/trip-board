@@ -27,6 +27,8 @@ const glyph: Record<'must-go' | 'maybe', string> = {
 }
 
 export function SpotList({
+  tripId,
+  tripName,
   spots,
   total,
   bounds,
@@ -40,6 +42,8 @@ export function SpotList({
   onSelect,
   onHover,
 }: {
+  tripId: string
+  tripName: string
   spots: Spot[]
   total: number
   bounds: LngLatBounds | null
@@ -84,6 +88,8 @@ export function SpotList({
         </span>
       </div>
       <SpotToolbar
+        tripId={tripId}
+        tripName={tripName}
         query={query}
         members={members}
         entries={entries}

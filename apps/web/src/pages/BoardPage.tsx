@@ -433,6 +433,8 @@ export function BoardPage() {
         ) : null}
       </div>
       <SpotList
+        tripId={tripId}
+        tripName={trip.name}
         spots={spots}
         total={total}
         bounds={bounds}

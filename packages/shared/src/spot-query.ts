@@ -44,12 +44,19 @@ const displayCategorySet = new Set<string>(displayCategories)
 export function spotFiltersActive(
   query: Pick<SpotListQuery, 'q' | 'cat' | 'status' | 'by' | 'entry'>,
 ): boolean {
+  return activeFilterCount(query) > 0
+}
+
+/** Search, each category, status, author, and plan entry. Sort is not a filter. */
+export function activeFilterCount(
+  query: Pick<SpotListQuery, 'q' | 'cat' | 'status' | 'by' | 'entry'>,
+): number {
   return (
-    query.q.trim().length > 0 ||
-    query.cat.length > 0 ||
-    query.status !== 'all' ||
-    query.by !== null ||
-    query.entry !== null
+    (query.q.trim().length > 0 ? 1 : 0) +
+    query.cat.length +
+    (query.status !== 'all' ? 1 : 0) +
+    (query.by ? 1 : 0) +
+    (query.entry ? 1 : 0)
   )
 }
 

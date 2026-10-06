@@ -11,12 +11,15 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { cn } from '../lib/utils'
+import { ExportDialog } from './ExportDialog'
 import { pinCategory } from './model'
 
 type Member = { id: string; name: string }
-type Panel = 'search' | 'filter' | 'sort' | 'export'
+type Panel = 'search' | 'filter' | 'sort'
 
 export function SpotToolbar({
+  tripId,
+  tripName,
   query,
   members,
   entries = [],
@@ -24,6 +27,8 @@ export function SpotToolbar({
   onSearchDraft,
   onQuery,
 }: {
+  tripId: string
+  tripName: string
   query: SpotListQuery
   members: Member[]
   entries?: { id: string; title: string }[]
@@ -34,10 +39,10 @@ export function SpotToolbar({
   const { t } = useTranslation()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<Panel | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
   const searchId = useId()
   const filterId = useId()
   const sortId = useId()
-  const exportId = useId()
   const chips = filterChips(query, members, entries, t, onQuery)
 
   useEffect(() => {
@@ -115,9 +120,12 @@ export function SpotToolbar({
           variant="outline"
           className="size-11 px-0"
           aria-label={t('board.export')}
-          aria-expanded={open === 'export'}
-          aria-controls={exportId}
-          onClick={() => toggle('export')}
+          aria-expanded={exportOpen}
+          aria-haspopup="dialog"
+          onClick={() => {
+            setOpen(null)
+            setExportOpen(true)
+          }}
         >
           <Download aria-hidden="true" className="size-4" />
         </Button>
@@ -295,15 +303,13 @@ export function SpotToolbar({
           </fieldset>
         </div>
       ) : null}
-      {open === 'export' ? (
-        <div
-          id={exportId}
-          role="region"
-          aria-label={t('board.export')}
-          className="mx-3 mb-2 rounded-card border border-border bg-card p-3 shadow-panel"
-        >
-          <p>{t('board.exportLater')}</p>
-        </div>
+      {exportOpen ? (
+        <ExportDialog
+          tripId={tripId}
+          tripName={tripName}
+          query={query}
+          onClose={() => setExportOpen(false)}
+        />
       ) : null}
     </div>
   )

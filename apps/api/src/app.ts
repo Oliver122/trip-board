@@ -2,6 +2,7 @@ import { healthResponseSchema, maxUploadBytes } from '@tripboard/shared'
 import Fastify from 'fastify'
 import type { Pool } from 'pg'
 import { registerAuthRoutes } from './auth/routes.js'
+import { registerExportRoutes } from './export/routes.js'
 import { loadConfig, type AppConfig } from './config.js'
 import { pingDatabase } from './db.js'
 import { registerGeocodeRoutes } from './geocode/routes.js'
@@ -51,6 +52,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
   })
   registerSpotRoutes(app, { pool, config, now })
   registerPlanRoutes(app, { pool, config, now })
+  registerExportRoutes(app, { pool, config, now })
   registerGeocodeRoutes(app, {
     pool,
     config,

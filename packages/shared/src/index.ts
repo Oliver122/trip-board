@@ -127,6 +127,7 @@ export type {
   SpotPlan,
 } from './plans.js'
 export {
+  activeFilterCount,
   defaultSpotListQuery,
   parseSpotListQuery,
   spotFiltersActive,
