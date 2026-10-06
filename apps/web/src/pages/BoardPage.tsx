@@ -1,8 +1,11 @@
 import {
   parseSpotListQuery,
   spotListSearchParams,
+  type PlanEntry,
   type Spot,
+  type SpotDetail,
   type SpotListQuery,
+  type SpotPlan,
 } from '@tripboard/shared'
 import { Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -16,9 +19,11 @@ import { TripMap } from '../map/TripMap'
 import { parseTrip, type TripMapData } from '../map/trip'
 import { useSession } from '../session'
 import { AuthError, getTrip } from '../trips/client'
+import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
 import {
   createSpot,
   deleteSpot,
+  getSpot,
   listSpots,
   reverseAddress,
   updateSpot,
@@ -40,6 +45,7 @@ type Panel = {
   draft: Draft
   baseline: Draft
   spot: Spot | null
+  plans: SpotPlan[]
 }
 
 export function BoardPage() {
@@ -68,6 +74,8 @@ export function BoardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [panel, setPanel] = useState<Panel | null>(null)
+  const [entries, setEntries] = useState<PlanEntry[]>([])
+  const detailEpoch = useRef(0)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
   const [attempt, setAttempt] = useState(0)
@@ -98,7 +106,7 @@ export function BoardPage() {
     return () => window.clearTimeout(timer)
   }, [searchDraft])
 
-  const filterKey = `${query.q}\n${query.cat.join(',')}\n${query.status}\n${query.by ?? ''}\n${query.sort}`
+  const filterKey = `${query.q}\n${query.cat.join(',')}\n${query.status}\n${query.by ?? ''}\n${query.entry ?? ''}\n${query.sort}`
 
   useEffect(() => {
     if (!id) {
@@ -132,6 +140,18 @@ export function BoardPage() {
           return
         }
         setStatus('error')
+      })
+    return () => controller.abort()
+  }, [attempt, id, reload])
+
+  useEffect(() => {
+    if (!id) return
+    const controller = new AbortController()
+    void listPlan(id, controller.signal)
+      .then(setEntries)
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        if (error instanceof AuthError) reload()
       })
     return () => controller.abort()
   }, [attempt, id, reload])
@@ -210,6 +230,7 @@ export function BoardPage() {
       draft: emptyDraft,
       baseline: emptyDraft,
       spot: null,
+      plans: [],
     })
   }
 
@@ -223,6 +244,38 @@ export function BoardPage() {
       draft,
       baseline: draft,
       spot,
+      plans: [],
+    })
+    void refreshDetail(spotId)
+  }
+
+  async function refreshDetail(spotId: string) {
+    const epoch = ++detailEpoch.current
+    try {
+      const detail = await getSpot(spotId)
+      if (epoch !== detailEpoch.current) return
+      applyDetail(detail)
+    } catch (error) {
+      if (error instanceof AuthError) reload()
+    }
+  }
+
+  function applyDetail(detail: SpotDetail) {
+    setSpots((current) =>
+      current.map((spot) => (spot.id === detail.id ? detail : spot)),
+    )
+    setPanel((current) => {
+      if (!current || current.spot?.id !== detail.id) return current
+      const draft = draftFromSpot(detail)
+      return {
+        ...current,
+        spot: detail,
+        plans: detail.plans,
+        draft: draftsEqual(current.draft, current.baseline)
+          ? draft
+          : current.draft,
+        baseline: draft,
+      }
     })
   }
 
@@ -379,6 +432,7 @@ export function BoardPage() {
         bounds={bounds}
         query={query}
         members={trip.members}
+        entries={entries}
         searchDraft={searchDraft}
         onSearchDraft={setSearchDraft}
         onQuery={updateQuery}
@@ -394,6 +448,8 @@ export function BoardPage() {
           lang={lang}
           saving={saving}
           spot={panel.spot}
+          plans={panel.plans}
+          entries={entries}
           onDraft={changeDraft}
           onClose={requestClose}
           onSubmit={() => {
@@ -401,6 +457,39 @@ export function BoardPage() {
           }}
           onDelete={() => {
             void remove()
+          }}
+          onAddToPlan={async (input) => {
+            if (!panel.spot) return
+            const spotId = panel.spot.id
+            try {
+              await addPlanSpot(input.entryId, {
+                spotId,
+                visitDate: input.visitDate,
+                visitTime: input.visitTime,
+              })
+              await refreshDetail(spotId)
+            } catch (error) {
+              if (error instanceof AuthError) {
+                reload()
+                return
+              }
+              setToast(t('board.saveError'))
+              throw error
+            }
+          }}
+          onRemoveFromPlan={async (entryId, linkId) => {
+            if (!panel.spot) return
+            const spotId = panel.spot.id
+            try {
+              await removePlanSpot(entryId, linkId)
+              await refreshDetail(spotId)
+            } catch (error) {
+              if (error instanceof AuthError) {
+                reload()
+                return
+              }
+              setToast(t('board.saveError'))
+            }
           }}
         />
       ) : null}

@@ -106,6 +106,12 @@ export async function listSpots(
     values.push(filters.by)
     where.push(`s.created_by = $${values.length}`)
   }
+  if (filters.entry) {
+    values.push(filters.entry)
+    where.push(
+      `EXISTS (SELECT 1 FROM plan_entry_spots p WHERE p.spot_id = s.id AND p.plan_entry_id = $${values.length})`,
+    )
+  }
   const result = await db.query<SpotRow>(
     `${spotSelect} WHERE ${where.join(' AND ')} ORDER BY ${sortOrderSql[filters.sort]}`,
     values,

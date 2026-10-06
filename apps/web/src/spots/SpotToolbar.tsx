@@ -19,12 +19,14 @@ type Panel = 'search' | 'filter' | 'sort' | 'export'
 export function SpotToolbar({
   query,
   members,
+  entries = [],
   searchDraft,
   onSearchDraft,
   onQuery,
 }: {
   query: SpotListQuery
   members: Member[]
+  entries?: { id: string; title: string }[]
   searchDraft: string
   onSearchDraft: (value: string) => void
   onQuery: (query: SpotListQuery) => void
@@ -36,7 +38,7 @@ export function SpotToolbar({
   const filterId = useId()
   const sortId = useId()
   const exportId = useId()
-  const chips = filterChips(query, members, t, onQuery)
+  const chips = filterChips(query, members, entries, t, onQuery)
 
   useEffect(() => {
     if (!open) return
@@ -231,6 +233,30 @@ export function SpotToolbar({
               ) : null}
             </select>
           </label>
+          <label className="mt-3 block text-sm font-semibold">
+            {t('board.planEntry')}
+            <select
+              className="mt-1 w-full min-h-11 rounded-[8px] border border-border bg-card px-3 font-normal"
+              value={query.entry ?? ''}
+              onChange={(event) =>
+                onQuery({
+                  ...query,
+                  entry: event.target.value === '' ? null : event.target.value,
+                })
+              }
+            >
+              <option value="">{t('board.anyEntry')}</option>
+              {entries.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.title}
+                </option>
+              ))}
+              {query.entry &&
+              !entries.some((entry) => entry.id === query.entry) ? (
+                <option value={query.entry}>{query.entry}</option>
+              ) : null}
+            </select>
+          </label>
           <label className="mt-3 flex min-h-11 items-center gap-2">
             <input
               type="checkbox"
@@ -296,6 +322,7 @@ function toggleCategory(
 function filterChips(
   query: SpotListQuery,
   members: Member[],
+  entries: { id: string; title: string }[],
   t: (key: string, options?: Record<string, string>) => string,
   onQuery: (query: SpotListQuery) => void,
 ): { key: string; label: string; remove: () => void }[] {
@@ -336,6 +363,16 @@ function filterChips(
       key: 'by',
       label,
       remove: () => onQuery({ ...query, by: null }),
+    })
+  }
+  if (query.entry) {
+    const label =
+      entries.find((entry) => entry.id === query.entry)?.title ??
+      t('board.planEntry')
+    chips.push({
+      key: 'entry',
+      label,
+      remove: () => onQuery({ ...query, entry: null }),
     })
   }
   return chips

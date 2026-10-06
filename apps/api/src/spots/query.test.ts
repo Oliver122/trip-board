@@ -17,6 +17,7 @@ describe('spot list query', () => {
       cat: ['must_go', 'home'],
       status: 'scheduled',
       by: aiko,
+      entry: '30000000-0000-0000-0000-000000000001',
       sort: 'az',
       visible: false,
     }
@@ -25,6 +26,7 @@ describe('spot list query', () => {
     expect(search).toContain('cat=must_go%2Chome')
     expect(search).toContain('status=scheduled')
     expect(search).toContain(`by=${aiko}`)
+    expect(search).toContain('entry=30000000-0000-0000-0000-000000000001')
     expect(search).toContain('sort=az')
     expect(search).toContain('visible=0')
     expect(parseSpotListQuery(search)).toEqual(query)
@@ -40,6 +42,7 @@ describe('spot list query', () => {
       cat: ['home'],
       status: 'all',
       by: null,
+      entry: null,
       sort: 'scheduled',
       visible: true,
     })
@@ -64,8 +67,13 @@ describe('spot list query', () => {
         cat: ['must_go', 'home'],
         status: 'all',
         by: null,
+        entry: null,
         sort: 'scheduled',
       },
+    })
+    expect(strictSpotListQuery({ entry: 'nope' })).toEqual({
+      ok: false,
+      fields: { entry: 'invalid' },
     })
   })
 })

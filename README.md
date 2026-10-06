@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–10 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API).
+**Status:** steps 00–11 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -86,6 +86,14 @@ Planners and owners build the schedule with `POST /trips/:id/plan`. A bucket nee
 `PATCH /plan/:id` and `DELETE /plan/:id` edit or remove an entry. Deleting an entry removes its links and leaves the spots in place. `POST /plan/:id/spots` adds `{spotId, visitDate?, visitTime?, info?}`. The same spot can be added to many entries, and more than once to one bucket. `visitDate` must fall inside the entry; otherwise the response is `400` with `fields.visitDate = outside_range` and the message "Visit date must be inside the plan entry range". `PATCH /plan/:id/spots/:linkId` changes that date, time, or info. `DELETE` removes one link. `PUT /plan/:id/spots/order` with `{linkIds}` sets the order; a link from another entry is `400` with `fields.linkIds = other_entry`.
 
 Shrinking a bucket’s dates clears visit dates that no longer fit and returns `clearedVisitDates` with the count. Entries may sit outside the trip’s own dates; those are saved and flagged `outsideTripDates: true`. A spot in at least one entry is `planned` on `spots_view` (`planCount` and `firstScheduledAt` update immediately). A home spot stays `home`. Removing the last link restores the base category. Visitors get `403` on every plan write. Someone who is not a member gets `404`. A spot from another trip is `404`. Each change writes `plan.create`, `plan.update`, `plan.delete`, `plan.spot_add`, or `plan.spot_remove` in the same transaction.
+
+`GET /trips/:id/spots` also accepts `entry`, a plan entry id. The list and the map then include only spots linked to that entry. An id that is not a UUID is `400`.
+
+## Schedule
+
+`/trips/:id/schedule` lists buckets and single dates in chronological order, with the map beside the list. A bucket shows its date range, info, and visits, and can be collapsed. A single shows its date and time. Planners use **+ Bucket** and **+ Single** to add entries, then **Add spot** inside a bucket to attach a visit with a date inside that range, a time, and a note. Visits reorder by drag or with the keyboard. Shrinking a bucket shows how many visit dates will be cleared before the change is saved. Selecting an entry fits the map to its spots and highlights those pins. Visitors see the same list without add, edit, drag, or remove controls.
+
+The spot panel’s **In plans** section lists the entries that include the spot. **Add to plan** puts it on an entry, and the category badge switches to _Planned_ with the visit count. The category dropdown still edits the base category. The board filter adds **Plan entry**.
 
 ## Scripts
 

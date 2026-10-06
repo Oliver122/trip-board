@@ -33,6 +33,8 @@ export function TripMap({
   onPlace,
   onDraftMove,
   onViewport,
+  highlightIds = [],
+  focus = null,
 }: {
   bbox: LngLatBounds
   spots: MapSpot[]
@@ -45,6 +47,8 @@ export function TripMap({
   onPlace?: (lng: number, lat: number) => void
   onDraftMove?: (lng: number, lat: number) => void
   onViewport?: (bounds: LngLatBounds) => void
+  highlightIds?: string[]
+  focus?: { key: string; bounds: LngLatBounds } | null
 }) {
   const { t, i18n } = useTranslation()
   const { theme } = useTheme()
@@ -64,6 +68,13 @@ export function TripMap({
     [spots, camera],
   )
   const hash = parseViewportHash(window.location.hash)
+  const focusRef = useRef(focus)
+  focusRef.current = focus
+
+  useEffect(() => {
+    const map = mapRef.current?.getMap()
+    if (map) fitSelection(map, focus)
+  }, [focus])
 
   function remember(map: MaplibreMap) {
     const center = map.getCenter()
@@ -124,6 +135,7 @@ export function TripMap({
           const map = event.target
           ;(window as BoardWindow).__tripboardMap = map
           remember(map)
+          fitSelection(map, focusRef.current)
         }}
         onMoveEnd={(event) => {
           remember(event.target)
@@ -171,7 +183,8 @@ export function TripMap({
               anchor="center"
               style={{
                 zIndex:
-                  item.spot.id === selectedId
+                  item.spot.id === selectedId ||
+                  highlightIds.includes(item.spot.id)
                     ? 3
                     : item.spot.id === hoverId
                       ? 2
@@ -181,7 +194,10 @@ export function TripMap({
               <Pin
                 category={item.spot.category}
                 label={item.spot.title}
-                selected={item.spot.id === selectedId}
+                selected={
+                  item.spot.id === selectedId ||
+                  highlightIds.includes(item.spot.id)
+                }
                 hover={item.spot.id === hoverId}
                 testId={`pin-${item.spot.id}`}
                 onClick={() => {
@@ -306,6 +322,20 @@ function useResolvedDark(theme: ThemeChoice) {
     return () => observer.disconnect()
   }, [theme])
   return dark
+}
+
+function fitSelection(
+  map: MaplibreMap,
+  focus: { key: string; bounds: LngLatBounds } | null,
+) {
+  if (!focus || !map.isStyleLoaded()) return
+  map.fitBounds(
+    [
+      [focus.bounds.minLng, focus.bounds.minLat],
+      [focus.bounds.maxLng, focus.bounds.maxLat],
+    ],
+    { padding: 80, maxZoom: 13, duration: 0 },
+  )
 }
 
 export function isTileFailure(error: unknown): boolean {

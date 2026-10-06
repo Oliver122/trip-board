@@ -370,6 +370,77 @@ describe('spots', () => {
     expect(home.statusCode).toBe(201)
   })
 
+  it('filters spots linked to one plan entry', async () => {
+    const owner = await login('100000000000000811')
+    const tripId = await createTrip(owner.cookie)
+    const tower = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Tower',
+    })
+    const park = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Park',
+    })
+    const tokyoEntry = await app.inject({
+      method: 'POST',
+      url: `/trips/${tripId}/plan`,
+      headers: jsonHeaders(owner.cookie),
+      payload: {
+        type: 'bucket',
+        title: 'Tokyo',
+        startDate: '2026-04-12',
+        endDate: '2026-04-16',
+      },
+    })
+    const kyotoEntry = await app.inject({
+      method: 'POST',
+      url: `/trips/${tripId}/plan`,
+      headers: jsonHeaders(owner.cookie),
+      payload: {
+        type: 'bucket',
+        title: 'Kyoto',
+        startDate: '2026-04-17',
+        endDate: '2026-04-20',
+      },
+    })
+    expect(tokyoEntry.statusCode).toBe(201)
+    expect(kyotoEntry.statusCode).toBe(201)
+    const tokyoId = tokyoEntry.json().id as string
+    const kyotoId = kyotoEntry.json().id as string
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/plan/${tokyoId}/spots`,
+          headers: jsonHeaders(owner.cookie),
+          payload: {
+            spotId: tower.json().id,
+            visitDate: '2026-04-13',
+            visitTime: '18:00',
+          },
+        })
+      ).statusCode,
+    ).toBe(201)
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/plan/${kyotoId}/spots`,
+          headers: jsonHeaders(owner.cookie),
+          payload: { spotId: park.json().id, visitDate: '2026-04-18' },
+        })
+      ).statusCode,
+    ).toBe(201)
+
+    const onlyTokyo = await list(owner.cookie, tripId, `entry=${tokyoId}`)
+    expect(onlyTokyo.statusCode).toBe(200)
+    expect(titles(onlyTokyo)).toEqual(['Tower'])
+    expect(onlyTokyo.json().total).toBe(2)
+
+    const invalid = await list(owner.cookie, tripId, 'entry=nope')
+    expect(invalid.statusCode).toBe(400)
+  })
+
   it('T-09-03 lists the seed in scheduled-first order', async () => {
     await seedDatabase(db.pool)
     const owner = await login('100000000000000001')

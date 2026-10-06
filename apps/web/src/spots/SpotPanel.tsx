@@ -1,4 +1,10 @@
-import type { GeocodeLang, GeocodePlace, Spot } from '@tripboard/shared'
+import type {
+  GeocodeLang,
+  GeocodePlace,
+  PlanEntry,
+  Spot,
+  SpotPlan,
+} from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
@@ -8,6 +14,7 @@ import { searchAddress } from './client'
 import { CopyAddress } from './CopyAddress'
 import { Dialog } from './Dialog'
 import { Gallery } from '../images/Gallery'
+import { InPlans } from './InPlans'
 import { pinCategory, type Draft } from './model'
 
 const categories = ['must_go', 'maybe', 'home'] as const
@@ -22,10 +29,14 @@ export function SpotPanel({
   lang,
   saving,
   spot,
+  plans,
+  entries,
   onDraft,
   onClose,
   onSubmit,
   onDelete,
+  onAddToPlan,
+  onRemoveFromPlan,
 }: {
   mode: 'add' | 'edit' | 'view'
   draft: Draft
@@ -33,10 +44,18 @@ export function SpotPanel({
   lang: GeocodeLang
   saving: boolean
   spot: Spot | null
+  plans: SpotPlan[]
+  entries: PlanEntry[]
   onDraft: (draft: Draft) => void
   onClose: () => void
   onSubmit: () => void
   onDelete: () => void
+  onAddToPlan: (input: {
+    entryId: string
+    visitDate: string | null
+    visitTime: string | null
+  }) => Promise<void>
+  onRemoveFromPlan: (entryId: string, linkId: string) => Promise<void>
 }) {
   const { t, i18n } = useTranslation()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
@@ -234,6 +253,15 @@ export function SpotPanel({
             </p>
           ) : null}
           {spot ? <Gallery spotId={spot.id} canEdit={!readOnly} /> : null}
+          {spot ? (
+            <InPlans
+              plans={plans}
+              entries={entries}
+              canEdit={!readOnly}
+              onAdd={onAddToPlan}
+              onRemove={onRemoveFromPlan}
+            />
+          ) : null}
         </div>
 
         {readOnly ? null : (

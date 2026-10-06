@@ -26,6 +26,7 @@ export function SpotList({
   bounds,
   query,
   members,
+  entries = [],
   searchDraft,
   onSearchDraft,
   onQuery,
@@ -38,6 +39,7 @@ export function SpotList({
   bounds: LngLatBounds | null
   query: SpotListQuery
   members: { id: string; name: string }[]
+  entries?: { id: string; title: string }[]
   searchDraft: string
   onSearchDraft: (value: string) => void
   onQuery: (query: SpotListQuery) => void
@@ -78,6 +80,7 @@ export function SpotList({
       <SpotToolbar
         query={query}
         members={members}
+        entries={entries}
         searchDraft={searchDraft}
         onSearchDraft={onSearchDraft}
         onQuery={onQuery}

@@ -21,6 +21,7 @@ export type SpotListFilters = {
   cat: DisplayCategory[]
   status: SpotListStatus
   by: string | null
+  entry: string | null
   sort: SpotSort
 }
 
@@ -33,6 +34,7 @@ export const defaultSpotListQuery: SpotListQuery = {
   cat: [],
   status: 'all',
   by: null,
+  entry: null,
   sort: 'scheduled',
   visible: true,
 }
@@ -40,13 +42,14 @@ export const defaultSpotListQuery: SpotListQuery = {
 const displayCategorySet = new Set<string>(displayCategories)
 
 export function spotFiltersActive(
-  query: Pick<SpotListQuery, 'q' | 'cat' | 'status' | 'by'>,
+  query: Pick<SpotListQuery, 'q' | 'cat' | 'status' | 'by' | 'entry'>,
 ): boolean {
   return (
     query.q.trim().length > 0 ||
     query.cat.length > 0 ||
     query.status !== 'all' ||
-    query.by !== null
+    query.by !== null ||
+    query.entry !== null
   )
 }
 
@@ -78,6 +81,7 @@ export function parseSpotListQuery(
   }
   const status = spotListStatusSchema.safeParse(params.get('status'))
   const by = z.string().uuid().safeParse(params.get('by'))
+  const entry = z.string().uuid().safeParse(params.get('entry'))
   const sort = spotSortSchema.safeParse(params.get('sort'))
   const visibleRaw = params.get('visible')
   return {
@@ -85,6 +89,7 @@ export function parseSpotListQuery(
     cat,
     status: status.success ? status.data : 'all',
     by: by.success ? by.data : null,
+    entry: entry.success ? entry.data : null,
     sort: sort.success ? sort.data : 'scheduled',
     visible: visibleRaw === '0' || visibleRaw === 'false' ? false : true,
   }
@@ -96,6 +101,7 @@ export function spotListSearchParams(query: SpotListQuery): URLSearchParams {
   if (query.cat.length > 0) params.set('cat', query.cat.join(','))
   if (query.status !== 'all') params.set('status', query.status)
   if (query.by) params.set('by', query.by)
+  if (query.entry) params.set('entry', query.entry)
   if (query.sort !== 'scheduled') params.set('sort', query.sort)
   if (!query.visible) params.set('visible', '0')
   return params
@@ -115,6 +121,7 @@ export function strictSpotListQuery(
   let cat: DisplayCategory[] = []
   let status: SpotListStatus = 'all'
   let by: string | null = null
+  let entry: string | null = null
   let sort: SpotSort = 'scheduled'
 
   if ('q' in source) {
@@ -136,6 +143,11 @@ export function strictSpotListQuery(
     if (!parsed.success) fields.by = 'invalid'
     else by = parsed.data
   }
+  if ('entry' in source) {
+    const parsed = z.string().uuid().safeParse(source.entry)
+    if (!parsed.success) fields.entry = 'invalid'
+    else entry = parsed.data
+  }
   if ('sort' in source) {
     const parsed = spotSortSchema.safeParse(source.sort)
     if (!parsed.success) fields.sort = 'invalid'
@@ -143,7 +155,7 @@ export function strictSpotListQuery(
   }
 
   if (Object.keys(fields).length > 0) return { ok: false, fields }
-  return { ok: true, filters: { q, cat, status, by, sort } }
+  return { ok: true, filters: { q, cat, status, by, entry, sort } }
 }
 
 function categoryList(value: unknown): DisplayCategory[] | null {

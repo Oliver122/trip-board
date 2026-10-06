@@ -1,6 +1,7 @@
 import {
   geocodePlaceSchema,
   geocodeSearchSchema,
+  spotDetailSchema,
   spotListSchema,
   spotListSearchParams,
   spotSchema,
@@ -9,6 +10,7 @@ import {
   type GeocodePlace,
   type PatchSpotBody,
   type Spot,
+  type SpotDetail,
   type SpotListQuery,
 } from '@tripboard/shared'
 import { AuthError } from '../trips/client'
@@ -54,6 +56,15 @@ export async function updateSpot(
   })
   if (!response.ok) throw new Error('save')
   return spotSchema.parse(await response.json())
+}
+
+export async function getSpot(
+  spotId: string,
+  signal?: AbortSignal,
+): Promise<SpotDetail> {
+  const response = await send(`/api/spots/${spotId}`, { signal })
+  if (!response.ok) throw new Error('load')
+  return spotDetailSchema.parse(await response.json())
 }
 
 export async function deleteSpot(spotId: string): Promise<void> {
