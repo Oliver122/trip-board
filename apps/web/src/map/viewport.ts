@@ -19,7 +19,41 @@ const schedulePattern = new RegExp(`^#s/(${number})/(${number})/(${number})$`)
  * The board keeps `#zoom/lat/lng` (reload, R-05-09) plus a sessionStorage copy,
  * because the schedule replaces the hash. The schedule uses `#s/zoom/lat/lng`
  * only, and ignores every other hash so a fresh visit fits the trip.
+ *
+ * One map instance now outlives both pages. A `moveend` is tagged with the
+ * page that started the gesture. Writing it after a tab switch would store
+ * the old camera under the new page's hash, so mismatched scopes write nothing.
  */
+export const viewportTransitionMs = 500
+
+/** Animated tab changes use ~500 ms. Reduced motion jumps in the same frame. */
+export function viewportTransitionDuration(reducedMotion: boolean): number {
+  return reducedMotion ? 0 : viewportTransitionMs
+}
+
+export function rememberViewport(input: {
+  eventScope: ViewportScope
+  activeScope: ViewportScope
+  view: Viewport
+  pathname: string
+  search: string
+}): {
+  view: Viewport
+  hash: string
+  url: string
+  persistBoard: boolean
+} | null {
+  if (input.eventScope !== input.activeScope) return null
+  const view = roundViewport(input.view)
+  const hash = formatViewportHash(view, input.activeScope)
+  return {
+    view,
+    hash,
+    url: `${input.pathname}${input.search}${hash}`,
+    persistBoard: input.activeScope === 'board',
+  }
+}
+
 export function formatViewportHash(
   view: Viewport,
   scope: ViewportScope = 'board',

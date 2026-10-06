@@ -18,6 +18,7 @@ import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SchedulePage } from './pages/SchedulePage'
+import { TripLayout } from './pages/TripLayout'
 import { TripSettingsPage } from './pages/TripSettingsPage'
 import { TripsPage } from './pages/TripsPage'
 import { RequireAuth } from './RequireAuth'
@@ -48,26 +49,14 @@ export function App() {
                   path="/trips/:id"
                   element={
                     <RequireAuth>
-                      <BoardPage />
+                      <TripLayout />
                     </RequireAuth>
                   }
-                />
-                <Route
-                  path="/trips/:id/settings"
-                  element={
-                    <RequireAuth>
-                      <TripSettingsPage />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/trips/:id/schedule"
-                  element={
-                    <RequireAuth>
-                      <SchedulePage />
-                    </RequireAuth>
-                  }
-                />
+                >
+                  <Route index element={<BoardPage />} />
+                  <Route path="schedule" element={<SchedulePage />} />
+                  <Route path="settings" element={<TripSettingsPage />} />
+                </Route>
                 <Route
                   path="/account"
                   element={

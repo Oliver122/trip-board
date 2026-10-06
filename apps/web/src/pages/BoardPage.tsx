@@ -2,26 +2,24 @@ import {
   normalizeSpotLink,
   parseSpotListQuery,
   spotListSearchParams,
-  type PlanEntry,
   type Spot,
   type SpotDetail,
   type SpotListQuery,
   type SpotPlan,
 } from '@tripboard/shared'
 import { Plus } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router'
-import { ErrorState, LoadingState } from '../components/states'
+import { ErrorState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { useListFollowsMap } from '../list-follows-map'
 import type { LngLatBounds } from '../map/bounds'
-import { MapView } from '../map/MapView'
-import { parseTrip, type TripMapData } from '../map/trip'
-import { useSession } from '../session'
-import { AuthError, getTrip } from '../trips/client'
+import type { MapSpot } from '../map/clusters'
 import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
+import { useSession } from '../session'
 import {
   createSpot,
   deleteSpot,
@@ -31,7 +29,6 @@ import {
   SaveError,
   updateSpot,
 } from '../spots/client'
-import { viewportStorageKey } from '../map/viewport'
 import {
   draftFromSpot,
   draftsEqual,
@@ -41,8 +38,11 @@ import {
 } from '../spots/model'
 import { SpotList } from '../spots/SpotList'
 import { SpotPanel } from '../spots/SpotPanel'
+import { AuthError, getTrip } from '../trips/client'
+import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
 const searchDebounceMs = 250
+const noSpots: Spot[] = []
 
 type Panel = {
   mode: 'add' | 'edit' | 'view'
@@ -57,6 +57,15 @@ export function BoardPage() {
   const { reload } = useSession()
   const { enabled: listFollowsMap } = useListFollowsMap()
   const { id } = useParams()
+  const {
+    trip,
+    spots: allSpots,
+    total: allTotal,
+    entries,
+    setEntries,
+    setTrip,
+    updateSpots,
+  } = useTripData()
   const [params, setParams] = useSearchParams()
   const paramKey = params.toString()
   const urlQuery = useMemo(
@@ -73,10 +82,13 @@ export function BoardPage() {
   const tRef = useRef(t)
   tRef.current = t
   const lang = activeLocale(i18n.resolvedLanguage ?? i18n.language)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [trip, setTrip] = useState<TripMapData | null>(null)
-  const [spots, setSpots] = useState<Spot[]>([])
-  const [total, setTotal] = useState(0)
+  const [filtered, setFiltered] = useState<{
+    spots: Spot[]
+    total: number
+  } | null>(null)
+  const [listStatus, setListStatus] = useState<'ready' | 'loading' | 'error'>(
+    'ready',
+  )
   const [bounds, setBounds] = useState<LngLatBounds | null>(null)
   const [searchDraft, setSearchDraft] = useState(query.q)
   const searchDraftRef = useRef(searchDraft)
@@ -84,7 +96,6 @@ export function BoardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [panel, setPanel] = useState<Panel | null>(null)
-  const [entries, setEntries] = useState<PlanEntry[]>([])
   const detailEpoch = useRef(0)
   const [saving, setSaving] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -95,7 +106,11 @@ export function BoardPage() {
     lat: number
   } | null>(null)
   const [toast, setToast] = useState('')
-  const [attempt, setAttempt] = useState(0)
+  const [overlay, setOverlay] = useState<HTMLElement | null>(null)
+
+  useLayoutEffect(() => {
+    setOverlay(document.getElementById('trip-map-overlay'))
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -126,42 +141,7 @@ export function BoardPage() {
   }, [searchDraft])
 
   const filterKey = `${query.q}\n${query.cat.join(',')}\n${query.status}\n${query.by ?? ''}\n${query.entry ?? ''}\n${query.sort}`
-
-  useEffect(() => {
-    if (!id) {
-      setStatus('error')
-      return
-    }
-    const controller = new AbortController()
-    setStatus('loading')
-    setTrip(null)
-    void fetch(`/api/trips/${id}`, {
-      credentials: 'include',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (response.status === 401) throw new AuthError()
-        if (!response.ok) throw new Error('load')
-        return response.json() as Promise<unknown>
-      })
-      .then((body) => {
-        const parsed = parseTrip(body)
-        if (!parsed) {
-          setStatus('error')
-          return
-        }
-        setTrip(parsed)
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
-          reload()
-          return
-        }
-        setStatus('error')
-      })
-    return () => controller.abort()
-  }, [attempt, id, reload])
+  const remote = needsRemoteList(query)
 
   useEffect(() => {
     if (!id) return
@@ -173,17 +153,21 @@ export function BoardPage() {
         if (error instanceof AuthError) reload()
       })
     return () => controller.abort()
-  }, [attempt, id, reload])
+  }, [id, reload, setEntries])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !remote) {
+      setFiltered(null)
+      setListStatus('ready')
+      return
+    }
     const controller = new AbortController()
+    setListStatus('loading')
     const listQuery = queryRef.current
     void listSpots(id, listQuery, controller.signal)
       .then((result) => {
-        setSpots(result.spots)
-        setTotal(result.total)
-        setStatus((current) => (current === 'error' ? current : 'ready'))
+        setFiltered(result)
+        setListStatus('ready')
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
@@ -191,49 +175,41 @@ export function BoardPage() {
           reload()
           return
         }
-        setStatus((current) => {
-          if (current === 'ready') {
-            setToast(tRef.current('board.loadError'))
-            return current
-          }
-          return 'error'
-        })
+        setListStatus('error')
+        setToast(tRef.current('board.loadError'))
       })
     return () => controller.abort()
-  }, [attempt, filterKey, id, reload])
+  }, [filterKey, id, reload, remote])
 
-  if (status === 'error' || !id) {
-    return (
-      <div className="mx-auto max-w-xl p-8">
-        <ErrorState retry={() => setAttempt((value) => value + 1)} />
-      </div>
-    )
-  }
-  if (status !== 'ready' || !trip) {
-    return (
-      <div className="p-8">
-        <LoadingState />
-      </div>
-    )
-  }
-  const tripId = id
-
-  function updateQuery(next: SpotListQuery) {
-    setQuery(next)
-    setSearchDraft(next.q)
-    setParams(spotListSearchParams(next, listFollowsMap), { replace: true })
-  }
-
+  const spots = remote ? (filtered?.spots ?? noSpots) : allSpots
+  const total = remote ? (filtered?.total ?? 0) : allTotal
+  const tripId = id ?? trip.id
   const canEdit = trip.role !== 'visitor'
-  const mapSpots = spots.map((spot) => ({
-    id: spot.id,
-    title: spot.title,
-    subtitle: spot.address ?? '',
-    category: pinCategory(spot.displayCategory),
-    lng: spot.lng,
-    lat: spot.lat,
-    primary: spot.primary,
-  }))
+  const mapSpots = useMemo(() => toMapSpots(spots), [spots])
+  const draftPin = useMemo(() => {
+    if (!panel || panel.mode === 'view') return null
+    if (panel.draft.lat == null || panel.draft.lng == null) return null
+    return {
+      lng: panel.draft.lng,
+      lat: panel.draft.lat,
+      category: pinCategory(panel.draft.baseCategory),
+      filled: panel.draft.baseCategory === 'home' && panel.draft.primary,
+    }
+  }, [panel])
+  const placing = panel != null && panel.mode !== 'view'
+  const scene = useMemo<MapScene>(
+    () => ({
+      spots: mapSpots,
+      selectedId,
+      hoverId,
+      placing,
+      draft: draftPin,
+      highlightIds: [],
+      focus: null,
+      flyTo,
+    }),
+    [draftPin, flyTo, hoverId, mapSpots, placing, selectedId],
+  )
 
   function requestClose() {
     if (!panel) return
@@ -286,7 +262,7 @@ export function BoardPage() {
   }
 
   function applyDetail(detail: SpotDetail) {
-    setSpots((current) =>
+    changeSpots((current) =>
       current.map((spot) => (spot.id === detail.id ? detail : spot)),
     )
     setPanel((current) => {
@@ -308,6 +284,15 @@ export function BoardPage() {
     setLinkError(null)
     setFormError(null)
     setPanel((current) => (current ? { ...current, draft } : current))
+  }
+
+  function changeSpots(fn: (current: Spot[]) => Spot[]) {
+    updateSpots(fn)
+    setFiltered((current) => {
+      if (!current) return current
+      const next = fn(current.spots)
+      return { spots: next, total: next.length }
+    })
   }
 
   async function place(lng: number, lat: number) {
@@ -353,6 +338,7 @@ export function BoardPage() {
       primary: draft.baseCategory === 'home' && draft.primary,
     }
     const snapshot = spots
+    const fullSnapshot = allSpots
     const mode = panel.mode
     const existing = panel.spot
     setSaving(true)
@@ -361,26 +347,25 @@ export function BoardPage() {
     try {
       if (mode === 'add') {
         const tempId = temporaryId()
-        setSpots((current) => [
+        changeSpots((current) => [
           ...current,
           optimistic(tripId, tempId, draft, existing, normalized.link),
         ])
         const saved = await createSpot(tripId, body)
-        setSpots((current) => placeSaved(current, saved, tempId))
+        changeSpots((current) => placeSaved(current, saved, tempId))
         setSelectedId(saved.id)
       } else if (existing) {
         const spotId = existing.id
-        setSpots((current) =>
+        changeSpots((current) =>
           current.map((spot) => {
-            if (spot.id === spotId) {
+            if (spot.id === spotId)
               return { ...spot, ...body, title: body.title }
-            }
             if (body.primary && spot.primary) return { ...spot, primary: false }
             return spot
           }),
         )
         const saved = await updateSpot(spotId, body)
-        setSpots((current) => placeSaved(current, saved, spotId))
+        changeSpots((current) => placeSaved(current, saved, spotId))
       }
       setPanel(null)
     } catch (error) {
@@ -388,7 +373,8 @@ export function BoardPage() {
         reload()
         return
       }
-      setSpots(snapshot)
+      updateSpots(() => fullSnapshot)
+      setFiltered(remote ? { spots: snapshot, total: snapshot.length } : null)
       if (error instanceof SaveError && error.fields.link) {
         setLinkError(error.fields.link)
       }
@@ -399,8 +385,7 @@ export function BoardPage() {
       setSaving(false)
     }
     try {
-      const refreshed = parseTrip(await getTrip(tripId))
-      if (refreshed) setTrip(refreshed)
+      setTrip(await getTrip(tripId))
     } catch (error) {
       if (error instanceof AuthError) reload()
     }
@@ -410,9 +395,10 @@ export function BoardPage() {
     if (!panel?.spot) return
     const spotId = panel.spot.id
     const snapshot = spots
+    const fullSnapshot = allSpots
     setSaving(true)
     setPanel(null)
-    setSpots((current) => current.filter((spot) => spot.id !== spotId))
+    changeSpots((current) => current.filter((spot) => spot.id !== spotId))
     if (selectedId === spotId) setSelectedId(null)
     try {
       await deleteSpot(spotId)
@@ -421,76 +407,70 @@ export function BoardPage() {
         reload()
         return
       }
-      setSpots(snapshot)
+      updateSpots(() => fullSnapshot)
+      setFiltered(remote ? { spots: snapshot, total: snapshot.length } : null)
       setToast(t('board.saveError'))
     } finally {
       setSaving(false)
     }
   }
 
+  function updateQuery(next: SpotListQuery) {
+    setQuery(next)
+    setSearchDraft(next.q)
+    setParams(spotListSearchParams(next, listFollowsMap), { replace: true })
+  }
+
+  useMapScene(scene, {
+    onSelect: openSpot,
+    onHover: setHoverId,
+    onPlace: (lng, lat) => {
+      void place(lng, lat)
+    },
+    onDraftMove: (lng, lat) => {
+      void place(lng, lat)
+    },
+    onViewport: setBounds,
+  })
+
+  const addButton = canEdit ? (
+    <Button
+      data-testid="add-new"
+      className="pointer-events-auto absolute bottom-36 left-4 z-10 shadow-panel sm:bottom-12"
+      onClick={openAdd}
+    >
+      <Plus aria-hidden="true" className="size-4" />
+      {t('board.addNew')}
+    </Button>
+  ) : null
+
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col sm:flex-row">
-      <div className="relative min-h-0 flex-1">
-        <MapView
-          bbox={trip.bbox}
-          spots={mapSpots}
+    <>
+      {overlay && addButton ? createPortal(addButton, overlay) : null}
+      {listStatus === 'error' && remote && !filtered ? (
+        <div className="p-4">
+          <ErrorState retry={() => setListStatus('loading')} />
+        </div>
+      ) : listStatus === 'loading' && remote && !filtered ? (
+        <PanelSkeleton />
+      ) : (
+        <SpotList
+          tripId={tripId}
+          tripName={trip.name}
+          spots={spots}
+          total={total}
+          bounds={bounds}
+          query={query}
+          members={trip.members}
+          entries={entries ?? []}
+          searchDraft={searchDraft}
+          onSearchDraft={setSearchDraft}
+          onQuery={updateQuery}
           selectedId={selectedId}
-          hoverId={hoverId}
-          placing={panel != null && panel.mode !== 'view'}
-          draft={
-            panel &&
-            panel.mode !== 'view' &&
-            panel.draft.lat != null &&
-            panel.draft.lng != null
-              ? {
-                  lng: panel.draft.lng,
-                  lat: panel.draft.lat,
-                  category: pinCategory(panel.draft.baseCategory),
-                  filled:
-                    panel.draft.baseCategory === 'home' && panel.draft.primary,
-                }
-              : null
-          }
           onSelect={openSpot}
           onHover={setHoverId}
-          onPlace={(lng, lat) => {
-            void place(lng, lat)
-          }}
-          onDraftMove={(lng, lat) => {
-            void place(lng, lat)
-          }}
-          onViewport={setBounds}
-          viewportScope="board"
-          viewportStorageKey={viewportStorageKey('board', tripId)}
-          flyTo={flyTo}
         />
-        {canEdit ? (
-          <Button
-            data-testid="add-new"
-            className="absolute bottom-36 left-4 z-10 shadow-panel sm:bottom-12"
-            onClick={openAdd}
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            {t('board.addNew')}
-          </Button>
-        ) : null}
-      </div>
-      <SpotList
-        tripId={tripId}
-        tripName={trip.name}
-        spots={spots}
-        total={total}
-        bounds={bounds}
-        query={query}
-        members={trip.members}
-        entries={entries}
-        searchDraft={searchDraft}
-        onSearchDraft={setSearchDraft}
-        onQuery={updateQuery}
-        selectedId={selectedId}
-        onSelect={openSpot}
-        onHover={setHoverId}
-      />
+      )}
       {panel ? (
         <SpotPanel
           mode={panel.mode}
@@ -503,7 +483,7 @@ export function BoardPage() {
           spot={panel.spot}
           spots={spots}
           plans={panel.plans}
-          entries={entries}
+          entries={entries ?? []}
           onDraft={changeDraft}
           onClose={requestClose}
           onSubmit={() => {
@@ -556,8 +536,45 @@ export function BoardPage() {
           {toast}
         </p>
       ) : null}
+    </>
+  )
+}
+
+function PanelSkeleton() {
+  return (
+    <div
+      data-testid="panel-skeleton"
+      className="flex w-full flex-col gap-3 p-4"
+      aria-hidden="true"
+    >
+      <div className="h-8 rounded bg-border" />
+      <div className="h-24 rounded bg-border" />
+      <div className="h-24 rounded bg-border" />
     </div>
   )
+}
+
+function needsRemoteList(query: SpotListQuery): boolean {
+  return (
+    query.q.trim().length > 0 ||
+    query.cat.length > 0 ||
+    query.status !== 'all' ||
+    query.by != null ||
+    query.entry != null ||
+    query.sort !== 'scheduled'
+  )
+}
+
+function toMapSpots(spots: Spot[]): MapSpot[] {
+  return spots.map((spot) => ({
+    id: spot.id,
+    title: spot.title,
+    subtitle: spot.address ?? '',
+    category: pinCategory(spot.displayCategory),
+    lng: spot.lng,
+    lat: spot.lat,
+    primary: spot.primary,
+  }))
 }
 
 function temporaryId(): string {

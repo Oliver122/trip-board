@@ -3,6 +3,7 @@ import {
   formatViewportHash,
   initialViewport,
   parseViewportHash,
+  rememberViewport,
   type Viewport,
 } from './viewport'
 
@@ -35,5 +36,49 @@ describe('map viewport', () => {
     expect(initialViewport('', 'board', tokyo)).toBeNull()
     expect(initialViewport(schedule, 'schedule', tokyo)?.zoom).toBe(5)
     expect(initialViewport(board, 'schedule', trip)).toBeNull()
+  })
+
+  it('T-18-18 ignores a moveend that belongs to the other page', () => {
+    const view = tokyo
+    expect(
+      rememberViewport({
+        eventScope: 'schedule',
+        activeScope: 'board',
+        view,
+        pathname: '/trips/1',
+        search: '',
+      }),
+    ).toBeNull()
+    expect(
+      rememberViewport({
+        eventScope: 'board',
+        activeScope: 'schedule',
+        view,
+        pathname: '/trips/1/schedule',
+        search: '',
+      }),
+    ).toBeNull()
+    expect(
+      rememberViewport({
+        eventScope: 'board',
+        activeScope: 'board',
+        view,
+        pathname: '/trips/1',
+        search: '?q=cafe',
+      }),
+    ).toMatchObject({
+      hash: '#11.00/35.68000/139.75000',
+      url: '/trips/1?q=cafe#11.00/35.68000/139.75000',
+      persistBoard: true,
+    })
+    expect(
+      rememberViewport({
+        eventScope: 'schedule',
+        activeScope: 'schedule',
+        view,
+        pathname: '/trips/1/schedule',
+        search: '',
+      })?.hash.startsWith('#s/'),
+    ).toBe(true)
   })
 })

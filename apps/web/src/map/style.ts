@@ -25,6 +25,11 @@ const dark = {
   halo: '#1a1b1e',
 }
 
+/** Land color behind the canvas, so the first frame and a tile error are not black. */
+export function mapLandColor(theme: 'light' | 'dark'): string {
+  return theme === 'dark' ? dark.land : light.land
+}
+
 /** Prefer the app language, then the other Latin tag the tiles ship, then the local name. */
 export function labelTextField(locale: AppLocale) {
   const localized = locale === 'de' ? 'name:de' : 'name:en'

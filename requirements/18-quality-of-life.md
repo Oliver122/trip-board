@@ -4,8 +4,8 @@
 **Depends on:** 07, 11, 15
 
 ## Scope
-- In: forgiving spot links, list that does not follow the map unless you want it to, icon reorder buttons with visual feedback, language switch moved into settings, creating a spot from the schedule, a predictable map view when switching tabs.
-- Out: live updates between users (see [step 19](./19-live-collaboration.md)), new spot fields, changes to the planning API.
+- In: forgiving spot links, list that does not follow the map unless you want it to, icon reorder buttons with visual feedback, language switch moved into settings, creating a spot from the schedule, one map that stays loaded and moves smoothly between board and schedule.
+- Out: live updates between users (see [step 19](./19-live-collaboration.md)), new spot fields, changes to the planning API, keeping the map alive across different trips, theme/language changes without a map remount.
 
 ## Current behavior (why this step exists)
 | Topic | Today |
@@ -15,7 +15,7 @@
 | Reorder | Up/down buttons in `ScheduleList` show translated text (`schedule.up` / `schedule.down`). After a move nothing shows what moved; drag and drop has no drop indicator |
 | Language | `LanguageSwitch` sits in the header (and the admin layout) next to the theme switch, and is also on the account page |
 | Add spot in schedule | `AddSpotForm` only searches existing spots. A new spot means switching to the board, creating it, and coming back |
-| Map on tab switch | Board and schedule use the same map component and the same `#zoom/lat/lng` hash. Going from board to schedule does not reset the view to the trip; the schedule map should start from its own view |
+| Map on tab switch | Viewports are already separate (`#…` vs `#s/…`, `viewport.ts`), but the switch still feels like a fresh load: `BoardPage` and `SchedulePage` are sibling routes that each render their own `MapView`, so every switch destroys the MapLibre instance and builds a new one (new WebGL canvas, style and tiles fetched again → black frame). Before that, each page replaces the whole view with `LoadingState` while it refetches trip and spots. The two pages also place the map differently (board: map left, panel right; schedule: list left, map right) |
 
 ## Requirements
 
@@ -68,10 +68,15 @@
 ### Map when switching tabs
 | ID | Requirement |
 | --- | --- |
-| R-18-27 | Opening the schedule always starts with the map fitted to the trip region (or to the selected entry’s spots), never with the board’s last view |
-| R-18-28 | Going back to the board restores the board’s last view (from R-05-09), not the schedule’s |
-| R-18-29 | Each page keeps its own viewport (separate hash/storage key per page), so reload still keeps the view of the page you are on |
-| R-18-30 | Before implementing, reproduce and note the exact cause (shared hash, map instance reused by the shell, or late `moveend` writing to the new URL) in the PR |
+| R-18-27 | **One map per trip.** Board and schedule become child routes of a trip layout (`/trips/:id`), and that layout owns the only `TripMap`. Switching between board and schedule never unmounts the map. The MapLibre instance, WebGL canvas, style and loaded tiles stay, so there is no black frame and no tile reload |
+| R-18-28 | **Stable map slot.** The map stays in the same DOM node on both tabs. Pages only swap the side panel (spot list or schedule list) and choose which side it sits on via layout/CSS (e.g. `order`), never by rendering the map in a different parent. When the map area changes size, `map.resize()` runs in the same frame (ResizeObserver), so the map never shows a stretched or blank strip |
+| R-18-29 | **Shared trip data.** The layout loads trip and spots once and gives them to both pages (context). Page-only data (the plan on the schedule, filters on the board) loads inside the side panel with its own skeleton. The page-wide `LoadingState` only shows on the first visit to a trip, never on a tab switch |
+| R-18-30 | **Camera transition.** On switching, the same map animates (`easeTo`/`fitBounds`, ~500 ms) from where it is to the target view. Schedule: trip region, or the selected entry’s spots. Board: the board’s last view (R-05-09 / sessionStorage), or the trip region if none. With `prefers-reduced-motion` it jumps instantly (`duration: 0`), still without reloading |
+| R-18-31 | **Page-specific map props.** Pins, highlights, `placing`, draft pin and click handlers come from the active page and update in place on the existing map (markers swap, base map stays). A draft pin or placing mode from the board never carries over to the schedule, and the other way round |
+| R-18-32 | **Viewports stay separate.** The existing per-page hash (`#zoom/lat/lng` vs `#s/zoom/lat/lng`) and storage keys stay. Because the instance now outlives the page, `moveend` writes for the page that is active *at the time of the event*. The transition animation in R-18-30 must not write the old page’s view into the new page’s hash. Reload on either tab keeps that tab’s view |
+| R-18-33 | **No dark flash fallback.** The map container background matches the active theme’s map background color, so even the first load or a retry (tile error) never shows a black box |
+| R-18-34 | **Lifetime.** The map lives as long as the user stays inside `/trips/:id/*`. On the trip settings tab it stays mounted but hidden (`visibility: hidden`, not `display: none`, so it keeps its size), so coming back is instant. Leaving the trip (other trip, trip list, account) destroys it normally |
+| R-18-35 | Deep links and reloads (`/trips/:id`, `/trips/:id/schedule`, with or without hash) still work as before; the first map load on a direct visit is unchanged |
 
 ## Definition of Done
 | ID | Type | Covers | Test |
@@ -88,5 +93,10 @@
 | T-18-10 | e2e | R-18-20 | Login page offers the language switch while logged out |
 | T-18-11 | e2e | R-18-22, R-18-23, R-18-24, R-18-25 | From a bucket: type “Onsen”, choose create, place it on the map, save → it is selected in the form, gets added to the bucket, and shows on the board without reload |
 | T-18-12 | e2e | R-18-22 | As visitor, the create option is not shown |
-| T-18-13 | e2e | R-18-27, R-18-28, R-18-29 | Zoom the board to Tokyo, open schedule → map shows the whole trip region; go back to board → Tokyo view is restored; reload on schedule keeps the schedule view |
-| T-18-14 | a11y | R-18-11, R-18-19, R-18-22 | Schedule, settings and spot panel pass axe; reorder and create flows work by keyboard only |
+| T-18-13 | e2e | R-18-27, R-18-28, R-18-29 | Tag the map on the board (`window.__tripboardMap.__probe = 1` and a `data-probe` on its canvas). Switch to schedule and back twice: the probe is still on the same instance and the same canvas element, `map-loading` and the page `LoadingState` never appear, and no new style request is made |
+| T-18-14 | e2e | R-18-30, R-18-32 | Zoom the board to Tokyo, open schedule → map ends on the whole trip region; back to board → ends on Tokyo; the hash after each switch matches the active page only (`#…` on board, `#s/…` on schedule); reload on schedule keeps the schedule view |
+| T-18-15 | e2e | R-18-30 | With `reducedMotion: 'reduce'` the camera reaches the target view right after the switch, with no intermediate `move` events |
+| T-18-16 | e2e | R-18-31 | Start placing a new spot on the board (draft pin visible), switch to schedule → no draft pin, clicks on the map do nothing; the schedule's highlighted pins show; back on board, the board pins are back |
+| T-18-17 | e2e | R-18-34, R-18-35 | Open trip settings and back → same map instance (probe kept). Open another trip → new instance. Direct load of `/trips/:id/schedule#s/…` opens at that view |
+| T-18-18 | unit | R-18-32 | `remember` with a schedule-scoped event while the board is active (and vice versa) writes nothing |
+| T-18-19 | a11y | R-18-11, R-18-19, R-18-22 | Schedule, settings and spot panel pass axe; reorder and create flows work by keyboard only |
