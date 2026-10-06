@@ -43,7 +43,12 @@ export function TripMap({
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
   placing?: boolean
-  draft?: { lng: number; lat: number; category: Category } | null
+  draft?: {
+    lng: number
+    lat: number
+    category: Category
+    filled?: boolean
+  } | null
   onPlace?: (lng: number, lat: number) => void
   onDraftMove?: (lng: number, lat: number) => void
   onViewport?: (bounds: LngLatBounds) => void
@@ -193,6 +198,7 @@ export function TripMap({
             >
               <Pin
                 category={item.spot.category}
+                filled={item.spot.category === 'home' && item.spot.primary}
                 label={item.spot.title}
                 selected={
                   item.spot.id === selectedId ||
@@ -221,6 +227,7 @@ export function TripMap({
           >
             <Pin
               category={draft.category}
+              filled={draft.filled}
               label={t('board.draftPin')}
               selected
               testId="draft-pin"

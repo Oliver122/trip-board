@@ -7,6 +7,7 @@ import { activeLocale } from '../i18n'
 import { formatDate } from '../lib/format'
 import type { AppLocale } from '../lib/locale'
 import { cn } from '../lib/utils'
+import { scheduleHome } from './home'
 import { VisitDatePicker } from './VisitDatePicker'
 
 const inputClass =
@@ -51,6 +52,7 @@ export function ScheduleList({
       {entries.map((entry) => {
         const open = entry.type === 'single' || !closed[entry.id]
         const range = entryRange(entry, locale, t)
+        const home = scheduleHome(entry, spots)
         return (
           <li
             key={entry.id}
@@ -99,7 +101,14 @@ export function ScheduleList({
                 className="min-h-11 min-w-0 flex-1 rounded-[8px] px-2 py-1 text-left"
                 onClick={() => onSelect(entry.id)}
               >
-                <span className="block font-semibold">{entry.title}</span>
+                <span className="block font-semibold">
+                  {entry.title}
+                  {home ? (
+                    <span className="ml-2 font-normal text-muted">
+                      {t('schedule.home', { title: home.title })}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="block text-sm text-muted">{range}</span>
                 {entry.info ? (
                   <span className="mt-1 block text-sm">{entry.info}</span>

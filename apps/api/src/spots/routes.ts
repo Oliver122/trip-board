@@ -31,6 +31,9 @@ const knownMessages = new Set([
   'too_long',
   'invalid',
   'planned_automatic',
+  'home_only',
+  'invalid_date',
+  'before_start',
 ])
 
 const idSchema = z.object({

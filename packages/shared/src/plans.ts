@@ -50,6 +50,12 @@ export const planEntrySchema = z.object({
   sortOrder: z.number().int(),
   outsideTripDates: z.boolean(),
   spots: z.array(planLinkSchema),
+  home: z
+    .object({
+      spotId: z.string().uuid(),
+      title: z.string(),
+    })
+    .nullable(),
 })
 
 export type PlanEntry = z.infer<typeof planEntrySchema>

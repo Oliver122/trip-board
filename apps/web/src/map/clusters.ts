@@ -11,6 +11,7 @@ export type MapSpot = {
   category: Category
   lng: number
   lat: number
+  primary?: boolean
 }
 
 export type ClusteredSpot =

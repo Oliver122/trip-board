@@ -71,16 +71,20 @@ export {
 } from './geocode.js'
 export type { GeocodeLang, GeocodePlace, GeocodeSearch } from './geocode.js'
 export {
+  cleanStayDate,
   createSpotSchema,
   displayCategories,
   displayCategorySchema,
+  entryFallsInStay,
   expandTripBBox,
+  homeStayErrors,
   patchSpotSchema,
   spotCategories,
   spotCategorySchema,
   spotLimits,
   spotListSchema,
   spotSchema,
+  staysOverlap,
 } from './spots.js'
 export type {
   CreateSpotBody,

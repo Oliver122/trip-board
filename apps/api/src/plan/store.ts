@@ -39,6 +39,7 @@ type EntryRow = {
   trip_start: string | null
   trip_end: string | null
   spots: unknown
+  home: { spotId: string; title: string } | null
 }
 
 type CurrentEntry = {
@@ -91,9 +92,15 @@ SELECT
     FROM plan_entry_spots pes
     JOIN spots s ON s.id = pes.spot_id
     WHERE pes.plan_entry_id = pe.id
-  ), '[]'::json) AS spots
+  ), '[]'::json) AS spots,
+  CASE
+    WHEN hs.id IS NULL THEN NULL
+    ELSE json_build_object('spotId', hs.id, 'title', hs.title)
+  END AS home
 FROM plan_entries pe
 JOIN trips t ON t.id = pe.trip_id
+LEFT JOIN plan_entry_home peh ON peh.plan_entry_id = pe.id
+LEFT JOIN spots hs ON hs.id = peh.home_spot_id
 `
 
 export async function listPlan(
@@ -717,6 +724,7 @@ function rowToEntry(row: EntryRow): PlanEntry {
       row.trip_end,
     ),
     spots: asLinks(row.spots),
+    home: asHome(row.home),
   })
 }
 
@@ -730,6 +738,14 @@ function isOutsideTripDates(
   if (tripStart && startDate < tripStart) return true
   if (tripEnd && entryEnd > tripEnd) return true
   return false
+}
+
+function asHome(value: unknown): { spotId: string; title: string } | null {
+  if (value == null) return null
+  if (typeof value === 'string') {
+    return JSON.parse(value) as { spotId: string; title: string }
+  }
+  return value as { spotId: string; title: string }
 }
 
 function asLinks(value: unknown): unknown[] {

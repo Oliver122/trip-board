@@ -1,9 +1,11 @@
-import type {
-  GeocodeLang,
-  GeocodePlace,
-  PlanEntry,
-  Spot,
-  SpotPlan,
+import {
+  staysOverlap,
+  type GeocodeLang,
+  type GeocodePlace,
+  type PlanEntry,
+  type Spot,
+  type SpotCategory,
+  type SpotPlan,
 } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -29,6 +31,7 @@ export function SpotPanel({
   lang,
   saving,
   spot,
+  spots,
   plans,
   entries,
   onDraft,
@@ -44,6 +47,7 @@ export function SpotPanel({
   lang: GeocodeLang
   saving: boolean
   spot: Spot | null
+  spots: Spot[]
   plans: SpotPlan[]
   entries: PlanEntry[]
   onDraft: (draft: Draft) => void
@@ -62,6 +66,9 @@ export function SpotPanel({
   const titleId = useId()
   const addressId = useId()
   const categoryId = useId()
+  const stayFromId = useId()
+  const stayToId = useId()
+  const primaryId = useId()
   const infoId = useId()
   const linkId = useId()
   const readOnly = mode === 'view'
@@ -114,6 +121,35 @@ export function SpotPanel({
       address: place.label,
       lat: place.lat,
       lng: place.lng,
+    })
+  }
+
+  const overlaps =
+    draft.baseCategory === 'home'
+      ? spots.filter(
+          (other) =>
+            other.id !== spot?.id &&
+            other.baseCategory === 'home' &&
+            staysOverlap(
+              draft.stayFrom || null,
+              draft.stayTo || null,
+              other.stayFrom,
+              other.stayTo,
+            ),
+        )
+      : []
+
+  function changeCategory(value: string) {
+    const next = value as SpotCategory
+    const leavingHome =
+      draft.baseCategory === 'home' &&
+      next !== 'home' &&
+      (draft.stayFrom !== '' || draft.stayTo !== '' || draft.primary)
+    if (leavingHome && !window.confirm(t('board.clearStay'))) return
+    onDraft({
+      ...draft,
+      baseCategory: next,
+      ...(next === 'home' ? {} : { stayFrom: '', stayTo: '', primary: false }),
     })
   }
 
@@ -194,12 +230,7 @@ export function SpotPanel({
                 id={categoryId}
                 value={draft.baseCategory}
                 disabled={readOnly}
-                onChange={(event) =>
-                  onDraft({
-                    ...draft,
-                    baseCategory: event.target.value as Draft['baseCategory'],
-                  })
-                }
+                onChange={(event) => changeCategory(event.target.value)}
                 className={inputClass}
               >
                 {categories.map((category) => (
@@ -215,6 +246,65 @@ export function SpotPanel({
               </p>
             ) : null}
           </div>
+
+          {draft.baseCategory === 'home' ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <div className="min-w-40 flex-1">
+                  <label htmlFor={stayFromId} className="mb-1 block">
+                    {t('board.stayFrom')}
+                  </label>
+                  <input
+                    id={stayFromId}
+                    type="date"
+                    value={draft.stayFrom}
+                    readOnly={readOnly}
+                    onChange={(event) =>
+                      onDraft({ ...draft, stayFrom: event.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div className="min-w-40 flex-1">
+                  <label htmlFor={stayToId} className="mb-1 block">
+                    {t('board.stayTo')}
+                  </label>
+                  <input
+                    id={stayToId}
+                    type="date"
+                    value={draft.stayTo}
+                    readOnly={readOnly}
+                    onChange={(event) =>
+                      onDraft({ ...draft, stayTo: event.target.value })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <label
+                htmlFor={primaryId}
+                className="flex min-h-11 items-center gap-2"
+              >
+                <input
+                  id={primaryId}
+                  type="checkbox"
+                  checked={draft.primary}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    onDraft({ ...draft, primary: event.target.checked })
+                  }
+                />
+                {t('board.primaryHome')}
+              </label>
+              {overlaps.length > 0 ? (
+                <p role="status" data-testid="stay-overlap">
+                  {t('board.stayOverlap', {
+                    title: overlaps.map((other) => other.title).join(', '),
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <label htmlFor={infoId} className="block">
             {t('board.info')}

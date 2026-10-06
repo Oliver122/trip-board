@@ -12,7 +12,13 @@ import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { cn } from '../lib/utils'
 import type { LngLatBounds } from '../map/bounds'
-import { listEmptyKind, pinCategory, spotsInView, spotSubtitle } from './model'
+import {
+  listEmptyKind,
+  orderPrimaryHomes,
+  pinCategory,
+  spotsInView,
+  spotSubtitle,
+} from './model'
 import { SpotToolbar } from './SpotToolbar'
 
 const glyph: Record<'must-go' | 'maybe', string> = {
@@ -49,7 +55,7 @@ export function SpotList({
 }) {
   const { t, i18n } = useTranslation()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
-  const shown = spotsInView(spots, bounds, query.visible)
+  const shown = orderPrimaryHomes(spotsInView(spots, bounds, query.visible))
   const empty = listEmptyKind(total, spots.length, shown.length)
   const filtered = spotFiltersActive(query)
   const dividerAt =
@@ -142,7 +148,7 @@ export function SpotList({
                       {spotSubtitle(spot, locale)}
                     </span>
                   </span>
-                  <CategoryMark category={category} />
+                  <CategoryMark category={category} filled={spot.primary} />
                 </button>
               </li>
             </Fragment>
@@ -163,7 +169,13 @@ export function SpotList({
   )
 }
 
-function CategoryMark({ category }: { category: Category }) {
+function CategoryMark({
+  category,
+  filled,
+}: {
+  category: Category
+  filled: boolean
+}) {
   return (
     <span
       className="inline-flex items-center pr-3 text-sm"
@@ -173,7 +185,12 @@ function CategoryMark({ category }: { category: Category }) {
         <Calendar aria-hidden="true" data-icon={category} className="size-4" />
       ) : null}
       {category === 'home' ? (
-        <House aria-hidden="true" data-icon={category} className="size-4" />
+        <House
+          aria-hidden="true"
+          data-icon={filled ? 'home-filled' : category}
+          fill={filled ? 'currentColor' : 'none'}
+          className="size-4"
+        />
       ) : null}
       {category === 'must-go' || category === 'maybe' ? (
         <span aria-hidden="true" data-icon={category}>

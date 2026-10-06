@@ -213,6 +213,7 @@ export function BoardPage() {
     category: pinCategory(spot.displayCategory),
     lng: spot.lng,
     lat: spot.lat,
+    primary: spot.primary,
   }))
 
   function requestClose() {
@@ -315,6 +316,9 @@ export function BoardPage() {
       address: blank(draft.address),
       info: blank(draft.info),
       link: blank(draft.link),
+      stayFrom: draft.baseCategory === 'home' ? blank(draft.stayFrom) : null,
+      stayTo: draft.baseCategory === 'home' ? blank(draft.stayTo) : null,
+      primary: draft.baseCategory === 'home' && draft.primary,
     }
     const snapshot = spots
     setSaving(true)
@@ -327,21 +331,21 @@ export function BoardPage() {
           optimistic(tripId, tempId, draft, panel.spot),
         ])
         const saved = await createSpot(tripId, body)
-        setSpots((current) =>
-          current.map((spot) => (spot.id === tempId ? saved : spot)),
-        )
+        setSpots((current) => placeSaved(current, saved, tempId))
         setSelectedId(saved.id)
       } else if (panel.spot) {
         const spotId = panel.spot.id
         setSpots((current) =>
-          current.map((spot) =>
-            spot.id === spotId ? { ...spot, ...body, title: body.title } : spot,
-          ),
+          current.map((spot) => {
+            if (spot.id === spotId) {
+              return { ...spot, ...body, title: body.title }
+            }
+            if (body.primary && spot.primary) return { ...spot, primary: false }
+            return spot
+          }),
         )
         const saved = await updateSpot(spotId, body)
-        setSpots((current) =>
-          current.map((spot) => (spot.id === saved.id ? saved : spot)),
-        )
+        setSpots((current) => placeSaved(current, saved, spotId))
       }
     } catch (error) {
       if (error instanceof AuthError) {
@@ -402,6 +406,8 @@ export function BoardPage() {
                   lng: panel.draft.lng,
                   lat: panel.draft.lat,
                   category: pinCategory(panel.draft.baseCategory),
+                  filled:
+                    panel.draft.baseCategory === 'home' && panel.draft.primary,
                 }
               : null
           }
@@ -448,6 +454,7 @@ export function BoardPage() {
           lang={lang}
           saving={saving}
           spot={panel.spot}
+          spots={spots}
           plans={panel.plans}
           entries={entries}
           onDraft={changeDraft}
@@ -506,6 +513,14 @@ export function BoardPage() {
   )
 }
 
+function placeSaved(spots: Spot[], saved: Spot, replaceId: string): Spot[] {
+  return spots.map((spot) => {
+    if (spot.id === replaceId || spot.id === saved.id) return saved
+    if (saved.primary && spot.primary) return { ...spot, primary: false }
+    return spot
+  })
+}
+
 function blank(value: string): string | null {
   const trimmed = value.trim()
   return trimmed.length === 0 ? null : trimmed
@@ -529,6 +544,9 @@ function optimistic(
     displayCategory: draft.baseCategory,
     planCount: previous?.planCount ?? 0,
     firstScheduledAt: previous?.firstScheduledAt ?? null,
+    stayFrom: draft.baseCategory === 'home' ? blank(draft.stayFrom) : null,
+    stayTo: draft.baseCategory === 'home' ? blank(draft.stayTo) : null,
+    primary: draft.baseCategory === 'home' && draft.primary,
     info: blank(draft.info),
     link: blank(draft.link),
     createdBy: previous?.createdBy ?? null,

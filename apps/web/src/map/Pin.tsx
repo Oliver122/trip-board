@@ -14,6 +14,7 @@ export function Pin({
   label,
   selected = false,
   hover = false,
+  filled = false,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -23,6 +24,7 @@ export function Pin({
   label: string
   selected?: boolean
   hover?: boolean
+  filled?: boolean
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -46,12 +48,18 @@ export function Pin({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <PinIcon category={category} />
+      <PinIcon category={category} filled={filled} />
     </button>
   )
 }
 
-function PinIcon({ category }: { category: Category }) {
+function PinIcon({
+  category,
+  filled,
+}: {
+  category: Category
+  filled: boolean
+}) {
   if (category === 'planned') {
     return (
       <Calendar aria-hidden="true" data-icon={category} className="size-3.5" />
@@ -59,7 +67,12 @@ function PinIcon({ category }: { category: Category }) {
   }
   if (category === 'home') {
     return (
-      <House aria-hidden="true" data-icon={category} className="size-3.5" />
+      <House
+        aria-hidden="true"
+        data-icon={filled ? 'home-filled' : category}
+        fill={filled ? 'currentColor' : 'none'}
+        className="size-3.5"
+      />
     )
   }
   return (

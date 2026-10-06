@@ -98,7 +98,7 @@ export async function seedDatabase(pool: Pool): Promise<void> {
         id, trip_id, title, lat, lng, base_category, stay_from, stay_to, created_by
       ) VALUES
         ($2, $1, 'Hotel Gracery', 35.694, 139.701, 'home', '2026-04-12', '2026-04-16', $4),
-        ($3, $1, 'Kyoto Ryokan', 35.003, 135.778, 'home', '2026-04-17', '2026-04-20', $4)
+        ($3, $1, 'Kyoto Ryokan', 35.003, 135.778, 'home', '2026-04-17', '2026-04-19', $4)
       ON CONFLICT (id) DO NOTHING
       `,
       [

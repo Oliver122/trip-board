@@ -10,6 +10,9 @@ export type Draft = {
   lat: number | null
   lng: number | null
   baseCategory: SpotCategory
+  stayFrom: string
+  stayTo: string
+  primary: boolean
   info: string
   link: string
 }
@@ -20,6 +23,9 @@ export const emptyDraft: Draft = {
   lat: null,
   lng: null,
   baseCategory: 'must_go',
+  stayFrom: '',
+  stayTo: '',
+  primary: false,
   info: '',
   link: '',
 }
@@ -38,6 +44,9 @@ export function draftFromSpot(spot: Spot): Draft {
     lat: spot.lat,
     lng: spot.lng,
     baseCategory: spot.baseCategory,
+    stayFrom: spot.stayFrom ?? '',
+    stayTo: spot.stayTo ?? '',
+    primary: spot.primary,
     info: spot.info ?? '',
     link: spot.link ?? '',
   }
@@ -50,9 +59,37 @@ export function draftsEqual(left: Draft, right: Draft): boolean {
     left.lat === right.lat &&
     left.lng === right.lng &&
     left.baseCategory === right.baseCategory &&
+    left.stayFrom === right.stayFrom &&
+    left.stayTo === right.stayTo &&
+    left.primary === right.primary &&
     left.info === right.info &&
     left.link === right.link
   )
+}
+
+/** Puts the primary home base first among home spots that share a schedule state. */
+export function orderPrimaryHomes<T extends Spot>(spots: T[]): T[] {
+  const next = spots.slice()
+  for (const scheduled of [true, false]) {
+    const indexes = next.flatMap((spot, index) =>
+      spot.displayCategory === 'home' &&
+      Boolean(spot.firstScheduledAt) === scheduled
+        ? [index]
+        : [],
+    )
+    const homes = indexes.flatMap((index) => {
+      const spot = next[index]
+      return spot ? [spot] : []
+    })
+    const primary = homes.find((spot) => spot.primary)
+    if (!primary) continue
+    const ordered = [primary, ...homes.filter((spot) => spot.id !== primary.id)]
+    indexes.forEach((index, offset) => {
+      const spot = ordered[offset]
+      if (spot) next[index] = spot
+    })
+  }
+  return next
 }
 
 export function containsPoint(

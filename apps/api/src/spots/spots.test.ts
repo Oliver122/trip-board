@@ -512,6 +512,96 @@ describe('spots', () => {
     expect(missing.statusCode).toBe(404)
   })
 
+  it('T-12-02 replaces the previous primary home and clears it when recategorised', async () => {
+    const owner = await login('100000000000001201')
+    const tripId = await createTrip(owner.cookie)
+    const spotA = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'A Inn',
+      baseCategory: 'home',
+      primary: true,
+    })
+    expect(spotA.statusCode).toBe(201)
+    expect(spotA.json().primary).toBe(true)
+    const spotB = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Z Hotel',
+      baseCategory: 'home',
+      stayFrom: '2026-04-12',
+      stayTo: '2026-04-16',
+    })
+    const promoted = await patchSpot(owner.cookie, spotB.json().id as string, {
+      primary: true,
+    })
+    expect(promoted.statusCode).toBe(200)
+    expect(promoted.json().primary).toBe(true)
+    const previous = await app.inject({
+      method: 'GET',
+      url: `/spots/${spotA.json().id}`,
+      headers: { cookie: owner.cookie },
+    })
+    expect(previous.json().primary).toBe(false)
+
+    const listed = await list(owner.cookie, tripId, 'sort=category')
+    expect(titles(listed)).toEqual(['Z Hotel', 'A Inn'])
+
+    const recategorised = await patchSpot(
+      owner.cookie,
+      spotB.json().id as string,
+      { baseCategory: 'maybe' },
+    )
+    expect(recategorised.statusCode).toBe(200)
+    expect(recategorised.json()).toMatchObject({
+      baseCategory: 'maybe',
+      primary: false,
+      stayFrom: null,
+      stayTo: null,
+    })
+    const primary = await db.pool.query<{ id: string | null }>(
+      'SELECT primary_home_spot_id AS id FROM trips WHERE id = $1',
+      [tripId],
+    )
+    expect(primary.rows[0]?.id).toBeNull()
+
+    const dated = await patchSpot(owner.cookie, spotA.json().id as string, {
+      stayFrom: '2026-04-17',
+      stayTo: '2026-04-19',
+    })
+    expect(dated.statusCode).toBe(200)
+    const cleared = await patchSpot(owner.cookie, spotA.json().id as string, {
+      stayFrom: null,
+      stayTo: null,
+    })
+    expect(cleared.statusCode).toBe(200)
+    expect(cleared.json()).toMatchObject({
+      baseCategory: 'home',
+      stayFrom: null,
+      stayTo: null,
+    })
+  })
+
+  it('T-12-03 rejects stay dates on a non-home spot and a reversed stay', async () => {
+    const owner = await login('100000000000001202')
+    const tripId = await createTrip(owner.cookie)
+    const onMustGo = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      stayFrom: '2026-04-12',
+      stayTo: '2026-04-16',
+    })
+    expect(onMustGo.statusCode).toBe(400)
+    expect(onMustGo.json().fields.stayFrom).toBe('home_only')
+
+    const reversed = await postSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Hotel',
+      baseCategory: 'home',
+      stayFrom: '2026-04-16',
+      stayTo: '2026-04-12',
+    })
+    expect(reversed.statusCode).toBe(400)
+    expect(reversed.json().fields.stayTo).toBe('before_start')
+  })
+
   it('rejects anonymous callers, a foreign origin, and a bad id', async () => {
     const owner = await login('100000000000000671')
     const tripId = await createTrip(owner.cookie)

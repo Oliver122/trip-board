@@ -1,5 +1,7 @@
 import {
+  cleanStayDate,
   expandTripBBox,
+  homeStayErrors,
   spotSchema,
   spotSearchPattern,
   type BBox,
@@ -29,6 +31,9 @@ type SpotRow = {
   display_category: Spot['displayCategory']
   plan_count: number
   first_scheduled_at: string | null
+  stay_from: string | null
+  stay_to: string | null
+  is_primary: boolean
   info: string | null
   link: string | null
   created_at: Date
@@ -50,6 +55,9 @@ SELECT
   s.display_category,
   s.plan_count,
   to_char(s.first_scheduled_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS first_scheduled_at,
+  s.stay_from::text AS stay_from,
+  s.stay_to::text AS stay_to,
+  (tr.primary_home_spot_id IS NOT NULL AND s.id = tr.primary_home_spot_id) AS is_primary,
   s.info,
   s.link,
   s.created_at,
@@ -58,17 +66,20 @@ SELECT
   COALESCE(u.display_name, u.username) AS creator_name,
   u.avatar_url AS creator_avatar
 FROM spots_view s
+JOIN trips tr ON tr.id = s.trip_id
 LEFT JOIN users u ON u.id = s.created_by
 `
+
+const primaryRank = `CASE WHEN s.id = tr.primary_home_spot_id THEN 0 ELSE 1 END`
 
 export type SpotFailure =
   | { ok: false; status: 400; fields: Record<string, string> }
   | { ok: false; status: 403 | 404 }
 
 const sortOrderSql: Record<SpotSort, string> = {
-  scheduled: `(s.first_scheduled_at IS NULL), s.first_scheduled_at, array_position(ARRAY['must_go','maybe','home']::display_category[], s.display_category), lower(s.title), s.id`,
-  datetime: `s.first_scheduled_at NULLS LAST, lower(s.title), s.id`,
-  category: `array_position(ARRAY['must_go','maybe','planned','home']::display_category[], s.display_category), lower(s.title), s.id`,
+  scheduled: `(s.first_scheduled_at IS NULL), s.first_scheduled_at, array_position(ARRAY['must_go','maybe','home']::display_category[], s.display_category), ${primaryRank}, lower(s.title), s.id`,
+  datetime: `s.first_scheduled_at NULLS LAST, ${primaryRank}, lower(s.title), s.id`,
+  category: `array_position(ARRAY['must_go','maybe','planned','home']::display_category[], s.display_category), ${primaryRank}, lower(s.title), s.id`,
   az: `lower(s.title), s.id`,
   newest: `s.created_at DESC, s.id DESC`,
 }
@@ -149,12 +160,26 @@ export async function createSpot(
       const access = await requireTripRole(tx, tripId, userId, 'planner')
       if (!access.ok) return access
       const title = input.title.trim()
+      const category = input.baseCategory as SpotCategory
+      const stayFrom =
+        category === 'home' ? cleanStayDate(input.stayFrom) : null
+      const stayTo = category === 'home' ? cleanStayDate(input.stayTo) : null
+      const stayFields = homeStayErrors(
+        category,
+        input.stayFrom,
+        input.stayTo,
+        input.primary,
+      )
+      if (Object.keys(stayFields).length > 0) {
+        return { ok: false as const, status: 400 as const, fields: stayFields }
+      }
       const inserted = await tx.query<{ id: string }>(
         `
         INSERT INTO spots (
-          trip_id, title, address, lat, lng, base_category, info, link, created_by
+          trip_id, title, address, lat, lng, base_category, info, link,
+          stay_from, stay_to, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6::spot_category, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6::spot_category, $7, $8, $9, $10, $11)
         RETURNING id
         `,
         [
@@ -163,14 +188,22 @@ export async function createSpot(
           blankToNull(input.address),
           input.lat,
           input.lng,
-          input.baseCategory,
+          category,
           blankToNull(input.info),
           blankToNull(input.link),
+          stayFrom,
+          stayTo,
           userId,
         ],
       )
       const id = inserted.rows[0]?.id
       if (!id) throw new Error('spot insert failed')
+      if (input.primary) {
+        await tx.query(
+          `UPDATE trips SET primary_home_spot_id = $2, updated_at = now() WHERE id = $1`,
+          [tripId, id],
+        )
+      }
       await expandTrip(tx, tripId, input.lng, input.lat)
       await activity.record(tx, {
         actor: userId,
@@ -217,6 +250,9 @@ export async function updateSpot(
         patch.info !== undefined ? blankToNull(patch.info) : current.spot.info
       const link =
         patch.link !== undefined ? blankToNull(patch.link) : current.spot.link
+      const category = baseCategory as SpotCategory
+      const stay = mergedStay(current.spot, patch, category)
+      if (!stay.ok) return stay
       await tx.query(
         `
         UPDATE spots
@@ -227,11 +263,39 @@ export async function updateSpot(
             base_category = $6::spot_category,
             info = $7,
             link = $8,
+            stay_from = $9,
+            stay_to = $10,
             updated_at = now()
         WHERE id = $1
         `,
-        [spotId, title, address, lat, lng, baseCategory, info, link],
+        [
+          spotId,
+          title,
+          address,
+          lat,
+          lng,
+          category,
+          info,
+          link,
+          stay.stayFrom,
+          stay.stayTo,
+        ],
       )
+      if (patch.primary === true && category === 'home') {
+        await tx.query(
+          `UPDATE trips SET primary_home_spot_id = $2, updated_at = now() WHERE id = $1`,
+          [current.spot.tripId, spotId],
+        )
+      } else if (patch.primary === false) {
+        await tx.query(
+          `
+          UPDATE trips
+          SET primary_home_spot_id = NULL, updated_at = now()
+          WHERE id = $1 AND primary_home_spot_id = $2
+          `,
+          [current.spot.tripId, spotId],
+        )
+      }
       await expandTrip(tx, current.spot.tripId, lng, lat)
       await activity.record(tx, {
         actor: userId,
@@ -334,6 +398,44 @@ async function expandTrip(
   )
 }
 
+function mergedStay(
+  current: Spot,
+  patch: PatchSpotBody,
+  category: SpotCategory,
+):
+  | { ok: true; stayFrom: string | null; stayTo: string | null }
+  | { ok: false; status: 400; fields: Record<string, string> } {
+  const sentStay =
+    (patch.stayFrom != null && patch.stayFrom.trim() !== '') ||
+    (patch.stayTo != null && patch.stayTo.trim() !== '')
+  if (category !== 'home') {
+    if (sentStay || patch.primary === true) {
+      return {
+        ok: false,
+        status: 400,
+        fields: homeStayErrors(
+          category,
+          sentStay ? patch.stayFrom : null,
+          sentStay ? patch.stayTo : null,
+          patch.primary,
+        ),
+      }
+    }
+    return { ok: true, stayFrom: null, stayTo: null }
+  }
+  const stayFrom =
+    patch.stayFrom !== undefined
+      ? cleanStayDate(patch.stayFrom)
+      : current.stayFrom
+  const stayTo =
+    patch.stayTo !== undefined ? cleanStayDate(patch.stayTo) : current.stayTo
+  const fields = homeStayErrors(category, stayFrom, stayTo, false)
+  if (Object.keys(fields).length > 0) {
+    return { ok: false, status: 400, fields }
+  }
+  return { ok: true, stayFrom, stayTo }
+}
+
 function blankToNull(value: string | null | undefined): string | null {
   if (value == null) return null
   const trimmed = value.trim()
@@ -352,6 +454,9 @@ function rowToSpot(row: SpotRow): Spot {
     displayCategory: row.display_category,
     planCount: Number(row.plan_count),
     firstScheduledAt: row.first_scheduled_at,
+    stayFrom: row.stay_from,
+    stayTo: row.stay_to,
+    primary: row.is_primary,
     info: row.info,
     link: row.link,
     createdBy: row.creator_id

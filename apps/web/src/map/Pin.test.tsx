@@ -16,6 +16,16 @@ describe('Pin', () => {
     }
   })
 
+  it('T-12-08 renders a filled house for the primary home base', () => {
+    render(<Pin category="home" label="Hotel Gracery" filled />)
+    const pin = screen.getByRole('button', { name: 'Hotel Gracery' })
+    expect(pin.querySelector('[data-icon="home-filled"]')).not.toBeNull()
+    expect(pin.querySelector('[data-icon="home-filled"]')).toHaveAttribute(
+      'fill',
+      'currentColor',
+    )
+  })
+
   it('T-05-04 marks the selected state', () => {
     render(<Pin category="must-go" label="Spot" selected />)
     expect(screen.getByRole('button', { name: 'Spot' })).toHaveClass(

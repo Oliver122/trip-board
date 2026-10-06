@@ -129,6 +129,7 @@ export function SchedulePage() {
     category: pinCategory(spot.displayCategory),
     lng: spot.lng,
     lat: spot.lat,
+    primary: spot.primary,
   }))
 
   async function refresh() {

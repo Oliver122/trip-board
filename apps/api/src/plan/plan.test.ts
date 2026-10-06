@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app.js'
 import { loadConfig, type AppConfig } from '../config.js'
+import { seedDatabase, seedIds } from '../db/seed.js'
 import { createTestDatabase, type TestDatabase } from '../db/test-db.js'
 
 const WEB_ORIGIN = 'http://127.0.0.1:5180'
@@ -639,6 +640,66 @@ describe('plan', () => {
       date: '2026-04-21',
     })
     expect(after.json().outsideTripDates).toBe(true)
+  })
+
+  it('T-12-01 resolves each entry to the overlapping stay, else the primary home', async () => {
+    await seedDatabase(db.pool)
+    const owner = await login('100000000000000001')
+    const nara = await postEntry(owner.cookie, seedIds.trip, {
+      type: 'single',
+      title: 'Nara',
+      date: '2026-04-20',
+    })
+    expect(nara.statusCode).toBe(201)
+
+    const listed = await getPlan(owner.cookie, seedIds.trip)
+    expect(listed.statusCode).toBe(200)
+    const homes = Object.fromEntries(
+      listed
+        .json()
+        .entries.map((entry: { title: string; home: unknown }) => [
+          entry.title,
+          entry.home,
+        ]),
+    )
+    expect(homes.Tokyo).toEqual({
+      spotId: seedIds.spots.hotel,
+      title: 'Hotel Gracery',
+    })
+    expect(homes.Kyoto).toEqual({
+      spotId: seedIds.spots.ryokan,
+      title: 'Kyoto Ryokan',
+    })
+    expect(homes.Nara).toEqual({
+      spotId: seedIds.spots.hotel,
+      title: 'Hotel Gracery',
+    })
+  })
+
+  it('T-12-04 keeps a home spot as home after it is added to a plan', async () => {
+    const owner = await login('100000000000001221')
+    const tripId = await createTrip(owner.cookie)
+    const homeId = await createSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Hotel Gracery',
+      baseCategory: 'home',
+    })
+    const entry = await entryId(
+      postEntry(owner.cookie, tripId, {
+        type: 'bucket',
+        title: 'Tokyo',
+        startDate: '2026-04-12',
+        endDate: '2026-04-16',
+      }),
+    )
+    expect(
+      (await postLink(owner.cookie, entry, { spotId: homeId })).statusCode,
+    ).toBe(201)
+    const home = await getSpot(owner.cookie, homeId)
+    expect(home).toMatchObject({
+      displayCategory: 'home',
+      baseCategory: 'home',
+    })
   })
 
   it('rejects anonymous callers, a foreign origin, and a bad id', async () => {
