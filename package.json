@@ -1,0 +1,38 @@
+{
+  "name": "tripboard",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"pnpm --filter @tripboard/api dev\"",
+    "build": "pnpm -r --if-present build",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "playwright test",
+    "dev:e2e": "concurrently -k -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"node scripts/dev-api-test.mjs\"",
+    "db:migrate": "pnpm --filter @tripboard/api db:migrate",
+    "db:seed": "pnpm --filter @tripboard/api db:seed",
+    "db:check": "pnpm --filter @tripboard/api db:check"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@eslint/js": "^9.36.0",
+    "@playwright/test": "^1.55.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.36.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0"
+  }
+}

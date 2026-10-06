@@ -1,0 +1,256 @@
+import {
+  addPlanSpotSchema,
+  createPlanEntrySchema,
+  patchPlanEntrySchema,
+  patchPlanSpotSchema,
+  planEntrySchema,
+  planEntryUpdateSchema,
+  planLinkSchema,
+  planListSchema,
+  reorderPlanSpotsSchema,
+} from '@tripboard/shared'
+import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { Pool } from 'pg'
+import { z } from 'zod'
+import { originAllowed, requireUser } from '../auth/require-user.js'
+import type { AppConfig } from '../config.js'
+import { deny, fieldErrors, parseBody } from '../http/validate.js'
+import {
+  addPlanSpot,
+  createPlanEntry,
+  deletePlanEntry,
+  listPlan,
+  removePlanSpot,
+  reorderPlanSpots,
+  updatePlanEntry,
+  updatePlanSpot,
+  type PlanFailure,
+} from './store.js'
+
+export type PlanRouteOptions = {
+  pool: Pool
+  config: AppConfig
+  now: () => Date
+}
+
+const knownMessages = new Set([
+  'empty',
+  'too_long',
+  'invalid',
+  'invalid_date',
+  'invalid_time',
+  'before_start',
+  'end_date_required',
+  'spans_days',
+  'end_time_needs_start',
+  'end_before_start',
+  'outside_range',
+  'visit_time_needs_date',
+  'other_entry',
+  'incomplete',
+])
+
+const idSchema = z.object({
+  id: z.string().uuid({ message: 'invalid' }),
+})
+
+const linkParamsSchema = z.object({
+  id: z.string().uuid({ message: 'invalid' }),
+  linkId: z.string().uuid({ message: 'invalid' }),
+})
+
+export function registerPlanRoutes(
+  app: FastifyInstance,
+  options: PlanRouteOptions,
+): void {
+  const { pool, config, now } = options
+  const secure = config.NODE_ENV === 'production'
+
+  app.get('/trips/:id/plan', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const result = await listPlan(pool, params.id, user.id)
+    if (!result.ok) return deny(reply, result.status)
+    return planListSchema.parse({ entries: result.entries })
+  })
+
+  app.post('/trips/:id/plan', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      createPlanEntrySchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await createPlanEntry(pool, user.id, params.id, input)
+    if (!result.ok) return sendFailure(reply, result)
+    return reply.code(201).send(planEntrySchema.parse(result.entry))
+  })
+
+  app.patch('/plan/:id', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      patchPlanEntrySchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await updatePlanEntry(pool, user.id, params.id, input)
+    if (!result.ok) return sendFailure(reply, result)
+    return planEntryUpdateSchema.parse(result.entry)
+  })
+
+  app.delete('/plan/:id', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const result = await deletePlanEntry(pool, user.id, params.id)
+    if (!result.ok) return deny(reply, result.status)
+    return reply.code(204).send()
+  })
+
+  app.post('/plan/:id/spots', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      addPlanSpotSchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await addPlanSpot(pool, user.id, params.id, input)
+    if (!result.ok) return sendFailure(reply, result)
+    return reply.code(201).send(planLinkSchema.parse(result.link))
+  })
+
+  app.patch('/plan/:id/spots/:linkId', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseLinkParams(request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      patchPlanSpotSchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await updatePlanSpot(
+      pool,
+      user.id,
+      params.id,
+      params.linkId,
+      input,
+    )
+    if (!result.ok) return sendFailure(reply, result)
+    return planLinkSchema.parse(result.link)
+  })
+
+  app.delete('/plan/:id/spots/:linkId', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseLinkParams(request.params, reply)
+    if (!params) return
+    const result = await removePlanSpot(pool, user.id, params.id, params.linkId)
+    if (!result.ok) return deny(reply, result.status)
+    return reply.code(204).send()
+  })
+
+  app.put('/plan/:id/spots/order', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return reply.code(403).send({ error: 'forbidden_origin' })
+    }
+    const params = parseParams(request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      reorderPlanSpotsSchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await reorderPlanSpots(
+      pool,
+      user.id,
+      params.id,
+      input.linkIds,
+    )
+    if (!result.ok) return sendFailure(reply, result)
+    return planEntrySchema.parse(result.entry)
+  })
+}
+
+function sendFailure(reply: FastifyReply, result: PlanFailure) {
+  if (result.status === 400) {
+    return reply.code(400).send({
+      error: 'invalid_request',
+      ...(result.message ? { message: result.message } : {}),
+      fields: result.fields,
+    })
+  }
+  return deny(reply, result.status)
+}
+
+function parseParams(
+  params: unknown,
+  reply: FastifyReply,
+): { id: string } | null {
+  const parsed = idSchema.safeParse(params)
+  if (!parsed.success) {
+    reply.code(400).send({
+      error: 'invalid_request',
+      fields: { id: 'invalid' },
+    })
+    return null
+  }
+  return parsed.data
+}
+
+function parseLinkParams(
+  params: unknown,
+  reply: FastifyReply,
+): { id: string; linkId: string } | null {
+  const parsed = linkParamsSchema.safeParse(params)
+  if (!parsed.success) {
+    reply.code(400).send({
+      error: 'invalid_request',
+      fields: fieldErrors(parsed.error, knownMessages),
+    })
+    return null
+  }
+  return parsed.data
+}
