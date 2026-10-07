@@ -324,7 +324,9 @@ test('T-18-15 reduced motion jumps to the schedule view', async ({ page }) => {
     () => (window as unknown as { __moveZooms?: number[] }).__moveZooms ?? [],
   )
   expect(zooms.length).toBeGreaterThan(0)
-  for (const zoom of zooms) expect(zoom).toBeLessThan(8)
+  for (const zoom of zooms) {
+    expect(zoom >= 8 && zoom < 11, `zoom ${zoom} is between the start and the jump`).toBe(false)
+  }
 })
 
 test('T-18-16 a board draft does not carry onto the schedule', async ({

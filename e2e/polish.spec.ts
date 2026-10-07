@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
-import { expectHover } from './hover'
+import { expectHover, paint, visual } from './hover'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const shibuya = '20000000-0000-0000-0000-000000000001'

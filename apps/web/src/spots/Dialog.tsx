@@ -58,6 +58,7 @@ export function Dialog({
         const next = items[index + (event.shiftKey ? -1 : 1)]
         if (next) {
           event.preventDefault()
+          event.stopPropagation()
           next.focus()
         }
         return
@@ -70,9 +71,9 @@ export function Dialog({
         first.focus()
       }
     }
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
     return () => {
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
       if (previous instanceof HTMLElement) previous.focus()
     }
   }, [])
