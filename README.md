@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–19 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, and live collaboration).
+**Status:** steps 00–22 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, and local dev login).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -12,7 +12,7 @@ Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMd
 | [`docs/DESIGN.md`](docs/DESIGN.md)                           | Visual direction, wireframes, flow diagrams                               |
 | [`docs/STITCH_DESIGN_GUIDE.md`](docs/STITCH_DESIGN_GUIDE.md) | Prompts to paste into Stitch, plus a review checklist                     |
 | [`docs/database/`](docs/database/DATABASE.md)                | Database design, reference `schema.sql`, `checks.sql`                     |
-| [`requirements/`](requirements/README.md)                    | 22 build steps, each with a test-based Definition of Done                 |
+| [`requirements/`](requirements/README.md)                    | 23 build steps, each with a test-based Definition of Done                 |
 
 Planned stack: React + TypeScript (Vite, Tailwind, shadcn/ui, MapLibre), Node.js (Fastify), PostgreSQL 16 (Drizzle), Discord OAuth2.
 
@@ -33,7 +33,7 @@ pnpm db:seed
 pnpm dev
 ```
 
-The web app listens on `WEB_PORT` (default **5180**) and the API on `API_PORT` (default **4080**). The browser talks only to the web origin; Vite proxies `/api/*` to the API, so `/api/health` hits `GET /health`.
+The web app listens on `WEB_PORT` (default **5180**) and the API on `API_PORT` (default **4080**). The browser talks only to the web origin; Vite proxies `/api/*` to the API, so `/api/health` hits `GET /health`. `pnpm dev` uses Discord login. `pnpm dev:local` uses the same ports and signs in as a seeded user without Discord settings. See [Local dev login](#local-dev-login).
 
 `GET /health` returns `{ "status": "ok", "db": "ok" }` when Postgres answers, and `503` with `"db": "down"` when it does not. The API exits on startup if `DATABASE_URL` is missing. In production it also exits if `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `AUTH_SECRET`, or `WEB_ORIGIN` is missing. Outside production those Discord settings fall back to local placeholders so the API still boots.
 
@@ -46,6 +46,14 @@ Log in at `/login`. The API uses Discord's authorization code flow with PKCE (`i
 Suspended users are sent back to the login page with the suspension reason. When signups are disabled, a Discord account that is not already a user is refused unless `next` is a valid `/join/<code>` invite. Discord ids listed in `ADMIN_DISCORD_IDS` are promoted to admin on login.
 
 Register `{WEB_ORIGIN}/api/auth/discord/callback` as the redirect URI on the Discord application. `POST /test/login` with `{ "discordId" }` exists only when `NODE_ENV=test`. Playwright starts the API in that mode (`pnpm dev:e2e`).
+
+## Local dev login
+
+`pnpm dev:local` starts the web app and the API on `WEB_PORT` and `API_PORT` (defaults **5180** and **4080**) with `NODE_ENV=development` and `DEV_LOGIN=1`. `pnpm dev` does not set that flag. A Discord client id, secret, and redirect URI are not required.
+
+Open `http://127.0.0.1:5180/login`. Under “Continue with Discord”, **Dev login** lists the users from `pnpm db:seed`: **Sven (admin)**, **Aiko**, and **Tom**. A click signs in with the same 30-day session as Discord and follows `next`. The header shows a **Dev login** badge so a screenshot is not mistaken for production.
+
+`DEV_LOGIN` is `0` or `1`, and the default is `0` (see `.env.example`). The API refuses to start when the flag is `1` and `NODE_ENV` is `production`, or when the hostname of `WEB_ORIGIN` is not `127.0.0.1`, `localhost`, or `[::1]`. A public origin cannot enable the shortcut, even under `pnpm dev`. `scripts/deploy.sh` never writes `DEV_LOGIN` into the server `.env`, and it stops before restart if that file already contains `DEV_LOGIN=1`.
 
 ## Map
 
@@ -154,6 +162,7 @@ The dashboard reads `GET /admin/stats` and `GET /admin/metrics`, and shows how m
 | Script              | What it does                                                                                                                                                    |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm dev`          | Starts the Vite web app and the Fastify API together                                                                                                            |
+| `pnpm dev:local`    | Same ports as `pnpm dev`, with `DEV_LOGIN=1`, so the login page can sign in as Sven, Aiko, or Tom without Discord                                               |
 | `pnpm build`        | Typechecks the API and shared package, and builds the web app                                                                                                   |
 | `pnpm lint`         | ESLint and Prettier                                                                                                                                             |
 | `pnpm typecheck`    | `tsc --noEmit` in each package                                                                                                                                  |
@@ -197,7 +206,7 @@ Set these on **Settings → Environments → production**. Optional keys that ar
 | `NOMINATIM_BASE_URL`, `NOMINATIM_USER_AGENT` | variable | no           | Use a user agent with a contact address                                                                            |
 | `WEB_PORT`, `API_PORT`                       | variable | no           | Keep `WEB_PORT` at `5180`; nginx and the server health check expect it                                             |
 
-`pnpm push` from a laptop still works with a local `deploy.env` (copy `deploy.env.example`).
+`pnpm push` from a laptop still works with a local `deploy.env` (copy `deploy.env.example`). Do not set `DEV_LOGIN` for a deploy. The script never copies that key, and it stops before restart when the server `.env` already has `DEV_LOGIN=1`.
 
 ## Verify the database design
 
