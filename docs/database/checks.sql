@@ -272,6 +272,65 @@ SELECT pg_temp.expect(
   AND (SELECT db_bytes > 0 AND db_used_pct >= 0 FROM admin_storage_summary),
   'storage views report sizes');
 
+-- Spot discussions --------------------------------------------------------
+SET CONSTRAINTS ALL DEFERRED;
+INSERT INTO trips (id, name, created_by, bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat)
+VALUES ('10000000-0000-0000-0000-000000000009', 'Other trip',
+        '00000000-0000-0000-0000-000000000001', 0, 0, 1, 1);
+INSERT INTO trip_members (trip_id, user_id, role) VALUES
+  ('10000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000001', 'owner');
+INSERT INTO spots (id, trip_id, title, lat, lng, base_category) VALUES
+  ('20000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Elsewhere', 0, 0, 'must_go');
+SET CONSTRAINTS ALL IMMEDIATE;
+
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_comments (trip_id, spot_id, author_id, body)
+  VALUES ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000009',
+          '00000000-0000-0000-0000-000000000002', 'wrong trip')$$, 'comment on a spot of another trip rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_comments (trip_id, spot_id, author_id, body)
+  VALUES ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002',
+          '00000000-0000-0000-0000-000000000002', '   ')$$, 'blank comment rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_comments (trip_id, spot_id, author_id, body)
+  VALUES ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002',
+          '00000000-0000-0000-0000-000000000002', repeat('x', 2001))$$, 'comment over 2000 characters rejected');
+
+INSERT INTO users (id, discord_id, username) VALUES
+  ('00000000-0000-0000-0000-000000000005', '100000000000000005', 'quinn');
+INSERT INTO spot_comments (id, trip_id, spot_id, author_id, body) VALUES
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000005', 'Early morning only?');
+INSERT INTO spot_comment_reads (user_id, trip_id, spot_id, last_read_at) VALUES
+  ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000002', now());
+
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_comment_reads (user_id, trip_id, spot_id, last_read_at)
+  VALUES ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+          '20000000-0000-0000-0000-000000000009', now())$$, 'read row for a spot of another trip rejected');
+
+DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000005';
+SELECT pg_temp.expect(
+  (SELECT author_id IS NULL AND body = 'Early morning only?' FROM spot_comments WHERE id = '30000000-0000-0000-0000-000000000001'),
+  'deleting the author keeps the comment with author null');
+
+DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000002';
+SELECT pg_temp.expect(
+  NOT EXISTS (SELECT 1 FROM spot_comments WHERE spot_id = '20000000-0000-0000-0000-000000000002')
+  AND NOT EXISTS (SELECT 1 FROM spot_comment_reads WHERE spot_id = '20000000-0000-0000-0000-000000000002'),
+  'deleting the spot deletes its comments and read rows');
+
+INSERT INTO users (id, discord_id, username) VALUES
+  ('00000000-0000-0000-0000-000000000004', '100000000000000004', 'pat');
+INSERT INTO spot_comment_reads (user_id, trip_id, spot_id, last_read_at) VALUES
+  ('00000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
+   '20000000-0000-0000-0000-000000000001', now());
+DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000004';
+SELECT pg_temp.expect(
+  NOT EXISTS (SELECT 1 FROM spot_comment_reads WHERE user_id = '00000000-0000-0000-0000-000000000004'),
+  'deleting a user deletes their read rows');
+
 -- Cascades ----------------------------------------------------------------
 DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(

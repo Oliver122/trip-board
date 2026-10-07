@@ -8,6 +8,7 @@ const MIGRATION_FILES = [
   '0000_tables.sql',
   '0001_rules.sql',
   '0002_webhook.sql',
+  '0003_spot_comments.sql',
 ] as const
 
 export async function applyMigrations(pool: Pool): Promise<void> {
