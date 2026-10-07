@@ -1,5 +1,5 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 
@@ -76,13 +76,4 @@ async function setLocale(page: Page, locale: 'en' | 'de') {
 async function shot(page: Page, name: string) {
   const image = await page.screenshot()
   await test.info().attach(name, { body: image, contentType: 'image/png' })
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }

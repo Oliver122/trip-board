@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   static:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -41,9 +41,9 @@ jobs:
       AUTH_SECRET: ci-auth-secret-value
       REQUIRE_DB: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -70,11 +70,11 @@ jobs:
       - run: pnpm test
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -84,7 +84,7 @@ jobs:
 
   e2e:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -121,16 +121,16 @@ jobs:
       AUTH_SECRET: ci-auth-secret-value
       REQUIRE_DB: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - id: playwright-version
         run: echo "version=$(pnpm exec playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-${{ matrix.browser }}
@@ -149,9 +149,23 @@ jobs:
           done
           echo "MinIO did not become healthy." >&2
           exit 1
+      - name: Install software WebGL
+        if: matrix.project == 'firefox'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dri libegl1 xvfb
+      - name: Build the web app
+        if: matrix.project == 'chromium'
+        run: pnpm --filter @tripboard/web build
       - run: pnpm db:seed
-      - run: pnpm test:e2e --project=${{ matrix.project }}
-      - uses: actions/upload-artifact@v4
+      - name: Run Playwright
+        run: |
+          if [ "${{ matrix.project }}" = "firefox" ]; then
+            export LIBGL_ALWAYS_SOFTWARE=1
+            export GALLIUM_DRIVER=llvmpipe
+            xvfb-run -a pnpm test:e2e --project=firefox --headed
+          else
+            pnpm test:e2e --project=${{ matrix.project }}
+          fi
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: blob-report-${{ matrix.project }}
@@ -161,16 +175,16 @@ jobs:
   e2e-report:
     if: ${{ !cancelled() }}
     needs: e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           pattern: blob-report-*
           path: blob-report
@@ -182,7 +196,7 @@ jobs:
           REPORT_PATH: e2e-report.json
           ARTIFACT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/e2e-job-summary.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
@@ -192,9 +206,9 @@ jobs:
   ci-passed:
     if: always()
     needs: [static, build, e2e, e2e-report]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Require every check to succeed
         env:
           NEEDS: ${{ toJson(needs) }}
@@ -203,7 +217,7 @@ jobs:
   deploy:
     needs: ci-passed
     if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: production
     concurrency:
       group: deploy-production
@@ -231,7 +245,7 @@ jobs:
       WEB_PORT: ${{ vars.WEB_PORT }}
       API_PORT: ${{ vars.API_PORT }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Write deploy.env
         run: bash scripts/write-deploy-env.sh
       - name: Deploy

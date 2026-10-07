@@ -572,6 +572,7 @@ export function BoardPage() {
         <SpotList
           tripId={tripId}
           tripName={trip.name}
+          timeZone={trip.timezone}
           spots={spots}
           total={total}
           bounds={bounds}

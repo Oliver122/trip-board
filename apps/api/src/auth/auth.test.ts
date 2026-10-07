@@ -37,6 +37,7 @@ describe('discord auth', () => {
   afterAll(async () => {
     await app.close()
     await fake.close()
+    await db.pool.end()
     await db.drop()
   })
 

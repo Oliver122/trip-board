@@ -1,5 +1,5 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
 
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -40,15 +40,7 @@ test('T-08-11 planner drops two images, sees progress, and opens the lightbox', 
     page.getByTestId('lightbox').getByRole('img', { name: 'Photo' }),
   ).toBeVisible()
 
-  const results = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .analyze()
-  expect(
-    results.violations.filter(
-      (violation) =>
-        violation.impact === 'serious' || violation.impact === 'critical',
-    ),
-  ).toEqual([])
+  await expectNoSeriousViolations(page, { include: '[role="dialog"]' })
   await testInfo.attach('gallery-1280', {
     body: await page.screenshot(),
     contentType: 'image/png',

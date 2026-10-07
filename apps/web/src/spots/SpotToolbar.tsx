@@ -23,6 +23,7 @@ type Panel = 'search' | 'filter' | 'sort'
 export function SpotToolbar({
   tripId,
   tripName,
+  timeZone,
   query,
   members,
   entries = [],
@@ -32,6 +33,7 @@ export function SpotToolbar({
 }: {
   tripId: string
   tripName: string
+  timeZone: string
   query: SpotListQuery
   members: Member[]
   entries?: { id: string; title: string }[]
@@ -347,6 +349,7 @@ export function SpotToolbar({
         <ExportDialog
           tripId={tripId}
           tripName={tripName}
+          timeZone={timeZone}
           query={query}
           onClose={() => setExportOpen(false)}
         />

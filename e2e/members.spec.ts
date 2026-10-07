@@ -1,16 +1,22 @@
 import { expect, test, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { expectNoSeriousViolations } from './a11y'
 
 test('T-13-11 a logged-out visitor joins from a copied invite and sees a read-only board', async ({
   page,
   browser,
-  browserName,
 }) => {
-  test.skip(
-    browserName === 'webkit',
-    'WebKit does not support the clipboard-write permission',
-  )
-  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.addInitScript(() => {
+    let text = ''
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          text = value
+        },
+        readText: async () => text,
+      },
+    })
+  })
   await login(page, freshDiscordId())
   const tripId = await createJapan(page)
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -124,13 +130,4 @@ async function createJapan(page: Page) {
 async function shot(page: Page, name: string) {
   const image = await page.screenshot()
   await test.info().attach(name, { body: image, contentType: 'image/png' })
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }

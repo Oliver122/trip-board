@@ -4,7 +4,7 @@
 **Depends on:** 00, 15
 
 ## Scope
-- In: splitting `.github/workflows/ci.yml` into jobs, a Firefox Playwright project, a merged Playwright HTML report as artifact, one required status check plus a ruleset on `main`, a deploy job that runs `scripts/deploy.sh` with a GitHub environment `production`, documentation of every variable in the README.
+- In: splitting `.github/workflows/ci.yml` into jobs, a Firefox Playwright project, a merged Playwright HTML report as artifact, one required status check plus a ruleset on `main`, a deploy job that runs `scripts/deploy.sh` with a GitHub environment `production`, documentation of every variable in the README, repairing the tests that keep the pipeline red (see Findings).
 - Out: building and serving production bundles on the server (it still runs `pnpm dev`, see below), automatic rollback, preview deployments per pull request, Apple’s Safari app on macOS or a device cloud, database backups before `db:migrate`.
 
 ## Current behavior (why this step exists)
@@ -44,6 +44,36 @@ flowchart LR
     ST & B & R --> G{ci-passed}
     G -- main only --> D[deploy: scripts/deploy.sh]
 ```
+
+## Findings from the latest CI run (why the pipeline is red)
+Source: [run 37550604274](https://github.com/Oliver122/trip-board/actions/runs/37550604274) on [PR #3](https://github.com/Oliver122/trip-board/pull/3), commit `850d350`, its job logs and the `playwright-report` artifact (traces, error contexts). The two runs before it (`70a5cb0`, `414dca8`) fail the same way, so none of this is a one-off.
+
+| Job | Result |
+| --- | --- |
+| `static` | red: unit/api tests all pass (web 41, api 144), but Vitest reports 5 unhandled errors |
+| `build` | green |
+| `e2e (chromium)` | 4 failed, 82 passed |
+| `e2e (firefox)` | 17 failed, 1 flaky, 11 did not run, 56 passed (17.8 min of the 30 min limit) |
+| `e2e (webkit)` | 5 failed, 3 flaky, 1 skipped, 76 passed |
+| `e2e (mobile)` | green, but it runs a single test (the only one tagged `@mobile`) |
+| `e2e-report` | green; the merged report and job summary work |
+| `ci-passed` | red, as intended |
+
+What is wrong, grouped by cause:
+
+| # | Problem | Tests affected | Evidence and cause |
+| --- | --- | --- | --- |
+| F-1 | Postgres connections killed in api tests | `static` (`apps/api`: `geocode.test.ts` ×2, `live.test.ts` ×2, `spots.test.ts` ×1) | `error: terminating connection due to administrator command` (`57P01`) raised as an uncaught exception. A connection to the per-file test database is still open, and has no `error` listener, when `drop()` in `apps/api/src/db/test-db.ts` runs `DROP DATABASE … WITH (FORCE)`. All three files build the app, which also opens the `TripHub` `LISTEN` client |
+| F-2 | No WebGL in Firefox on the runner | Firefox: T-05-02/03/06, T-07-01, T-09-06, T-11-04, T-18-04, T-18-11, T-18-13 to T-18-17, T-19-08, T-19-12 | Every Firefox trace logs `Failed to create WebGL context: … Exhausted GL driver options (FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS)`, despite the `webgl.force-enabled` prefs in `playwright.config.ts`. MapLibre never fires `load`, so `window.__tripboardMap` is never set and every `waitForMap` / `waitForJapan` runs into its 20 s timeout, twice per test |
+| F-3 | One failure hides the rest of a file | Firefox: 11 tests "did not run" | `map-board.spec.ts`, `spots.spec.ts` and `admin.spec.ts` use `test.describe.configure({ mode: 'serial' })`. After the first failure (F-2), Playwright skips the rest of the file |
+| F-4 | A test writes into the shared seed | T-09-08, T-09-09 in all three desktop browsers | The Japan trip shows 7 spots, not 6. The extra card is `Temple Gate <timestamp>`, created by T-17-13 in `e2e/insights.spec.ts` through `POST /api/trips/<seeded Japan id>/spots` and never removed. With `fullyParallel`, whether the search tests see it depends on order. T-17-14 changes the global capacity setting in the same way and restores it only at the end |
+| F-5 | Lighthouse test has no production build | T-15-07 (Chromium) | Score 0, final URL `chrome-error://chromewebdata/`. The test runs `vite preview` on port 5192, which serves `apps/web/dist`, but the e2e job never runs `pnpm build`. `startPreview` also accepts a `404` as "started". Locally it passes only because an old `dist` exists |
+| F-6 | Hover check reads styles mid-transition | T-20-03: failed in Chromium, flaky in Firefox (on the `Schedule` nav link) | `hoverClass` adds a 150 ms colour transition. `expectHover` reads the computed style right after `hover()`, before the transition has moved, so "before" equals "after" |
+| F-7 | axe runs during colour transitions | WebKit: T-17-15 failed; T-15-09, T-20-16, T-03-09 flaky | Contrast failures with in-between colours (`#18181b` on `#09090b` = 1.12, `#b1b1b2` on `#636365`). axe runs right after a theme switch or dialog opens, while the same 150 ms transitions are running |
+| F-8 | Keyboard helper depends on browser focus rules | T-15-10 in Firefox and WebKit | `focusByKeyboard` presses Tab 80 times and gives up. Firefox: after `blur()`, Tab never reaches the `Schedule` link (sequential focus resumes after the blurred element and leaves the page). WebKit: after typing into `End date`, Tab never reaches `Save` in the bucket form |
+| F-9 | No download event in WebKit | T-14-09 in WebKit | `GET /api/trips/…/export` returns `200` with `Content-Disposition: attachment`, but `page.waitForEvent('download')` times out after 30 s. The `Download` control is a plain `<a href>` without a `download` attribute |
+| F-10 | Clipboard permission unknown in Firefox | T-13-11 in Firefox | `browserContext.grantPermissions: Unknown permission: clipboard-read`. The test only skips WebKit |
+| F-11 | Pipeline housekeeping | all jobs | Annotations: `actions/checkout@v4`, `setup-node@v4`, `cache@v4`, `upload-artifact@v4` and `pnpm/action-setup@v4` target the deprecated Node 20 runtime, and `ubuntu-latest` moves to Ubuntu 26 from 19 Oct 2026, which changes the system libraries the browsers run on |
 
 ## Requirements
 
@@ -91,6 +121,24 @@ flowchart LR
 | R-21-23 | Rollback is a re-run of the `deploy` job of an earlier green run on `main`, which uploads that commit’s tree. Database migrations are not reverted, so going back past a migration is not supported |
 | R-21-24 | `pnpm push` from a laptop with a local `deploy.env` keeps working. CI uses the same `scripts/deploy.sh`, not a copy |
 
+### Repair the test suite in CI
+These close the findings above. A test may only be skipped in a browser under R-21-07 when the feature really cannot work there, not to hide a test or setup bug.
+
+| ID | Requirement |
+| --- | --- |
+| R-21-25 | (F-1) `pnpm test` ends with 0 unhandled errors. Every `pg.Pool` and `pg.Client` in the API and in `test-db.ts` has an `error` listener. `TripHub.stop()` also ends a client whose `connect()` was still running when `stop()` was called, and cancels a pending reconnect timer. Test files close the app and the pool before `drop()`, so `WITH (FORCE)` finds no open connection |
+| R-21-26 | (F-2) MapLibre loads in Firefox in CI. The Firefox job gets a working software WebGL, e.g. Mesa (`libgl1-mesa-dri`, `libegl1`) plus `xvfb-run -a` with a headed Firefox for that job only. Firefox prefs that have no effect are removed from `playwright.config.ts` |
+| R-21-27 | (F-2) A new test runs first in every project and checks that `canvas.getContext('webgl2') ?? getContext('webgl')` returns a context. Missing WebGL then fails one test with a clear message instead of a dozen 20 s timeouts. The shared map wait helpers fail at once, naming the cause, when the page has logged `Failed to create WebGL context` |
+| R-21-28 | (F-3) `mode: 'serial'` is removed from `map-board.spec.ts`, `spots.spec.ts` and `admin.spec.ts` unless the tests really depend on each other; where it stays, a comment names the dependency. The CI summary never shows "did not run" for a file because of an unrelated failure |
+| R-21-29 | (F-4) No test changes data that another test reads: the seeded trips, spots, users and global admin settings stay as `pnpm db:seed` left them. T-17-13 creates its spot in a trip it creates itself. Tests that change global settings (T-17-14) move into one file in serial mode, restore the value in `finally`, and no test that runs in parallel depends on that setting |
+| R-21-30 | (F-5) The Lighthouse test runs against a production build: the `chromium` e2e job runs `pnpm --filter web build` before `pnpm test:e2e`. `startPreview` fails with "run `pnpm build` first" when `apps/web/dist/index.html` is missing, and accepts only a `200` for `/` as "started" |
+| R-21-31 | (F-6, F-7) One shared helper in `e2e/` waits until `document.getAnimations()` has no running animation or transition. `expectHover` and every axe helper (`expectNoSeriousViolations` and its copies) call it before reading styles or running `AxeBuilder.analyze()`. Copies of the axe helper across spec files are merged into one module |
+| R-21-32 | (F-8) `focusByKeyboard` starts from a defined point (focusing a known element, not `blur()`) and works in Chromium, Firefox and WebKit. Where WebKit skips links or buttons on plain Tab, the helper uses the key WebKit needs for full keyboard access. The bucket form in WebKit lets Tab reach `Save` after the date fields; if it does not, that is an app bug and gets fixed in the app |
+| R-21-33 | (F-9) The export `Download` link starts a download in WebKit, e.g. by adding the `download` attribute with the file name. T-14-09 and T-15-10 assert the downloaded file name in every browser |
+| R-21-34 | (F-10) T-13-11 no longer needs clipboard permissions: it stubs `navigator.clipboard` with `page.addInitScript` and reads the copied invite link from the stub. It then runs in Chromium, Firefox and WebKit, and the WebKit skip is removed |
+| R-21-35 | (F-11) Actions are bumped to versions that run on Node 24, and the runner is pinned (`runs-on: ubuntu-24.04`) so a runner image change is a deliberate commit, not a surprise |
+| R-21-36 | With the suite green, each e2e job finishes in under 15 minutes, well inside the 30 minute timeout from R-21-05 |
+
 **R-21-21 — variables for environment `production`**
 
 | Name | Kind | Required | Notes |
@@ -129,3 +177,11 @@ Pull request checks (`static`, `build`, `e2e`) need no secrets; their test value
 | T-21-10 | ci | R-21-20 | With `DEPLOY_KNOWN_HOSTS` removed from the environment, `deploy` fails before ssh with a message naming `DEPLOY_KNOWN_HOSTS`. No secret value appears in any log |
 | T-21-11 | manual | R-21-23 | Re-running `deploy` from an older green run on `main` puts that commit on the server and the health check is green |
 | T-21-12 | manual | R-21-08, R-21-21, R-21-24 | The README lists every variable from R-21-21 with kind and whether it is required; following only the README, someone sets up the `production` environment and the ruleset. `pnpm push` from a laptop still deploys |
+| T-21-13 | ci | R-21-25 | `static` is green and the `apps/api` Vitest output shows no "Unhandled Errors" block, on three runs in a row |
+| T-21-14 | ci | R-21-26, R-21-27 | In the Firefox job the WebGL test passes and no trace contains `Failed to create WebGL context`. T-05-02/03/06, T-07-01, T-09-06, T-11-04, T-18-04, T-18-11, T-18-13 to T-18-17, T-19-08 and T-19-12 pass in Firefox. With WebGL turned off on purpose, only the WebGL test and the map tests fail, each within a few seconds |
+| T-21-15 | ci | R-21-28 | A throwaway failure in the first test of `map-board.spec.ts` leaves the other tests in that file running and reported |
+| T-21-16 | ci | R-21-29 | After a full e2e run in each project, `GET /api/trips/10000000-0000-0000-0000-000000000001/spots` returns the 6 seeded spots. T-09-08 and T-09-09 pass in every project, also with `--repeat-each=3` |
+| T-21-17 | ci | R-21-30 | T-15-07 passes in the `chromium` job. Locally, with `apps/web/dist` deleted, the test fails at once with the "run `pnpm build` first" message |
+| T-21-18 | ci | R-21-31 | T-20-03, T-03-09, T-15-09, T-17-15 and T-20-16 pass on the first attempt (not flaky) in every project, on three runs in a row |
+| T-21-19 | ci | R-21-32, R-21-33, R-21-34 | T-15-10 passes in Chromium, Firefox and WebKit; T-14-09 passes in WebKit with the expected file name; T-13-11 runs and passes in all three desktop browsers, skipped nowhere |
+| T-21-20 | ci | R-21-35, R-21-36, R-21-07 | On three runs in a row on the same pull request: all four e2e jobs show 0 failed, 0 flaky, 0 "did not run", each job takes under 15 minutes, `ci-passed` is green, and the run has no Node 20 deprecation annotation |

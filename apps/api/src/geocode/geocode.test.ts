@@ -70,6 +70,7 @@ describe('geocode', () => {
 
   afterAll(async () => {
     await app.close()
+    await db.pool.end()
     await db.drop()
   })
 

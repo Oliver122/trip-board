@@ -1,5 +1,6 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
+import { expectNoSeriousViolations } from './a11y'
+import { waitForMap } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const shibuya = '20000000-0000-0000-0000-000000000001'
@@ -33,12 +34,7 @@ test('T-09-06 filtering to Must go hides other pins and cards', async ({
   await expect(page.getByTestId(`card-${nara}`)).toHaveCount(0)
   await expect(page.getByTestId(`pin-${hotel}`)).toHaveCount(0)
 
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
+  await expectNoSeriousViolations(page)
 
   await page.getByRole('button', { name: 'Remove Must go' }).click()
   await expect(page.getByTestId(`pin-${fushimi}`)).toBeVisible()
@@ -132,21 +128,4 @@ async function setLocale(page: Page, locale: 'en' | 'de') {
     })
     if (!response.ok) throw new Error(await response.text())
   }, locale)
-}
-
-async function waitForMap(page: Page) {
-  await page.waitForFunction(
-    () => {
-      const map = (
-        window as unknown as {
-          __tripboardMap?: { getCenter: () => { lng: number; lat: number } }
-        }
-      ).__tripboardMap
-      if (!map) return false
-      const center = map.getCenter()
-      return Number.isFinite(center.lng) && Number.isFinite(center.lat)
-    },
-    undefined,
-    { timeout: 20_000 },
-  )
 }

@@ -1,5 +1,6 @@
 import { inflateSync } from 'node:zlib'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { focusByKeyboard } from './keyboard'
 
 const xss = '<img src=x onerror=alert(1)>'
 
@@ -144,10 +145,6 @@ test('T-15-10 keyboard creates a spot, adds it to a bucket, and exports CSV', as
       .getByRole('button', { name: /Keyboard shrine/ }),
   ).toBeVisible()
 
-  await page.evaluate(() => {
-    if (document.activeElement instanceof HTMLElement)
-      document.activeElement.blur()
-  })
   await focusByKeyboard(page, page.getByRole('link', { name: 'Schedule' }))
   await page.keyboard.press('Enter')
   await focusByKeyboard(page, page.getByTestId('add-bucket'))
@@ -176,10 +173,6 @@ test('T-15-10 keyboard creates a spot, adds it to a bucket, and exports CSV', as
   await page.keyboard.press('Enter')
   await expect(page.getByText('Keyboard shrine').first()).toBeVisible()
 
-  await page.evaluate(() => {
-    if (document.activeElement instanceof HTMLElement)
-      document.activeElement.blur()
-  })
   await focusByKeyboard(
     page,
     page.getByRole('link', { name: 'Board', exact: true }),
@@ -191,19 +184,19 @@ test('T-15-10 keyboard creates a spot, adds it to a bucket, and exports CSV', as
   await focusByKeyboard(page, page.getByRole('link', { name: 'Download' }))
   await page.keyboard.press('Enter')
   const download = await downloadPromise
-  expect(download.suggestedFilename()).toMatch(/\.csv$/)
+  expect(download.suggestedFilename()).toBe(`keyboard-trip-${tokyoDate()}.csv`)
 })
 
-async function focusByKeyboard(page: Page, target: Locator) {
-  for (let step = 0; step < 80; step += 1) {
-    if (
-      await target.evaluate((element) => element === document.activeElement)
-    ) {
-      return
-    }
-    await page.keyboard.press('Tab')
-  }
-  throw new Error('Could not reach the control with Tab')
+function tokyoDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const pick = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '00'
+  return `${pick('year')}-${pick('month')}-${pick('day')}`
 }
 
 function pdfPlainText(pdf: Buffer): string {

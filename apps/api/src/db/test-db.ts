@@ -28,6 +28,8 @@ export async function createTestDatabase(
   const admin = new Pool({ connectionString: adminUrl, max: 1 })
   const url = databaseUrlFor(adminUrl, name)
   const pool = new Pool({ connectionString: url, max: 4 })
+  admin.on('error', () => {})
+  pool.on('error', () => {})
 
   try {
     await admin.query(`CREATE DATABASE ${name}`)
@@ -43,11 +45,19 @@ export async function createTestDatabase(
     url,
     pool,
     async drop() {
-      await pool.end()
+      await endPool(pool)
       await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`)
-      await admin.end()
+      await endPool(admin)
     },
   }
+}
+
+async function endPool(pool: pg.Pool) {
+  await pool.end().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('more than once')) return
+    throw error
+  })
 }
 
 function databaseUrlFor(baseUrl: string, name: string): string {

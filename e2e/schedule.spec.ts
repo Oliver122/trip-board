@@ -1,5 +1,6 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
+import { expectNoSeriousViolations } from './a11y'
+import { waitForMap } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const tokyoEntry = '30000000-0000-0000-0000-000000000001'
@@ -219,12 +220,7 @@ test('T-11-09 schedule passes axe and reorders from the keyboard', async ({
   await page.goto(`/trips/${tripId}/schedule`)
   await expect(page.getByText('Alpha Spot')).toBeVisible()
 
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
+  await expectNoSeriousViolations(page)
 
   const down = page.getByTestId(`move-down-${firstLink}`)
   await page.getByTestId('add-bucket').focus()
@@ -395,21 +391,4 @@ async function mapView(page: Page) {
     const center = map.getCenter()
     return { lng: center.lng, lat: center.lat, zoom: map.getZoom() }
   })
-}
-
-async function waitForMap(page: Page) {
-  await page.waitForFunction(
-    () => {
-      const map = (
-        window as unknown as {
-          __tripboardMap?: { getCenter: () => { lng: number; lat: number } }
-        }
-      ).__tripboardMap
-      if (!map) return false
-      const center = map.getCenter()
-      return Number.isFinite(center.lng) && Number.isFinite(center.lat)
-    },
-    undefined,
-    { timeout: 20_000 },
-  )
 }

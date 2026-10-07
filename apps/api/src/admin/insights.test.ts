@@ -56,6 +56,7 @@ describe.skipIf(!hasDb)('admin insights', () => {
 
   afterAll(async () => {
     await app?.close()
+    await db?.pool.end()
     await db?.drop()
   })
 
@@ -578,6 +579,7 @@ describe.skipIf(!hasDb)('admin insights load', () => {
 
   afterAll(async () => {
     await app?.close()
+    await db?.pool.end()
     await db?.drop()
   })
 

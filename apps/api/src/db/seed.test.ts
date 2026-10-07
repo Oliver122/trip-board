@@ -14,6 +14,7 @@ describe.skipIf(!hasDb)('seed', () => {
   }, 60_000)
 
   afterAll(async () => {
+    await db?.pool.end()
     await db?.drop()
   })
 
