@@ -1,5 +1,5 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const tokyoEntry = '30000000-0000-0000-0000-000000000001'
@@ -25,14 +25,7 @@ test('T-12-05 switching to Home reveals stay fields and switching away clears th
   await page.getByLabel('Stay to').fill('2026-04-16')
   await page.getByLabel('Primary home base').check()
 
-  const results = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
+  await expectNoSeriousViolations(page, { include: '[role="dialog"]' })
   await shot(page, 'home-panel-1280')
   await page.setViewportSize({ width: 768, height: 1024 })
   await shot(page, 'home-panel-768')

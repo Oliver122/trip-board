@@ -1,5 +1,6 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
+import { expectNoSeriousViolations } from './a11y'
+import { waitForMap } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const fushimi = '20000000-0000-0000-0000-000000000003'
@@ -323,7 +324,12 @@ test('T-18-15 reduced motion jumps to the schedule view', async ({ page }) => {
     () => (window as unknown as { __moveZooms?: number[] }).__moveZooms ?? [],
   )
   expect(zooms.length).toBeGreaterThan(0)
-  for (const zoom of zooms) expect(zoom).toBeLessThan(8)
+  for (const zoom of zooms) {
+    expect(
+      zoom >= 8 && zoom < 11,
+      `zoom ${zoom} is between the start and the jump`,
+    ).toBe(false)
+  }
 })
 
 test('T-18-16 a board draft does not carry onto the schedule', async ({
@@ -426,14 +432,7 @@ test('T-18-19 settings and the create flow pass axe and work from the keyboard',
   const dialog = page.getByRole('dialog', { name: 'New spot' })
   await expect(dialog).toBeVisible()
   await expect(titleField(page)).toHaveValue('Onsen')
-  const results = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
+  await expectNoSeriousViolations(page, { include: '[role="dialog"]' })
 })
 
 function titleField(page: Page) {
@@ -505,23 +504,6 @@ async function sameMap(page: Page) {
       canvas.getAttribute('data-probe') === '1'
     )
   })
-}
-
-async function waitForMap(page: Page) {
-  await page.waitForFunction(
-    () => {
-      const map = (
-        window as unknown as {
-          __tripboardMap?: { getCenter: () => { lng: number; lat: number } }
-        }
-      ).__tripboardMap
-      if (!map) return false
-      const center = map.getCenter()
-      return Number.isFinite(center.lng) && Number.isFinite(center.lat)
-    },
-    undefined,
-    { timeout: 20_000 },
-  )
 }
 
 function visitTitles(page: Page) {
@@ -659,15 +641,6 @@ async function mockGeocode(page: Page) {
       json: { label: 'Tokyo, Japan', lat: 35.68, lng: 139.7 },
     }),
   )
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }
 
 async function shot(page: Page, name: string) {

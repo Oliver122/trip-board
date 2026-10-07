@@ -7,6 +7,7 @@ import { loadConfig, type AppConfig } from '../config.js'
 import { createTestDatabase, type TestDatabase } from '../db/test-db.js'
 import type { ObjectStorage } from '../images/storage.js'
 import { inviteTtlMs } from './code.js'
+import { RequestLimiter } from '../http/limit.js'
 import { JoinLimiter } from './limit.js'
 
 const WEB_ORIGIN = 'http://127.0.0.1:5180'
@@ -53,11 +54,13 @@ describe('members', () => {
       now: () => now,
       storage: memoryStorage(),
       joinLimiter: limiter,
+      limiter: new RequestLimiter(10_000),
     })
   })
 
   afterAll(async () => {
     await app.close()
+    await db.pool.end()
     await db.drop()
   })
 

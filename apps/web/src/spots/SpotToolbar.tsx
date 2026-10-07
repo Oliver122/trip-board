@@ -23,6 +23,7 @@ type Panel = 'search' | 'filter' | 'sort'
 export function SpotToolbar({
   tripId,
   tripName,
+  timeZone,
   query,
   members,
   entries = [],
@@ -32,6 +33,7 @@ export function SpotToolbar({
 }: {
   tripId: string
   tripName: string
+  timeZone: string
   query: SpotListQuery
   members: Member[]
   entries?: { id: string; title: string }[]
@@ -53,7 +55,9 @@ export function SpotToolbar({
   useEffect(() => {
     if (!open) return
     const onPointer = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(null)
+      const target = event.target
+      if (!(target instanceof Node) || !target.isConnected) return
+      if (!rootRef.current?.contains(target)) setOpen(null)
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(null)
@@ -345,6 +349,7 @@ export function SpotToolbar({
         <ExportDialog
           tripId={tripId}
           tripName={tripName}
+          timeZone={timeZone}
           query={query}
           onClose={() => setExportOpen(false)}
         />

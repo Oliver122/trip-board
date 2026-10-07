@@ -1,11 +1,10 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
+import { expect, test, type Page } from './fixtures'
+import { waitForMap } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const fushimi = '20000000-0000-0000-0000-000000000003'
 const shibuya = '20000000-0000-0000-0000-000000000001'
-
-test.describe.configure({ mode: 'serial' })
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -185,14 +184,7 @@ test('T-07-11 the panel is a dialog, traps focus, and restores it', async ({
   await page.getByTestId('add-new').click()
   const dialog = page.getByRole('dialog', { name: 'New spot' })
   await expect(dialog).toBeVisible()
-  const results = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
+  await expectNoSeriousViolations(page, { include: '[role="dialog"]' })
 
   for (let step = 0; step < 12; step += 1) {
     await page.keyboard.press('Tab')
@@ -302,22 +294,5 @@ async function mockGeocode(page: Page) {
     route.fulfill({
       json: { label: 'Kyoto, Japan', lat: 35, lng: 135.75 },
     }),
-  )
-}
-
-async function waitForMap(page: Page) {
-  await page.waitForFunction(
-    () => {
-      const map = (
-        window as unknown as {
-          __tripboardMap?: { getCenter: () => { lng: number; lat: number } }
-        }
-      ).__tripboardMap
-      if (!map) return false
-      const center = map.getCenter()
-      return Number.isFinite(center.lng) && Number.isFinite(center.lat)
-    },
-    undefined,
-    { timeout: 20_000 },
   )
 }

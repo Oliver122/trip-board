@@ -22,11 +22,13 @@ const formats = [
 export function ExportDialog({
   tripId,
   tripName,
+  timeZone,
   query,
   onClose,
 }: {
   tripId: string
   tripName: string
+  timeZone: string
   query: SpotListQuery
   onClose: () => void
 }) {
@@ -119,6 +121,7 @@ export function ExportDialog({
           <a
             className={buttonVariants({ variant: 'outline' })}
             href={`/api/trips/${tripId}/export?${params.toString()}`}
+            download={exportDownloadName(tripName, timeZone, format)}
           >
             {t('board.download')}
           </a>
@@ -126,4 +129,33 @@ export function ExportDialog({
       </div>
     </div>
   )
+}
+
+function exportDownloadName(
+  tripName: string,
+  timeZone: string,
+  extension: string,
+): string {
+  const slug = tripName
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  const name = slug.length > 0 ? slug.slice(0, 80) : 'trip'
+  let zone = timeZone
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: zone }).format(new Date())
+  } catch {
+    zone = 'UTC'
+  }
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const pick = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '00'
+  return `${name}-${pick('year')}-${pick('month')}-${pick('day')}.${extension}`
 }

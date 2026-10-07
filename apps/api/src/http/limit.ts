@@ -4,6 +4,8 @@ export const globalRateWindowMs = 60_000
 export class RequestLimiter {
   private readonly hits = new Map<string, number[]>()
 
+  constructor(private readonly limit = globalRateLimit) {}
+
   check(
     key: string,
     now: Date,
@@ -12,7 +14,7 @@ export class RequestLimiter {
     const recent = (this.hits.get(key) ?? []).filter(
       (at) => time - at < globalRateWindowMs,
     )
-    if (recent.length >= globalRateLimit) {
+    if (recent.length >= this.limit) {
       this.hits.set(key, recent)
       const oldest = recent[0] ?? time
       const retryAfter = Math.max(

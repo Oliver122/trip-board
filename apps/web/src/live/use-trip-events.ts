@@ -138,9 +138,17 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
         })
       })
       next.onerror = () => {
-        if (next !== source) return
+        if (next !== source || closed || polling) return
+        source = null
+        next.close()
         failures += 1
-        if (failures >= failureLimit) startPoll()
+        if (failures >= failureLimit) {
+          startPoll()
+          return
+        }
+        window.setTimeout(() => {
+          if (!closed && !polling) open()
+        }, 250)
       }
     }
 

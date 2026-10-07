@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { chromium, expect, test } from '@playwright/test'
@@ -69,6 +70,10 @@ test(
 let preview: ReturnType<typeof spawn> | undefined
 
 async function startPreview(): Promise<string> {
+  const index = new URL('../apps/web/dist/index.html', import.meta.url)
+  if (!existsSync(index)) {
+    throw new Error('run `pnpm build` first')
+  }
   const url = `http://127.0.0.1:${previewPort}`
   preview = spawn(
     new URL('../apps/web/node_modules/.bin/vite', import.meta.url).pathname,
@@ -89,7 +94,7 @@ async function startPreview(): Promise<string> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     try {
       const response = await fetch(url)
-      if (response.ok || response.status === 404) return url
+      if (response.status === 200) return url
     } catch {
       // Preview is still starting.
     }

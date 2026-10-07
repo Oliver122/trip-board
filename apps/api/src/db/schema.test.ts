@@ -24,7 +24,9 @@ describe.skipIf(!hasDb)('migrated schema', () => {
   }, 60_000)
 
   afterAll(async () => {
+    await migrated?.pool.end()
     await migrated?.drop()
+    await reference?.pool.end()
     await reference?.drop()
   })
 

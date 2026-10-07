@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { expectNoSeriousViolations } from './a11y'
 
 test('logged-out trips page returns after test login', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -49,13 +49,4 @@ test('a cancelled Discord login shows the translated error', async ({
 async function shot(page: Page, name: string) {
   const image = await page.screenshot()
   await test.info().attach(name, { body: image, contentType: 'image/png' })
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }

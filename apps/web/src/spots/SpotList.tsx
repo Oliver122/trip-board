@@ -58,6 +58,7 @@ function nearestSnap(height: number, viewport: number): Snap {
 export function SpotList({
   tripId,
   tripName,
+  timeZone,
   spots,
   total,
   bounds,
@@ -73,6 +74,7 @@ export function SpotList({
 }: {
   tripId: string
   tripName: string
+  timeZone: string
   spots: Spot[]
   total: number
   bounds: LngLatBounds | null
@@ -179,6 +181,7 @@ export function SpotList({
       <SpotToolbar
         tripId={tripId}
         tripName={tripName}
+        timeZone={timeZone}
         query={query}
         members={members}
         entries={entries}

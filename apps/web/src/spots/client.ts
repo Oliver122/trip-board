@@ -20,10 +20,7 @@ export class ConflictError extends Error {
   readonly current: Spot
   readonly updatedBy: { id: string; name: string } | null
 
-  constructor(
-    current: Spot,
-    updatedBy: { id: string; name: string } | null,
-  ) {
+  constructor(current: Spot, updatedBy: { id: string; name: string } | null) {
     super('conflict')
     this.name = 'ConflictError'
     this.current = current

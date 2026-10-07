@@ -8,6 +8,12 @@ export default defineConfig({
     '{testDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['blob'], ['github']] : 'list',
+  use: {
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+  },
   projects: [
     {
       name: 'chromium',
@@ -16,6 +22,15 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
       },
+    },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        baseURL: `http://127.0.0.1:${webPort}`,
+        locale: 'en-US',
+      },
+      grepInvert: /@chromium/,
     },
     {
       name: 'webkit',

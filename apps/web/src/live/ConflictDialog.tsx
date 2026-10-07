@@ -38,9 +38,7 @@ export function ConflictDialog({
           {rows.map((row) => (
             <li key={row.label}>
               <p className="font-medium">{row.label}</p>
-              <p>
-                {t('live.mine', { value: row.mine || t('live.blank') })}
-              </p>
+              <p>{t('live.mine', { value: row.mine || t('live.blank') })}</p>
               <p>
                 {t('live.theirs', { value: row.theirs || t('live.blank') })}
               </p>

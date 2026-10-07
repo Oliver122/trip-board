@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './fixtures'
+import { waitForMapLoaded } from './map'
 
 const sven = '100000000000000001'
 const aiko = '100000000000000002'
@@ -10,7 +11,7 @@ test('T-19-08 a second member sees a new spot without moving the map', async ({
   test.setTimeout(60_000)
   const { owner, guest, tripId, close } = await pair(browser, page)
   await owner.goto(`/trips/${tripId}`)
-  await waitForMap(owner)
+  await waitForMapLoaded(owner)
   await owner.evaluate(() => {
     const map = (
       window as unknown as {
@@ -345,16 +346,5 @@ async function mapView(page: Page) {
     if (!map) return { lng: 0, lat: 0, zoom: 0 }
     const center = map.getCenter()
     return { lng: center.lng, lat: center.lat, zoom: map.getZoom() }
-  })
-}
-
-async function waitForMap(page: Page) {
-  await page.waitForFunction(() => {
-    const map = (
-      window as unknown as {
-        __tripboardMap?: { loaded: () => boolean }
-      }
-    ).__tripboardMap
-    return Boolean(map?.loaded())
   })
 }

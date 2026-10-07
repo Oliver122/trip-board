@@ -94,7 +94,13 @@ export function registerTripRoutes(
     if (!input) return
     const expected = readExpected(request)
     if (!expected.ok) return invalidExpected(reply)
-    const result = await updateTrip(pool, user.id, params.id, input, expected.at)
+    const result = await updateTrip(
+      pool,
+      user.id,
+      params.id,
+      input,
+      expected.at,
+    )
     if (!result.ok) return tripFailure(reply, result)
     return result.trip
   })

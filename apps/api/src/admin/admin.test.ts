@@ -65,6 +65,7 @@ describe('admin users and quotas', () => {
     await fake.close()
     const keys = await storage.list().catch(() => [])
     await Promise.all(keys.map((key) => storage.delete(key)))
+    await db.pool.end()
     await db.drop()
   })
 

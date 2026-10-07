@@ -19,7 +19,8 @@ describe('error notices', () => {
     expect(alert).toHaveTextContent('Enter a name.')
     expect(alert?.querySelector('svg')).toBeTruthy()
 
-    render(<ErrorNotice>Could not save.</ErrorNotice>)
+    const message = 'Could not save.'
+    render(<ErrorNotice>{message}</ErrorNotice>)
     const notice = screen.getAllByRole('alert').at(-1)
     expect(notice?.querySelector('svg')).toBeTruthy()
     expect(notice).toHaveTextContent('Could not save.')

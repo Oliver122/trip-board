@@ -1,5 +1,6 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
+import { expectHover, paint, visual } from './hover'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const shibuya = '20000000-0000-0000-0000-000000000001'
@@ -376,50 +377,6 @@ test('T-20-16 main flows with errors stay accessible in both themes', async ({
   await expectNoSeriousViolations(page)
 })
 
-async function expectHover(locator: Locator) {
-  const before = await paint(locator)
-  await locator.hover()
-  const after = await paint(locator)
-  expect(after.cursor).toBe('pointer')
-  expect(visual(after)).not.toEqual(visual(before))
-}
-
-function visual(value: Paint) {
-  return {
-    backgroundColor: value.backgroundColor,
-    borderColor: value.borderColor,
-    boxShadow: value.boxShadow,
-    transform: value.transform,
-    textDecoration: value.textDecoration,
-    color: value.color,
-  }
-}
-
-type Paint = {
-  backgroundColor: string
-  borderColor: string
-  boxShadow: string
-  transform: string
-  textDecoration: string
-  cursor: string
-  color: string
-}
-
-function paint(locator: Locator): Promise<Paint> {
-  return locator.evaluate((el) => {
-    const style = getComputedStyle(el)
-    return {
-      backgroundColor: style.backgroundColor,
-      borderColor: style.borderTopColor,
-      boxShadow: style.boxShadow,
-      transform: style.transform,
-      textDecoration: style.textDecorationLine,
-      cursor: style.cursor,
-      color: style.color,
-    }
-  })
-}
-
 async function token(
   page: Page,
   name: string,
@@ -437,15 +394,6 @@ async function token(
     },
     { variable: name, key: property },
   )
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }
 
 async function login(page: Page, discordId: string) {

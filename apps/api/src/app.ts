@@ -18,7 +18,7 @@ import { registerImageRoutes } from './images/routes.js'
 import { registerPlanRoutes } from './plan/routes.js'
 import { UploadLimiter } from './images/limit.js'
 import { createS3Storage, type ObjectStorage } from './images/storage.js'
-import { JoinLimiter } from './members/limit.js'
+import { JoinLimiter, joinRateLimit } from './members/limit.js'
 import { registerMemberRoutes } from './members/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
@@ -78,9 +78,13 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     }
   })
 
-  const hub = new TripHub(config.DATABASE_URL, (message) => {
-    app.log.info(message)
-  }, now)
+  const hub = new TripHub(
+    config.DATABASE_URL,
+    (message) => {
+      app.log.info(message)
+    },
+    now,
+  )
   await hub.start()
   app.decorate('tripHub', hub)
   app.addHook('onClose', async () => {
@@ -103,7 +107,9 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     pool,
     config,
     now,
-    limiter: options.joinLimiter ?? new JoinLimiter(),
+    limiter:
+      options.joinLimiter ??
+      new JoinLimiter(config.NODE_ENV === 'test' ? 10_000 : joinRateLimit),
   })
   registerSpotRoutes(app, { pool, config, now })
   registerLiveRoutes(app, { pool, config, now, hub })

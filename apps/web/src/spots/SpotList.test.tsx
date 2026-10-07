@@ -48,6 +48,7 @@ function renderList(
     <SpotList
       tripId="10000000-0000-0000-0000-000000000001"
       tripName="Japan 2026"
+      timeZone="Asia/Tokyo"
       spots={spots}
       total={extra.total ?? spots.length}
       bounds={extra.bounds === undefined ? null : extra.bounds}

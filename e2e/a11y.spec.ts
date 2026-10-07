@@ -1,5 +1,5 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 
@@ -99,15 +99,6 @@ test('T-15-09 axe finds no serious issues on the main pages in both themes', asy
   await page.getByRole('banner').getByRole('button', { name: 'Dark' }).click()
   await expectNoSeriousViolations(page, 'dark')
 })
-
-async function expectNoSeriousViolations(page: Page, theme: string) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious, theme).toEqual([])
-}
 
 async function login(page: Page, discordId: string) {
   await page.goto('/login')

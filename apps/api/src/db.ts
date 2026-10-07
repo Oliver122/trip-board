@@ -3,11 +3,13 @@ import pg from 'pg'
 const { Pool } = pg
 
 export function createPool(databaseUrl: string) {
-  return new Pool({
+  const pool = new Pool({
     connectionString: databaseUrl,
     connectionTimeoutMillis: 2000,
     max: 2,
   })
+  pool.on('error', () => {})
+  return pool
 }
 
 export async function pingDatabase(pool: pg.Pool): Promise<boolean> {

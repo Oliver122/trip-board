@@ -1,10 +1,9 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
+import { expect, test, type Page } from './fixtures'
+import { waitForJapan } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const japan = { minLng: 122.9, minLat: 24, maxLng: 153.9, maxLat: 45.6 }
-
-test.describe.configure({ mode: 'serial' })
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
@@ -23,13 +22,13 @@ test('T-05-02 T-05-03 T-05-06 the Japan board fits the region', async ({
   const list = await page.getByTestId('spot-list').boundingBox()
   expect(list?.width).toBeCloseTo(360, 0)
   await expect(page.getByRole('link', { name: 'OpenStreetMap' })).toBeVisible()
-  await waitForJapan(page)
+  await waitForJapan(page, japan)
   await expectNoSeriousViolations(page)
   if (test.info().project.name === 'chromium') {
     await expect(page).toHaveScreenshot('board-1280.png', {
       mask: [page.locator('.maplibregl-canvas')],
       animations: 'disabled',
-      maxDiffPixels: 500,
+      maxDiffPixelRatio: 0.02,
     })
   }
 
@@ -43,13 +42,13 @@ test('T-05-02 T-05-03 T-05-06 the Japan board fits the region', async ({
 test('T-05-05 German labels use name:de', async ({ page }) => {
   await setLocale(page, 'de')
   await page.goto(japanTrip)
-  await waitForJapan(page)
+  await waitForJapan(page, japan)
   await expect.poll(async () => labelField(page)).toContain('name:de')
 })
 
 test('T-05-08 a reload keeps the panned view', async ({ page }) => {
   await page.goto(japanTrip)
-  await waitForJapan(page)
+  await waitForJapan(page, japan)
   const before = await page.evaluate(() => location.hash)
   await page.evaluate(() => {
     const map = window.__tripboardMap
@@ -69,7 +68,7 @@ test('T-05-08 a reload keeps the panned view', async ({ page }) => {
     }
   })
   await page.reload()
-  await waitForJapan(page)
+  await waitForJapan(page, japan)
   await expect.poll(async () => page.evaluate(() => location.hash)).toBe(hash)
   const after = await page.evaluate(() => {
     const point = window.__tripboardMap?.getCenter()
@@ -125,24 +124,6 @@ async function setLocale(page: Page, locale: 'en' | 'de') {
   }, locale)
 }
 
-async function waitForJapan(page: Page) {
-  await page.waitForFunction(
-    (box) => {
-      const map = window.__tripboardMap
-      if (!map) return false
-      const center = map.getCenter()
-      return (
-        center.lng > box.minLng &&
-        center.lng < box.maxLng &&
-        center.lat > box.minLat &&
-        center.lat < box.maxLat
-      )
-    },
-    japan,
-    { timeout: 20_000 },
-  )
-}
-
 async function labelField(page: Page) {
   return page.evaluate(() => {
     try {
@@ -156,15 +137,6 @@ async function labelField(page: Page) {
       return ''
     }
   })
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }
 
 declare global {

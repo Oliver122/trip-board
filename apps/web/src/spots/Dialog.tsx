@@ -44,10 +44,23 @@ export function Dialog({
       const first = items[0]
       const last = items[items.length - 1]
       if (!first || !last) return
-      const active = document.activeElement
-      if (!panel.contains(active)) {
+      const active = lightElement(document.activeElement)
+      if (!(active instanceof HTMLElement) || !panel.contains(active)) {
         event.preventDefault()
         ;(event.shiftKey ? last : first).focus()
+        return
+      }
+      if (
+        active instanceof HTMLInputElement &&
+        (active.type === 'date' || active.type === 'time')
+      ) {
+        const index = items.indexOf(active)
+        const next = items[index + (event.shiftKey ? -1 : 1)]
+        if (next) {
+          event.preventDefault()
+          event.stopPropagation()
+          next.focus()
+        }
         return
       }
       if (event.shiftKey && active === first) {
@@ -58,9 +71,9 @@ export function Dialog({
         first.focus()
       }
     }
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
     return () => {
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
       if (previous instanceof HTMLElement) previous.focus()
     }
   }, [])
@@ -94,6 +107,16 @@ export function Dialog({
       </div>
     </div>
   )
+}
+
+function lightElement(node: Element | null): Element | null {
+  let current = node
+  while (current) {
+    const root = current.getRootNode()
+    if (!(root instanceof ShadowRoot)) return current
+    current = root.host
+  }
+  return null
 }
 
 function focusable(root: HTMLElement | null): HTMLElement[] {

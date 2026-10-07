@@ -33,6 +33,8 @@ type LiveStream = {
 
 export class TripHub {
   private client: pg.Client | null = null
+  private pending: pg.Client | null = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private stopped = false
   private reconnecting = false
   private backoff = initialBackoffMs
@@ -48,15 +50,28 @@ export class TripHub {
 
   async start(): Promise<void> {
     this.stopped = false
-    await this.connect()
+    try {
+      await this.connect()
+    } catch {
+      this.scheduleReconnect()
+    }
   }
 
   async stop(): Promise<void> {
     this.stopped = true
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     for (const stream of [...this.streams]) this.closeStream(stream)
-    const client = this.client
+    const clients = [this.client, this.pending].filter(
+      (client): client is pg.Client => client != null,
+    )
     this.client = null
-    if (client) await client.end().catch(() => undefined)
+    this.pending = null
+    await Promise.all(
+      clients.map((client) => client.end().catch(() => undefined)),
+    )
   }
 
   openCount(): number {
@@ -138,6 +153,7 @@ export class TripHub {
   }
 
   private async connect(): Promise<void> {
+    if (this.stopped) return
     const client = new pg.Client({ connectionString: this.databaseUrl })
     client.on('notification', (message) => {
       if (message.channel !== channel || !message.payload) return
@@ -153,10 +169,23 @@ export class TripHub {
     client.on('end', () => {
       if (!this.stopped) this.scheduleReconnect()
     })
-    await client.connect()
-    await client.query(`LISTEN ${channel}`)
-    this.client = client
-    this.backoff = initialBackoffMs
+    this.pending = client
+    try {
+      await client.connect()
+      if (this.stopped) return
+      await client.query(`LISTEN ${channel}`)
+      if (this.stopped) return
+      this.client = client
+      this.backoff = initialBackoffMs
+    } catch (error) {
+      await client.end().catch(() => undefined)
+      throw error
+    } finally {
+      if (this.pending === client) this.pending = null
+      if (this.stopped && this.client !== client) {
+        await client.end().catch(() => undefined)
+      }
+    }
   }
 
   private scheduleReconnect(): void {
@@ -166,7 +195,8 @@ export class TripHub {
     this.log('trip events listener reconnecting')
     const wait = this.backoff
     this.backoff = Math.min(this.backoff * 2, maxBackoffMs)
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
       if (this.stopped) return
       void this.connect()
         .then(() => {

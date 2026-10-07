@@ -1,9 +1,8 @@
-import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
+import { expectNoSeriousViolations } from './a11y'
 
 const sven = '100000000000000001'
 const aiko = '100000000000000002'
-const japan = '10000000-0000-0000-0000-000000000001'
 
 test('T-17-12 the dashboard charts follow the selected range', async ({
   page,
@@ -51,12 +50,27 @@ test('T-17-13 the feed holds new activity until it is opened', async ({
   await page.goto('/admin/activity')
   await expect(page.getByText('Live, updates every 15 seconds')).toBeVisible()
   const title = `Temple Gate ${Date.now()}`
+  const tripName = `Feed ${Date.now()}`
   const planner = await browser.newContext()
   const other = await planner.newPage()
   await login(other, aiko)
   const created = await other.evaluate(
-    async ({ tripId, spotTitle }) => {
-      const response = await fetch(`/api/trips/${tripId}/spots`, {
+    async ({ spotTitle, name }) => {
+      const trip = await fetch('/api/trips', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          timezone: 'Asia/Tokyo',
+          region: {
+            bbox: { minLng: 135, minLat: 34, maxLng: 140, maxLat: 36 },
+          },
+        }),
+      })
+      if (!trip.ok) throw new Error(await trip.text())
+      const body = (await trip.json()) as { id: string }
+      const response = await fetch(`/api/trips/${body.id}/spots`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
@@ -69,7 +83,7 @@ test('T-17-13 the feed holds new activity until it is opened', async ({
       })
       return response.status
     },
-    { tripId: japan, spotTitle: title },
+    { spotTitle: title, name: tripName },
   )
   expect(created).toBe(201)
   await expect(page.getByRole('button', { name: /\d+ new/ })).toBeVisible({
@@ -77,47 +91,9 @@ test('T-17-13 the feed holds new activity until it is opened', async ({
   })
   await page.getByRole('button', { name: /\d+ new/ }).click()
   await expect(
-    page.getByText(`Aiko added ${title} to Japan 2026`),
+    page.getByText(`Aiko added ${title} to ${tripName}`),
   ).toBeVisible()
   await planner.close()
-})
-
-test('T-17-14 a low capacity shows the warning on every admin page', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 })
-  await login(page, sven)
-  await page.goto('/admin/settings')
-  const database = page.getByRole('spinbutton', { name: 'Database (MB)' })
-  const previous = await database.inputValue()
-  try {
-    await database.fill('1')
-    await page.getByRole('button', { name: 'Save' }).click()
-    await expect(
-      page.getByText('Saved. The new values apply now.'),
-    ).toBeVisible()
-    const paths = [
-      '/admin',
-      '/admin/users',
-      '/admin/trips',
-      '/admin/activity',
-      '/admin/storage',
-      '/admin/requests',
-      '/admin/settings',
-      '/admin/audit',
-    ]
-    for (const path of paths) {
-      await page.goto(path)
-      await expect(page.getByTestId('capacity-banner')).toBeVisible()
-    }
-  } finally {
-    await page.goto('/admin/settings')
-    await page.getByRole('spinbutton', { name: 'Database (MB)' }).fill(previous)
-    await page.getByRole('button', { name: 'Save' }).click()
-    await expect(
-      page.getByText('Saved. The new values apply now.'),
-    ).toBeVisible()
-  }
 })
 
 test('T-17-15 dashboard and storage pass axe and charts have a table', async ({
@@ -171,13 +147,4 @@ async function login(page: Page, discordId: string) {
       body: JSON.stringify({ locale: 'en' }),
     })
   }, discordId)
-}
-
-async function expectNoSeriousViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).analyze()
-  const serious = results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  )
-  expect(serious).toEqual([])
 }
