@@ -81,6 +81,7 @@ export function BoardPage() {
   )
   const [query, setQuery] = useState(urlQuery)
   const queryRef = useRef(query)
+  const keepList = useRef(false)
   queryRef.current = query
   const setParamsRef = useRef(setParams)
   setParamsRef.current = setParams
@@ -555,14 +556,17 @@ export function BoardPage() {
     </Button>
   ) : null
 
+  if (!remote || listStatus === 'ready') keepList.current = true
+  const blockList = remote && !filtered && !keepList.current
+
   return (
     <>
       {overlay && addButton ? createPortal(addButton, overlay) : null}
-      {listStatus === 'error' && remote && !filtered ? (
+      {listStatus === 'error' && blockList ? (
         <div className="p-4">
           <ErrorState retry={() => setListStatus('loading')} />
         </div>
-      ) : listStatus === 'loading' && remote && !filtered ? (
+      ) : listStatus === 'loading' && blockList ? (
         <PanelSkeleton />
       ) : (
         <SpotList

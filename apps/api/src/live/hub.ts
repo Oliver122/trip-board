@@ -48,7 +48,11 @@ export class TripHub {
 
   async start(): Promise<void> {
     this.stopped = false
-    await this.connect()
+    try {
+      await this.connect()
+    } catch {
+      this.scheduleReconnect()
+    }
   }
 
   async stop(): Promise<void> {
