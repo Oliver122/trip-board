@@ -28,6 +28,11 @@ export function TripCard({ trip }: { trip: Trip }) {
           </span>
         </div>
         {dates ? <p className="text-muted">{dates}</p> : null}
+        {trip.unreadComments > 0 ? (
+          <p className="text-sm font-semibold text-accent">
+            {t('news.tripNew', { count: trip.unreadComments })}
+          </p>
+        ) : null}
         <MemberAvatars members={trip.members} max={MAX_VISIBLE_MEMBERS} />
         {trip.createdByName ? (
           <p className="text-sm text-muted">

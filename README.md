@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–22 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, and local dev login).
+**Status:** steps 00–22 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, and local dev login), and spot discussions with the News panel (step 24).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -136,6 +136,14 @@ The calendar file has one event per bucket (all-day across the bucket’s dates)
 A reverse proxy must not buffer this route (`X-Accel-Buffering: no` is set; nginx also needs `proxy_buffering off`) and must allow the connection to stay open (read timeout of at least 10 minutes). A comment line every 25 seconds keeps the proxy from treating it as idle. If the stream fails three times, the tab polls the existing GET routes every 15 seconds and only shows an error if that polling fails too. Hiding the tab for more than five minutes closes the stream; coming back reconnects and refetches once. Reconnect sends `Last-Event-ID`; the server does not replay missed events, it sends `event: resync`.
 
 `PATCH` and `DELETE` for a spot, plan entry, or trip may send `expectedUpdatedAt` (or `If-Unmodified-Since`). A stale value is `409` with the current row and who saved it. The panel then asks whether to keep your draft or take theirs. Requests without the check stay last-write-wins. Reordering a bucket does not conflict; everyone else sees the new order through the stream. The admin dashboard shows how many streams this process has open, and the log records when the listener reconnects.
+
+## Spot discussions and News
+
+Every member, visitors included, can comment on a spot. The **Discussion** section at the bottom of the spot panel shows the thread oldest first and takes plain text of up to 2000 characters. Line breaks are kept and `http(s)` addresses become links; anything else, HTML included, is shown as typed. Ctrl/Cmd + Enter sends. Authors edit and delete their own comments; the owner deletes any comment. Deleting a spot names the comments that go with it.
+
+`GET /spots/:id/comments?cursor=` returns 50 comments per page, `POST /spots/:id/comments` adds one (at most 20 per user per minute, then `429`), `PATCH /comments/:id` and `DELETE /comments/:id` follow the rules above, and `PUT /spots/:id/comments/read` records what the reader has seen. `GET /trips/:id/news` lists the spots with unread comments, and `POST /trips/:id/news/read` clears them. Spot and trip responses carry `commentCount` and `unreadComments`.
+
+A comment is unread for a member when someone else wrote it after the member last saw that spot's thread and after they joined the trip. The header’s **News** button shows the trip's unread total; the panel lists the spots, and clicking one opens its discussion with a “New” divider above the first unread comment. A thread counts as read once its section has been on screen. The tab title and My trips show unread counts too. Marking comments read writes no activity event, so the admin feed shows only comment writes (`comment.create`, `comment.update`, `comment.delete`).
 
 ## Hardening
 

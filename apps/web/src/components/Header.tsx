@@ -10,9 +10,11 @@ import { hoverClass } from './ui/hover'
 
 export function Header({
   tabs,
+  news,
   members,
 }: {
   tabs?: ReactNode
+  news?: ReactNode
   members?: ReactNode
 }) {
   const { t } = useTranslation()
@@ -32,6 +34,7 @@ export function Header({
       </Link>
       <div data-slot="tabs">{tabs}</div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
+        {news}
         <div data-slot="members">{members}</div>
         <DevLoginBadge />
         <ThemeSwitch />

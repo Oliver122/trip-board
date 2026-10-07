@@ -2,6 +2,8 @@ import type { Trip } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useMatch } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { useTripUnread } from '../comments/useTripUnread'
+import { NewsButton } from '../comments/News'
 import { onMembersRefresh } from '../live/bus'
 import { MembersDialog } from '../members/MembersDialog'
 import { cn } from '../lib/utils'
@@ -23,6 +25,7 @@ export function AppShell() {
   const tripId = schedule?.params.id ?? settings?.params.id ?? board?.params.id
   const [membersOpen, setMembersOpen] = useState(false)
   const [members, setMembers] = useState<Trip['members']>([])
+  const unread = useTripUnread(tripId)
 
   useEffect(() => {
     setMembersOpen(false)
@@ -61,6 +64,14 @@ export function AppShell() {
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       <Header
+        news={
+          schedule?.params.id || board?.params.id ? (
+            <NewsButton
+              tripId={(schedule ?? board)!.params.id!}
+              total={unread}
+            />
+          ) : null
+        }
         tabs={
           tripId ? (
             <nav aria-label={t('nav.label')} className="flex gap-1">

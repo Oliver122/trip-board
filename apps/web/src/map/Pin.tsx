@@ -16,6 +16,7 @@ export function Pin({
   selected = false,
   hover = false,
   filled = false,
+  unread = false,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -26,6 +27,7 @@ export function Pin({
   selected?: boolean
   hover?: boolean
   filled?: boolean
+  unread?: boolean
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -39,7 +41,7 @@ export function Pin({
       data-testid={testId}
       className={cn(
         hoverClass.pin,
-        'inline-flex items-center justify-center rounded-full border-0 p-0 text-sm font-semibold text-white',
+        'relative inline-flex items-center justify-center rounded-full border-0 p-0 text-sm font-semibold text-white',
         selected
           ? 'is-selected size-9 shadow-panel ring-[3px] ring-white'
           : 'size-7',
@@ -51,6 +53,13 @@ export function Pin({
       onMouseLeave={onMouseLeave}
     >
       <PinIcon category={category} filled={filled} />
+      {unread ? (
+        <span
+          aria-hidden="true"
+          data-testid="pin-unread"
+          className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-accent ring-2 ring-background"
+        />
+      ) : null}
     </button>
   )
 }

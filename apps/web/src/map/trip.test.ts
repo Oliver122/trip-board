@@ -14,6 +14,7 @@ const trip = {
     bbox: { minLng: 122.9, minLat: 24, maxLng: 153.9, maxLat: 45.6 },
   },
   members: [],
+  unreadComments: 0,
 }
 
 describe('parseTrip', () => {

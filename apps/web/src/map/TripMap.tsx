@@ -356,6 +356,7 @@ export function TripMap({
               <Pin
                 category={item.spot.category}
                 filled={item.spot.category === 'home' && item.spot.primary}
+                unread={item.spot.unread}
                 label={item.spot.title}
                 selected={
                   item.spot.id === selectedId ||

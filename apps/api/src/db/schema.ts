@@ -455,11 +455,7 @@ export const spotComments = pgTable(
       'spot_comments_body_check',
       sql`char_length(btrim(${table.body})) BETWEEN 1 AND 2000`,
     ),
-    index('spot_comments_spot_idx').on(
-      table.spotId,
-      table.createdAt,
-      table.id,
-    ),
+    index('spot_comments_spot_idx').on(table.spotId, table.createdAt, table.id),
     index('spot_comments_trip_time_idx').on(table.tripId, table.createdAt),
   ],
 )

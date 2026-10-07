@@ -32,4 +32,12 @@ describe('Pin', () => {
       'is-selected',
     )
   })
+
+  it('T-24-28 shows a dot on a pin with unread comments only', () => {
+    const { unmount } = render(<Pin category="must-go" label="Spot" />)
+    expect(screen.queryByTestId('pin-unread')).toBeNull()
+    unmount()
+    render(<Pin category="must-go" label="Spot" unread />)
+    expect(screen.getByTestId('pin-unread')).toBeInTheDocument()
+  })
 })
