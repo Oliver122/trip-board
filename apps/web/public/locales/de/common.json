@@ -556,6 +556,11 @@
         },
         "quota": {
           "request": "{{actor}} hat mehr Speicher angefragt"
+        },
+        "comment": {
+          "create": "{{actor}} hat {{spot}} in {{trip}} kommentiert",
+          "update": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} bearbeitet",
+          "delete": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} gelöscht"
         }
       }
     },

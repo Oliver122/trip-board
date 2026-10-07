@@ -26,6 +26,9 @@ export const activityActions = [
   'image.delete',
   'export.download',
   'quota.request',
+  'comment.create',
+  'comment.update',
+  'comment.delete',
 ] as const
 
 export function activitySentence(
