@@ -1,6 +1,6 @@
 # Requirements — iterative build plan
 
-The site is built in **22 small steps**. Each step ships something that works, can be checked on its own, and is finished only when its **Definition of Done (DoD)** passes. Each DoD is a list of test requirements.
+The site is built in **23 small steps**. Each step ships something that works, can be checked on its own, and is finished only when its **Definition of Done (DoD)** passes. Each DoD is a list of test requirements.
 
 Sources: [`docs/PROJECT_SCOPE.md`](../docs/PROJECT_SCOPE.md) (what), [`docs/DESIGN.md`](../docs/DESIGN.md) (how it looks), [`docs/database/DATABASE.md`](../docs/database/DATABASE.md) (data), [`docs/STITCH_DESIGN_GUIDE.md`](../docs/STITCH_DESIGN_GUIDE.md) (visual prompt).
 
@@ -39,6 +39,9 @@ flowchart LR
     S18 --> S19[19 Live collaboration]
     S19 --> S20[20 User interaction polish]
     S15 --> S21[21 CI/CD]
+    S07 --> S23[23 Google Maps import]
+    S17 --> S23
+    S19 --> S23
 ```
 
 | # | Step | Result you can check |
@@ -65,6 +68,7 @@ flowchart LR
 | 19 | [Live collaboration](./19-live-collaboration.md) | Two people on one trip see each other’s changes without reload; conflicts are detected |
 | 20 | [User interaction polish](./20-user-interaction-polish.md) | Every button reacts on hover, errors are red, header shows member avatars instead of placeholders |
 | 21 | [CI/CD](./21-ci-cd.md) | Pull requests run e2e on Chromium, Firefox and WebKit with a downloadable report; merge needs a green `ci-passed`; each merge to `main` deploys |
+| 23 | [Google Maps import](./23-google-maps-import.md) | Drop a Google Takeout list CSV on the board, check the preview, and its places appear as spots |
 
 Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any order. Step 16 can come before 15.
 
