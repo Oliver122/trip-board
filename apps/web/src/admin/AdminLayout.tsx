@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Outlet, Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '../components/Preferences'
+import { DevLoginBadge } from '../dev-login'
 import { hoverClass } from '../components/ui/hover'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { cn } from '../lib/utils'
@@ -108,6 +109,7 @@ function AdminLayout() {
               {t('admin.back')}
             </Link>
             <div className="ml-auto flex items-center gap-2">
+              <DevLoginBadge />
               <ThemeSwitch />
             </div>
           </header>

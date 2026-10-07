@@ -1,4 +1,8 @@
-import { meResponseSchema, safeNextPath } from '@tripboard/shared'
+import {
+  devUsersResponseSchema,
+  meResponseSchema,
+  safeNextPath,
+} from '@tripboard/shared'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Pool } from 'pg'
 import { z } from 'zod'
@@ -22,6 +26,8 @@ import {
 import {
   authenticate,
   deleteSession,
+  listDevUsers,
+  loginDevUser,
   loginForTest,
   loginWithDiscord,
   updateLocale,
@@ -193,6 +199,39 @@ export function registerAuthRoutes(
     reply.header('set-cookie', clearCookie(SESSION_COOKIE, secure))
     return reply.code(204).send()
   })
+
+  if (config.devLogin) {
+    app.get('/auth/dev/users', async () => {
+      return devUsersResponseSchema.parse(await listDevUsers(pool))
+    })
+
+    app.post('/auth/dev/login', async (request, reply) => {
+      if (!originAllowed(request, config)) {
+        return reply.code(403).send({ error: 'forbidden_origin' })
+      }
+      const body = testLoginBody.safeParse(request.body)
+      if (!body.success)
+        return reply.code(400).send({ error: 'invalid_request' })
+      const result = await loginDevUser(
+        pool,
+        config,
+        body.data.discordId,
+        now(),
+        userAgent(request),
+      )
+      if (result.kind === 'missing') {
+        return reply.code(404).send({ error: 'not_found' })
+      }
+      if (result.kind === 'suspended') {
+        return reply.code(403).send({
+          error: 'suspended',
+          reason: result.reason,
+        })
+      }
+      reply.header('set-cookie', sessionCookie(result.token, secure))
+      return meResponseSchema.parse(result.user)
+    })
+  }
 
   if (config.NODE_ENV === 'test') {
     app.post('/test/login', async (request, reply) => {

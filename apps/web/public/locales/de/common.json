@@ -20,7 +20,8 @@
     "membersList": "Mitglieder: {{list}}",
     "membersAnd": "und",
     "membersMore": "und {{count}} weitere",
-    "admin": "Admin"
+    "admin": "Admin",
+    "devLogin": "Dev-Anmeldung"
   },
   "toast": {
     "close": "Schließen"
@@ -44,7 +45,11 @@
     "suspended": "Dein Konto ist gesperrt: {{reason}}",
     "signupsDisabled": "Neue Konten sind derzeit geschlossen.",
     "discordDown": "Discord ist gerade nicht erreichbar. Versuch es gleich noch einmal.",
-    "generic": "Anmeldung fehlgeschlagen. Versuch es noch einmal."
+    "generic": "Anmeldung fehlgeschlagen. Versuch es noch einmal.",
+    "devTitle": "Dev-Anmeldung",
+    "devAdmin": "{{name}} (admin)",
+    "devEmpty": "Keine Seed-Benutzer.",
+    "devFailed": "Dev-Anmeldung fehlgeschlagen. Versuch es noch einmal."
   },
   "trips": {
     "title": "Meine Reisen",

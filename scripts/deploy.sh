@@ -4,6 +4,12 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+
+if [[ ${1:-} == --apply-env ]]; then
+  bash "$root/scripts/server-env.sh"
+  exit $?
+fi
+
 env_file=${DEPLOY_ENV:-$root/deploy.env}
 
 if [[ ! -f $env_file ]]; then
@@ -162,44 +168,10 @@ if [[ ! -f .env ]]; then
   cp .env.example .env
 fi
 
-python3 - << 'PY'
-import os
-from pathlib import Path
+bash scripts/server-env.sh
 
-keys = [
-    "WEB_ORIGIN",
-    "WEB_PORT",
-    "API_PORT",
-    "DATABASE_URL",
-    "DISCORD_CLIENT_ID",
-    "DISCORD_CLIENT_SECRET",
-    "AUTH_SECRET",
-    "ADMIN_DISCORD_IDS",
-    "ADMIN_DISCORD_WEBHOOK_URL",
-    "NOMINATIM_BASE_URL",
-    "NOMINATIM_USER_AGENT",
-    "S3_ENDPOINT",
-    "S3_BUCKET",
-    "S3_ACCESS_KEY",
-    "S3_SECRET_KEY",
-    "S3_REGION",
-]
-path = Path(".env")
-lines = path.read_text().splitlines()
-updated = set()
-out = []
-for line in lines:
-    key = line.split("=", 1)[0]
-    if key in keys and os.environ.get(key):
-        out.append(f"{key}={os.environ[key]}")
-        updated.add(key)
-    else:
-        out.append(line)
-for key in keys:
-    value = os.environ.get(key)
-    if value and key not in updated:
-        out.append(f"{key}={value}")
-path.write_text("\n".join(out) + "\n")
+python3 - << 'PY'
+from pathlib import Path
 
 compose = Path("docker-compose.yml")
 text = compose.read_text()

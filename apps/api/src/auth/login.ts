@@ -326,6 +326,107 @@ export async function deleteSession(
   return (result.rowCount ?? 0) > 0
 }
 
+const seededDevUsernames = ['sven', 'aiko', 'tom'] as const
+
+export async function listDevUsers(pool: Pool): Promise<{
+  users: {
+    discordId: string
+    username: string
+    displayName: string | null
+    appRole: 'user' | 'admin'
+  }[]
+}> {
+  const result = await pool.query<UserRow>(
+    `
+    SELECT ${userColumns}
+    FROM users
+    WHERE username = ANY($1::text[])
+    ORDER BY array_position($1::text[], username)
+    `,
+    [seededDevUsernames],
+  )
+  return {
+    users: result.rows.map((row) => ({
+      discordId: row.discord_id,
+      username: row.username,
+      displayName: row.display_name,
+      appRole: row.app_role,
+    })),
+  }
+}
+
+export async function loginDevUser(
+  pool: Pool,
+  config: AppConfig,
+  discordId: string,
+  now: Date,
+  userAgent: string | null,
+): Promise<
+  | { kind: 'ok'; token: string; user: MeResponse }
+  | { kind: 'missing' }
+  | { kind: 'suspended'; reason: string | null }
+> {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const found = await client.query<UserRow>(
+      `SELECT ${userColumns} FROM users WHERE discord_id = $1 FOR UPDATE`,
+      [discordId],
+    )
+    const user = found.rows[0]
+    if (!user) {
+      await client.query('ROLLBACK')
+      return { kind: 'missing' }
+    }
+    const promote = config.adminDiscordIds.includes(discordId)
+    if (user.suspended_at) {
+      await client.query(
+        `
+        UPDATE users
+        SET app_role = CASE
+          WHEN $2::bool OR app_role = 'admin' THEN 'admin'::app_role
+          ELSE app_role
+        END
+        WHERE id = $1
+        `,
+        [user.id, promote],
+      )
+      await client.query('COMMIT')
+      return { kind: 'suspended', reason: user.suspended_reason }
+    }
+    const saved = await client.query<UserRow>(
+      `
+      UPDATE users
+      SET last_login_at = $2,
+          app_role = CASE
+            WHEN $3::bool OR app_role = 'admin' THEN 'admin'::app_role
+            ELSE app_role
+          END
+      WHERE id = $1
+      RETURNING ${userColumns}
+      `,
+      [user.id, now, promote],
+    )
+    const row = saved.rows[0]
+    if (!row) throw new Error('user update failed')
+    const token = await insertSession(client, row.id, now, userAgent)
+    await client.query(
+      `
+      INSERT INTO activity_events (actor_id, action, entity_id, metadata)
+      VALUES ($1, 'user.login', $1, $2::jsonb)
+      `,
+      [row.id, JSON.stringify({ username: row.username })],
+    )
+    await client.query('COMMIT')
+    return { kind: 'ok', token, user: toMe(row) }
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function loginForTest(
   pool: Pool,
   discordId: string,
