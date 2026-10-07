@@ -20,7 +20,8 @@
     "membersList": "Members: {{list}}",
     "membersAnd": "and",
     "membersMore": "and {{count}} more",
-    "admin": "Admin"
+    "admin": "Admin",
+    "devLogin": "Dev login"
   },
   "toast": {
     "close": "Close"
@@ -44,7 +45,11 @@
     "suspended": "Your account is suspended: {{reason}}",
     "signupsDisabled": "New accounts are closed right now.",
     "discordDown": "Discord is unavailable. Try again in a moment.",
-    "generic": "Login failed. Try again."
+    "generic": "Login failed. Try again.",
+    "devTitle": "Dev login",
+    "devAdmin": "{{name}} (admin)",
+    "devEmpty": "No seeded users.",
+    "devFailed": "Dev login failed. Try again."
   },
   "trips": {
     "title": "My trips",

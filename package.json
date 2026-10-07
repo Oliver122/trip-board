@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "check:bundle": "node scripts/check-bundle.mjs",
     "dev:e2e": "concurrently -k -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"node scripts/dev-api-test.mjs\"",
+    "dev:local": "concurrently -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"pnpm --filter @tripboard/api dev:local\"",
     "db:migrate": "pnpm --filter @tripboard/api db:migrate",
     "db:seed": "pnpm --filter @tripboard/api db:seed",
     "db:check": "pnpm --filter @tripboard/api db:check",

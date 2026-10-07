@@ -25,6 +25,19 @@ export const meResponseSchema = z.object({
 
 export type MeResponse = z.infer<typeof meResponseSchema>
 
+export const devUserSchema = z.object({
+  discordId: z.string(),
+  username: z.string(),
+  displayName: z.string().nullable(),
+  appRole: z.enum(['user', 'admin']),
+})
+
+export const devUsersResponseSchema = z.object({
+  users: z.array(devUserSchema),
+})
+
+export type DevUsersResponse = z.infer<typeof devUsersResponseSchema>
+
 /** Same-origin relative path, or `/trips` when the value could leave the app. */
 export function safeNextPath(input: string | null | undefined): string {
   if (input == null || input === '') return '/trips'
