@@ -39,7 +39,7 @@ describe.skipIf(!hasDb)('migrated schema', () => {
 
   it('passes checks.sql', async () => {
     await expect(runChecks(migrated.url)).resolves.toBeUndefined()
-    expect(expectedCheckCount).toBe(42)
+    expect(expectedCheckCount).toBe(49)
   })
 
   it('defines every table from the reference schema', async () => {
