@@ -14,6 +14,7 @@ const envSchema = z.object({
   DISCORD_REDIRECT_URI: z.string().url().optional(),
   DISCORD_API_ORIGIN: z.string().url().default('https://discord.com'),
   ADMIN_DISCORD_IDS: z.string().default(''),
+  DEV_LOGIN: z.enum(['0', '1']).default('0'),
   ADMIN_DISCORD_WEBHOOK_URL: z
     .union([z.string().url(), z.literal('')])
     .default(''),
@@ -37,7 +38,10 @@ type EnvConfig = z.infer<typeof envSchema>
 export type AppConfig = EnvConfig & {
   discordRedirectUri: string
   adminDiscordIds: readonly string[]
+  devLogin: boolean
 }
+
+const loopbackHosts = new Set(['127.0.0.1', 'localhost', '[::1]'])
 
 const productionSettings = [
   'DISCORD_CLIENT_ID',
@@ -66,6 +70,15 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     )
   }
 
+  if (result.data.DEV_LOGIN === '1') {
+    const host = new URL(result.data.WEB_ORIGIN).hostname
+    if (result.data.NODE_ENV === 'production' || !loopbackHosts.has(host)) {
+      throw new Error(
+        'DEV_LOGIN=1 is refused when NODE_ENV is production or WEB_ORIGIN is not a loopback host (127.0.0.1, localhost, or [::1]).',
+      )
+    }
+  }
+
   if (result.data.NODE_ENV === 'production') {
     const missing = productionSettings.filter((name) => {
       const value = env[name]
@@ -88,5 +101,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
       result.data.DISCORD_REDIRECT_URI ??
       `${result.data.WEB_ORIGIN}/api/auth/discord/callback`,
     adminDiscordIds,
+    devLogin: result.data.DEV_LOGIN === '1',
   }
 }
