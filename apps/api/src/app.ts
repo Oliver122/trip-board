@@ -18,7 +18,7 @@ import { registerImageRoutes } from './images/routes.js'
 import { registerPlanRoutes } from './plan/routes.js'
 import { UploadLimiter } from './images/limit.js'
 import { createS3Storage, type ObjectStorage } from './images/storage.js'
-import { JoinLimiter } from './members/limit.js'
+import { JoinLimiter, joinRateLimit } from './members/limit.js'
 import { registerMemberRoutes } from './members/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
@@ -107,7 +107,9 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     pool,
     config,
     now,
-    limiter: options.joinLimiter ?? new JoinLimiter(),
+    limiter:
+      options.joinLimiter ??
+      new JoinLimiter(config.NODE_ENV === 'test' ? 10_000 : joinRateLimit),
   })
   registerSpotRoutes(app, { pool, config, now })
   registerLiveRoutes(app, { pool, config, now, hub })

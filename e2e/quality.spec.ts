@@ -325,7 +325,10 @@ test('T-18-15 reduced motion jumps to the schedule view', async ({ page }) => {
   )
   expect(zooms.length).toBeGreaterThan(0)
   for (const zoom of zooms) {
-    expect(zoom >= 8 && zoom < 11, `zoom ${zoom} is between the start and the jump`).toBe(false)
+    expect(
+      zoom >= 8 && zoom < 11,
+      `zoom ${zoom} is between the start and the jump`,
+    ).toBe(false)
   }
 })
 

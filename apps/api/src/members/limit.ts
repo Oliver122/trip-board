@@ -2,6 +2,8 @@ export const joinRateLimit = 10
 export const joinRateWindowMs = 60_000
 
 export class JoinLimiter {
+  constructor(private readonly limit = joinRateLimit) {}
+
   private readonly hits = new Map<string, number[]>()
 
   allow(ip: string, now: Date): boolean {
@@ -9,7 +11,7 @@ export class JoinLimiter {
     const recent = (this.hits.get(ip) ?? []).filter(
       (at) => time - at < joinRateWindowMs,
     )
-    if (recent.length >= joinRateLimit) {
+    if (recent.length >= this.limit) {
       this.hits.set(ip, recent)
       return false
     }

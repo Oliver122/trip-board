@@ -4,7 +4,7 @@ import {
   type PlanDraft,
   type PlanEntryType,
 } from '@tripboard/shared'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
@@ -93,11 +93,10 @@ export function EntryDialog({
             {t(type === 'bucket' ? 'schedule.startDate' : 'schedule.date')}
           </label>
           <FieldError message={fieldText(t, errors.startDate)}>
-            <input
+            <TypedDateInput
               id={startId}
-              type="date"
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+              onChange={setStartDate}
               className={inputClass}
             />
           </FieldError>
@@ -108,11 +107,10 @@ export function EntryDialog({
                 {t('schedule.endDate')}
               </label>
               <FieldError message={fieldText(t, errors.endDate)}>
-                <input
+                <TypedDateInput
                   id={endId}
-                  type="date"
                   value={endDate}
-                  onChange={(event) => setEndDate(event.target.value)}
+                  onChange={setEndDate}
                   className={inputClass}
                 />
               </FieldError>
@@ -209,6 +207,69 @@ export function EntryDialog({
       </form>
     </Dialog>
   )
+}
+
+function TypedDateInput({
+  id,
+  value,
+  onChange,
+  className,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  className: string
+}) {
+  const digits = useRef(isoToMonthDayYear(value))
+  const ref = useRef<HTMLInputElement>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  useEffect(() => {
+    const input = ref.current
+    if (!input) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.key === 'Backspace') {
+        event.preventDefault()
+        event.stopPropagation()
+        digits.current = digits.current.slice(0, -1)
+        onChangeRef.current(monthDayYearToIso(digits.current))
+        return
+      }
+      if (!/^\d$/.test(event.key)) return
+      event.preventDefault()
+      event.stopPropagation()
+      digits.current = (digits.current + event.key).slice(-8)
+      onChangeRef.current(monthDayYearToIso(digits.current))
+    }
+    input.addEventListener('keydown', onKey, true)
+    return () => input.removeEventListener('keydown', onKey, true)
+  }, [])
+
+  return (
+    <input
+      ref={ref}
+      id={id}
+      type="date"
+      value={value}
+      onChange={(event) => {
+        digits.current = isoToMonthDayYear(event.target.value)
+        onChange(event.target.value)
+      }}
+      className={className}
+    />
+  )
+}
+
+function isoToMonthDayYear(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  return match ? `${match[2]}${match[3]}${match[1]}` : ''
+}
+
+function monthDayYearToIso(digits: string): string {
+  if (digits.length < 8) return ''
+  return `${digits.slice(4, 8)}-${digits.slice(0, 2)}-${digits.slice(2, 4)}`
 }
 
 function fieldText(t: (key: string) => string, code?: string): string | null {
