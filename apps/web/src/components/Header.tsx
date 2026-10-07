@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { DevLoginBadge } from '../dev-login'
 import { useSession } from '../session'
 import { ThemeSwitch } from './Preferences'
 import { hoverClass } from './ui/hover'
@@ -32,6 +33,7 @@ export function Header({
       <div data-slot="tabs">{tabs}</div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <div data-slot="members">{members}</div>
+        <DevLoginBadge />
         <ThemeSwitch />
         {user ? <AvatarMenu /> : null}
       </div>

@@ -1,15 +1,42 @@
 import { safeNextPath } from '@tripboard/shared'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '../components/Preferences'
 import { ErrorNotice } from '../components/notice'
-import { buttonVariants } from '../components/ui/button'
+import { Button, buttonVariants } from '../components/ui/button'
+import { useDevLogin } from '../dev-login'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const [params] = useSearchParams()
   const next = safeNextPath(params.get('next'))
   const message = loginError(t, params.get('error'), params.get('reason'))
+  const devLogin = useDevLogin()
+  const [failed, setFailed] = useState(false)
+  const [pendingId, setPendingId] = useState<string | null>(null)
+
+  async function signIn(discordId: string) {
+    setFailed(false)
+    setPendingId(discordId)
+    try {
+      const response = await fetch('/api/auth/dev/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ discordId }),
+      })
+      if (!response.ok) {
+        setFailed(true)
+        return
+      }
+      window.location.assign(next)
+    } catch {
+      setFailed(true)
+    } finally {
+      setPendingId(null)
+    }
+  }
 
   return (
     <main className="mx-auto max-w-md px-4 py-8 md:px-8">
@@ -28,6 +55,43 @@ export function LoginPage() {
       >
         {t('login.continue')}
       </a>
+      {devLogin.status === 'on' ? (
+        <section className="mt-8" aria-labelledby="dev-login-title">
+          <h2 id="dev-login-title" className="mb-3 text-sm font-semibold">
+            {t('login.devTitle')}
+          </h2>
+          {devLogin.users.length === 0 ? (
+            <p className="text-muted">{t('login.devEmpty')}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {devLogin.users.map((user) => {
+                const name = user.displayName ?? user.username
+                return (
+                  <li key={user.discordId}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled={pendingId !== null}
+                      onClick={() => {
+                        void signIn(user.discordId)
+                      }}
+                    >
+                      {user.appRole === 'admin'
+                        ? t('login.devAdmin', { name })
+                        : name}
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {failed ? (
+            <ErrorNotice testId="dev-login-error" className="mt-3">
+              {t('login.devFailed')}
+            </ErrorNotice>
+          ) : null}
+        </section>
+      ) : null}
     </main>
   )
 }
