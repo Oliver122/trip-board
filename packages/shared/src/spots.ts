@@ -44,6 +44,8 @@ export const spotSchema = z.object({
   info: z.string().nullable(),
   link: z.string().nullable(),
   createdBy: createdBySchema.nullable(),
+  commentCount: z.number().int().nonnegative(),
+  unreadComments: z.number().int().nonnegative(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

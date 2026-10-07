@@ -794,6 +794,8 @@ function optimistic(
     info: blank(draft.info),
     link,
     createdBy: previous?.createdBy ?? null,
+    commentCount: previous?.commentCount ?? 0,
+    unreadComments: previous?.unreadComments ?? 0,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
   }
