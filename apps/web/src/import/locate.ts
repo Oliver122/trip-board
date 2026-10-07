@@ -11,12 +11,13 @@ export type Located<T> = T & {
   lat: number | null
   lng: number | null
   locationStatus: LocationStatus
+  foundLabel: string | null
 }
 
 export type GeocodeSearch = (
   query: string,
   signal: AbortSignal,
-) => Promise<{ lat: number; lng: number } | null>
+) => Promise<{ lat: number; lng: number; label: string } | null>
 
 /**
  * Looks up coordinates for rows that did not carry them, one request at a
@@ -33,11 +34,11 @@ export async function locateRows<T extends LocateCandidate>(
   let done = 0
   for (const row of rows) {
     if (row.lat != null && row.lng != null) {
-      results.push({ ...row, locationStatus: 'file' })
+      results.push({ ...row, locationStatus: 'file', foundLabel: null })
       continue
     }
     if (signal.aborted) {
-      results.push({ ...row, locationStatus: 'not_found' })
+      results.push({ ...row, locationStatus: 'not_found', foundLabel: null })
       continue
     }
     const query = [row.title, row.address].filter(Boolean).join(', ')
@@ -50,9 +51,10 @@ export async function locateRows<T extends LocateCandidate>(
         lat: found.lat,
         lng: found.lng,
         locationStatus: 'found',
+        foundLabel: found.label,
       })
     } else {
-      results.push({ ...row, locationStatus: 'not_found' })
+      results.push({ ...row, locationStatus: 'not_found', foundLabel: null })
     }
   }
   return results

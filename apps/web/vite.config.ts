@@ -39,7 +39,9 @@ export default defineConfig(({ mode }) => {
       modulePreload: {
         resolveDependencies(_filename, deps) {
           return deps.filter(
-            (dep) => !dep.includes('maplibre') && !/MapView|TripMap/.test(dep),
+            (dep) =>
+              !dep.includes('maplibre') &&
+              !/MapView|TripMap|ImportDialog/.test(dep),
           )
         },
       },

@@ -29,7 +29,7 @@ describe('locateRows', () => {
       calls.push(query)
       await Promise.resolve()
       concurrent -= 1
-      return { lat: 1, lng: 2 }
+      return { lat: 1, lng: 2, label: 'Result' }
     }
     const progress: [number, number][] = []
 
@@ -68,7 +68,7 @@ describe('locateRows', () => {
     const search = async (query: string, signal: AbortSignal) => {
       calls.push(query)
       if (calls.length === 2) controller.abort()
-      return signal.aborted ? null : { lat: 1, lng: 2 }
+      return signal.aborted ? null : { lat: 1, lng: 2, label: 'Result' }
     }
 
     const results = await locateRows(
@@ -88,7 +88,7 @@ describe('locateRows', () => {
     const controller = new AbortController()
     const search = async (query: string) => {
       calls.push(query)
-      return { lat: 1, lng: 2 }
+      return { lat: 1, lng: 2, label: 'Result' }
     }
     const results = await locateRows(
       [row('Has it', 5, 6)],

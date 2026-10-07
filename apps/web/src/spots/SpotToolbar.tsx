@@ -4,10 +4,19 @@ import {
   spotFiltersActive,
   spotSorts,
   type DisplayCategory,
+  type GeocodeLang,
+  type Spot,
   type SpotListQuery,
 } from '@tripboard/shared'
-import { ArrowUpDown, Download, ListFilter, Search, X } from 'lucide-react'
-import { useEffect, useId, useRef, useState } from 'react'
+import {
+  ArrowUpDown,
+  Download,
+  ListFilter,
+  Search,
+  Upload,
+  X,
+} from 'lucide-react'
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
@@ -17,6 +26,12 @@ import { cn } from '../lib/utils'
 import { ExportDialog } from './ExportDialog'
 import { pinCategory } from './model'
 
+const ImportDialog = lazy(() =>
+  import('../import/ImportDialog').then((mod) => ({
+    default: mod.ImportDialog,
+  })),
+)
+
 type Member = { id: string; name: string }
 type Panel = 'search' | 'filter' | 'sort'
 
@@ -24,22 +39,32 @@ export function SpotToolbar({
   tripId,
   tripName,
   timeZone,
+  lang,
   query,
   members,
   entries = [],
+  existingSpots,
+  canImport,
   searchDraft,
   onSearchDraft,
   onQuery,
+  onImported,
+  onAuthError,
 }: {
   tripId: string
   tripName: string
   timeZone: string
+  lang: GeocodeLang
   query: SpotListQuery
   members: Member[]
   entries?: { id: string; title: string }[]
+  existingSpots: Spot[]
+  canImport: boolean
   searchDraft: string
   onSearchDraft: (value: string) => void
   onQuery: (query: SpotListQuery) => void
+  onImported: (spots: Spot[]) => void
+  onAuthError: () => void
 }) {
   const { t } = useTranslation()
   const { enabled: listFollowsMap } = useListFollowsMap()
@@ -47,6 +72,7 @@ export function SpotToolbar({
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState<Panel | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const searchId = useId()
   const filterId = useId()
   const sortId = useId()
@@ -152,6 +178,21 @@ export function SpotToolbar({
         >
           <Download aria-hidden="true" className="size-4" />
         </Button>
+        {canImport ? (
+          <Button
+            variant="outline"
+            className="size-11 px-0"
+            aria-label={t('board.import')}
+            aria-expanded={importOpen}
+            aria-haspopup="dialog"
+            onClick={() => {
+              setOpen(null)
+              setImportOpen(true)
+            }}
+          >
+            <Upload aria-hidden="true" className="size-4" />
+          </Button>
+        ) : null}
       </div>
       {chips.length > 0 ? (
         <ul
@@ -353,6 +394,24 @@ export function SpotToolbar({
           query={query}
           onClose={() => setExportOpen(false)}
         />
+      ) : null}
+      {importOpen ? (
+        <Suspense fallback={null}>
+          <ImportDialog
+            tripId={tripId}
+            lang={lang}
+            existingSpots={existingSpots}
+            onClose={() => setImportOpen(false)}
+            onImported={(spots) => {
+              setImportOpen(false)
+              onImported(spots)
+            }}
+            onAuthError={() => {
+              setImportOpen(false)
+              onAuthError()
+            }}
+          />
+        </Suspense>
       ) : null}
     </div>
   )
