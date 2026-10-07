@@ -533,7 +533,8 @@
         "spot": {
           "create": "{{actor}} hat {{spot}} zu {{trip}} hinzugefügt",
           "update": "{{actor}} hat {{spot}} aktualisiert",
-          "delete": "{{actor}} hat {{spot}} gelöscht"
+          "delete": "{{actor}} hat {{spot}} gelöscht",
+          "import": "{{actor}} hat {{count}} Spots in {{trip}} importiert"
         },
         "plan": {
           "create": "{{actor}} hat den Plan {{plan}} erstellt",

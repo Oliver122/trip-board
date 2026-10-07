@@ -533,7 +533,8 @@
         "spot": {
           "create": "{{actor}} added {{spot}} to {{trip}}",
           "update": "{{actor}} updated {{spot}}",
-          "delete": "{{actor}} deleted {{spot}}"
+          "delete": "{{actor}} deleted {{spot}}",
+          "import": "{{actor}} imported {{count}} spots into {{trip}}"
         },
         "plan": {
           "create": "{{actor}} created the plan {{plan}}",
