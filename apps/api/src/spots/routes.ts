@@ -2,6 +2,7 @@ import {
   createSpotSchema,
   patchSpotSchema,
   spotDetailSchema,
+  spotImportSchema,
   spotListSchema,
   strictSpotListQuery,
 } from '@tripboard/shared'
@@ -18,9 +19,12 @@ import {
   createSpot,
   deleteSpot,
   getSpot,
+  importSpots,
   listSpots,
   updateSpot,
 } from './store.js'
+
+const importBodyLimit = 2 * 1024 * 1024
 
 export type SpotRouteOptions = {
   pool: Pool
@@ -85,6 +89,32 @@ export function registerSpotRoutes(
     if (!result.ok) return spotFailure(reply, result)
     return reply.code(201).send(result.spot)
   })
+
+  app.post(
+    '/trips/:id/spots/import',
+    { bodyLimit: importBodyLimit },
+    async (request, reply) => {
+      const user = await requireUser(request, reply, pool, now(), secure)
+      if (!user) return
+      if (!originAllowed(request, config)) {
+        return reply.code(403).send({ error: 'forbidden_origin' })
+      }
+      const params = parseParams(request.params, reply)
+      if (!params) return
+      const input = parseBody(
+        spotImportSchema,
+        request.body,
+        reply,
+        knownMessages,
+      )
+      if (!input) return
+      const result = await importSpots(pool, user.id, params.id, input)
+      if (!result.ok) return spotFailure(reply, result)
+      return reply
+        .code(201)
+        .send({ created: result.created, spots: result.spots })
+    },
+  )
 
   app.get('/spots/:id', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)

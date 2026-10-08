@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–22 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, and local dev login).
+**Status:** steps 00–23 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, local dev login, and Google Maps import).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -128,6 +128,16 @@ CSV is UTF-8 with a byte-order mark, one row per visit, plus one row for each sp
 PDF is an A4 itinerary: trip title, dates, and members, then the schedule day by day (each bucket or single with its spots and home), then spots that are not on a plan, grouped by category. Dates follow the profile language. The file uses a standard Latin font, so characters outside that set are replaced.
 
 The calendar file has one event per bucket (all-day across the bucket’s dates), one per single entry, and one per visit that has a time. Location is the address, the description is the info text, and `GEO` is the latitude and longitude. Event ids stay the same across downloads. Times use the trip timezone (`TZID`).
+
+## Import from Google Maps
+
+**Import** sits next to **Export** on the board toolbar for owners and planners; visitors do not see it. The dialog explains how to get a file from [Google Takeout](https://takeout.google.com) (a `Saved/*.csv` list, or `Saved Places.json`) or from Google My Maps (export as KML). It accepts one `.csv`, `.json`, `.geojson`, or `.kml` file up to 5 MB, dropped or picked. A `.kmz`/`.zip` shows a message instead of a preview; so does any other file, or a CSV without a `Title` column, or more than 500 rows.
+
+CSV columns are matched by name, case-insensitively (`Title`, `Note`, `URL`, `Comment`, `Address`); unknown columns are ignored. GeoJSON reads each `Point` feature; KML reads each `Placemark` with a point. A Google Maps URL can supply coordinates (`!3d…!4d…`, `@lat,lng`, `/search/lat,lng`, or `?q=lat,lng`). Title is cut to 120 characters, info (note plus comment) to 2000; a cut row is marked “shortened”.
+
+Rows without coordinates are looked up one at a time through `GET /geocode/search`, biased to the trip’s region; the dialog shows “Locating N of M” and can be cancelled. A row is a duplicate when the trip already has a spot with the same link, or the same title within 200 m; duplicates and rows that were not found start unticked. A not-found row can be resolved with the same address search as the spot panel. The user picks `must_go` or `maybe` for the whole batch, then **Import N spots**.
+
+`POST /trips/:id/spots/import` (planner+) takes up to 500 spots and writes them in one transaction: one multi-row insert, one trip bbox expansion, and one `spot.import` activity event (not one `spot.create` per spot). The import parser and dialog load only when the dialog opens, in a separate bundle chunk.
 
 ## Live updates
 
