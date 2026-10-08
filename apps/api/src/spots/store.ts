@@ -316,8 +316,8 @@ async function withImportTransaction(
       },
     })
     const result = await tx.query<SpotRow>(
-      `${spotSelect} WHERE s.id = ANY($1::uuid[])`,
-      [ids],
+      `${spotSelect('$2')} WHERE s.id = ANY($1::uuid[])`,
+      [ids, userId],
     )
     const byId = new Map(result.rows.map((row) => [row.id, rowToSpot(row)]))
     const spots = ids
