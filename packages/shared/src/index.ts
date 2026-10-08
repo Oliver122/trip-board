@@ -84,6 +84,29 @@ export {
 } from './geocode.js'
 export type { GeocodeLang, GeocodePlace, GeocodeSearch } from './geocode.js'
 export {
+  commentBodySchema,
+  commentExcerpt,
+  commentLimits,
+  commentListSchema,
+  commentPageSize,
+  commentReadSchema,
+  commentSchema,
+  createCommentSchema,
+  newsLimit,
+  newsEntrySchema,
+  newsSchema,
+  patchCommentSchema,
+} from './comments.js'
+export type {
+  Comment,
+  CommentList,
+  CommentRead,
+  CreateCommentBody,
+  News,
+  NewsEntry,
+  PatchCommentBody,
+} from './comments.js'
+export {
   cleanStayDate,
   createSpotSchema,
   displayCategories,

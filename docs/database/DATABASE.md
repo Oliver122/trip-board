@@ -5,7 +5,7 @@ PostgreSQL 16. The reference DDL is [`schema.sql`](./schema.sql); [`checks.sql`]
 ```bash
 createdb tripboard_check
 psql -v ON_ERROR_STOP=1 -d tripboard_check -f schema.sql -f checks.sql
-# prints 42 lines "NOTICE:  ok   …", exits 0
+# prints 49 lines "NOTICE:  ok   …", exits 0
 ```
 
 The Drizzle schema in `apps/api/src/db/schema.ts` must produce the same tables, constraints and indexes. Triggers and views are added in a hand-written SQL migration, since Drizzle does not model them.
@@ -251,6 +251,16 @@ One row per Discord account. `discord_id` is the stable identity; `username`, `d
 - `UNIQUE (trip_id, id)` exists so child tables can use composite foreign keys that guarantee they stay in the same trip.
 - When a home spot is recategorised, a trigger clears it as primary home base.
 
+### spot_comments
+Discussion thread per spot (step 24). Plain text, 1 to 2000 characters after trimming (`CHECK`, same limit as the shared schema).
+- `(trip_id, spot_id)` references `spots (trip_id, id)`, so a comment belongs to a spot of its own trip and goes away with the spot or the trip.
+- `author_id` becomes null when the user is deleted; the comment stays and shows as “Former member”.
+- `edited_at` is null until the first edit. Editing never changes `created_at`, so an edit never makes a comment unread again.
+- Timestamps are written at millisecond precision, so a `createdAt` sent to a client compares exactly with `last_read_at`.
+
+### spot_comment_reads
+One row per user and spot: `last_read_at`, the newest comment the user has seen. Unread = someone else's comment with `created_at` after `last_read_at` and after the member's `trip_members.joined_at`. Deleting the spot or the user removes the rows. Marking as read records **no** `activity_events` row and sends no live event, an intended exception to the rule that every write is recorded.
+
 ### plan_entries
 | Type | Date rule | Time rule |
 | --- | --- | --- |
@@ -298,6 +308,7 @@ What users do (“who is doing what”). The API writes one row per change **in 
 | `image` | `upload`, `delete` |
 | `export` | `download` |
 | `quota` | `request` |
+| `comment` | `create`, `update`, `delete` |
 
 `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
 

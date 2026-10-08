@@ -26,6 +26,7 @@ type TripRow = {
   role: string
   created_by_name: string | null
   members: unknown
+  unread_comments: number
 }
 
 const tripSelect = `
@@ -56,7 +57,16 @@ SELECT
     FROM trip_members tm
     JOIN users u ON u.id = tm.user_id
     WHERE tm.trip_id = t.id
-  ), '[]'::json) AS members
+  ), '[]'::json) AS members,
+  (
+    SELECT count(*)::int
+    FROM spot_comments c
+    LEFT JOIN spot_comment_reads r ON r.user_id = $1 AND r.spot_id = c.spot_id
+    WHERE c.trip_id = t.id
+      AND c.author_id IS DISTINCT FROM $1
+      AND c.created_at > m.joined_at
+      AND (r.last_read_at IS NULL OR c.created_at > r.last_read_at)
+  ) AS unread_comments
 FROM trips t
 JOIN trip_members m ON m.trip_id = t.id AND m.user_id = $1
 LEFT JOIN users creator ON creator.id = t.created_by
@@ -278,5 +288,6 @@ function rowToTrip(row: TripRow): Trip {
       },
     },
     members,
+    unreadComments: row.unread_comments,
   })
 }

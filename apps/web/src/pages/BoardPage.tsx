@@ -11,7 +11,7 @@ import { Plus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { useParams, useSearchParams } from 'react-router'
+import { useLocation, useParams, useSearchParams } from 'react-router'
 import { Toast, type ToastMessage } from '../components/Toast'
 import { ErrorState } from '../components/states'
 import { Button } from '../components/ui/button'
@@ -42,6 +42,7 @@ import {
 } from '../spots/model'
 import { SpotList } from '../spots/SpotList'
 import { SpotPanel } from '../spots/SpotPanel'
+import { onCommentsChanged } from '../comments/bus'
 import { AuthError, getTrip } from '../trips/client'
 import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
@@ -54,6 +55,7 @@ type Panel = {
   baseline: Draft
   spot: Spot | null
   plans: SpotPlan[]
+  focusDiscussion?: boolean
 }
 
 export function BoardPage() {
@@ -74,6 +76,8 @@ export function BoardPage() {
     liveError,
   } = useTripData()
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
+  const linkedSpotId = params.get('spot')
   const paramKey = params.toString()
   const urlQuery = useMemo(
     () => parseSpotListQuery(paramKey, listFollowsMap),
@@ -280,7 +284,7 @@ export function BoardPage() {
     })
   }
 
-  function openSpot(spotId: string) {
+  function openSpot(spotId: string, focusDiscussion = false) {
     const spot = spots.find((item) => item.id === spotId)
     if (!spot) return
     const draft = draftFromSpot(spot)
@@ -294,9 +298,51 @@ export function BoardPage() {
       baseline: draft,
       spot,
       plans: [],
+      focusDiscussion,
     })
     void refreshDetail(spotId)
   }
+
+  // A News entry links here as ?spot=<id> and opens that spot's discussion.
+  const openSpotRef = useRef(openSpot)
+  openSpotRef.current = openSpot
+  useEffect(() => {
+    if (!linkedSpotId || !spots.some((spot) => spot.id === linkedSpotId)) return
+    const focus = Boolean(
+      (location.state as { discussion?: boolean } | null)?.discussion,
+    )
+    openSpotRef.current(linkedSpotId, focus)
+    const next = new URLSearchParams(params)
+    next.delete('spot')
+    setParams(next, { replace: true, state: null })
+  }, [linkedSpotId, location.state, params, setParams, spots])
+
+  // A comment changed on a spot (here, or live elsewhere): refresh its counts.
+  const changeSpotsRef = useRef<(fn: (current: Spot[]) => Spot[]) => void>(
+    () => undefined,
+  )
+  useEffect(
+    () =>
+      onCommentsChanged((spotId) => {
+        if (!spotId) return
+        void getSpot(spotId)
+          .then((detail) => {
+            changeSpotsRef.current((current) =>
+              current.map((spot) =>
+                spot.id === detail.id
+                  ? {
+                      ...spot,
+                      commentCount: detail.commentCount,
+                      unreadComments: detail.unreadComments,
+                    }
+                  : spot,
+              ),
+            )
+          })
+          .catch(() => undefined)
+      }),
+    [],
+  )
 
   async function refreshDetail(spotId: string) {
     const epoch = ++detailEpoch.current
@@ -342,6 +388,7 @@ export function BoardPage() {
       return { spots: next, total: next.length }
     })
   }
+  changeSpotsRef.current = changeSpots
 
   function onImported(imported: Spot[]) {
     changeSpots((current) => [...current, ...imported])
@@ -643,6 +690,8 @@ export function BoardPage() {
               throw error
             }
           }}
+          onToast={(message) => setToast(message)}
+          focusDiscussion={panel.focusDiscussion}
           onRemoveFromPlan={async (entryId, linkId) => {
             if (!panel.spot) return
             const spotId = panel.spot.id
@@ -761,6 +810,7 @@ function toMapSpots(spots: Spot[]): MapSpot[] {
     lng: spot.lng,
     lat: spot.lat,
     primary: spot.primary,
+    unread: spot.unreadComments > 0,
   }))
 }
 
@@ -810,6 +860,8 @@ function optimistic(
     info: blank(draft.info),
     link,
     createdBy: previous?.createdBy ?? null,
+    commentCount: previous?.commentCount ?? 0,
+    unreadComments: previous?.unreadComments ?? 0,
     createdAt: previous?.createdAt ?? now,
     updatedAt: now,
   }

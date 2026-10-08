@@ -5,6 +5,7 @@ import {
 } from '@tripboard/shared'
 import { useEffect, useRef } from 'react'
 import { clientId } from '../api/write'
+import { emitCommentsChanged } from '../comments/bus'
 import { listPlan } from '../plan/client'
 import { listSpots } from '../spots/client'
 import { getTrip, NotFoundError } from '../trips/client'
@@ -86,6 +87,11 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
           if (resources.has('member')) emitMembersRefresh(trip.members)
         }
         if (resources.has('image')) refreshRef.current.bumpImages()
+        if (resources.has('comment')) {
+          for (const change of folded.changes) {
+            if (change.resource === 'comment') emitCommentsChanged(change.id)
+          }
+        }
         if (
           resources.has('trip') &&
           folded.changes.some((event) => event.action === 'trip.delete')

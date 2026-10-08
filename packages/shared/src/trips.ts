@@ -33,6 +33,7 @@ export const tripSchema = z.object({
   updatedAt: z.string().optional(),
   region: z.object({ bbox: bboxSchema }),
   members: z.array(tripMemberSchema),
+  unreadComments: z.number().int().nonnegative(),
 })
 
 export type Trip = z.infer<typeof tripSchema>

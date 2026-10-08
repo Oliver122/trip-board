@@ -147,6 +147,14 @@ A reverse proxy must not buffer this route (`X-Accel-Buffering: no` is set; ngin
 
 `PATCH` and `DELETE` for a spot, plan entry, or trip may send `expectedUpdatedAt` (or `If-Unmodified-Since`). A stale value is `409` with the current row and who saved it. The panel then asks whether to keep your draft or take theirs. Requests without the check stay last-write-wins. Reordering a bucket does not conflict; everyone else sees the new order through the stream. The admin dashboard shows how many streams this process has open, and the log records when the listener reconnects.
 
+## Spot discussions and News
+
+Every member, visitors included, can comment on a spot. The **Discussion** section at the bottom of the spot panel shows the thread oldest first and takes plain text of up to 2000 characters. Line breaks are kept and `http(s)` addresses become links; anything else, HTML included, is shown as typed. Ctrl/Cmd + Enter sends. Authors edit and delete their own comments; the owner deletes any comment. Deleting a spot names the comments that go with it.
+
+`GET /spots/:id/comments?cursor=` returns 50 comments per page, `POST /spots/:id/comments` adds one (at most 20 per user per minute, then `429`), `PATCH /comments/:id` and `DELETE /comments/:id` follow the rules above, and `PUT /spots/:id/comments/read` records what the reader has seen. `GET /trips/:id/news` lists the spots with unread comments, and `POST /trips/:id/news/read` clears them. Spot and trip responses carry `commentCount` and `unreadComments`.
+
+A comment is unread for a member when someone else wrote it after the member last saw that spot's thread and after they joined the trip. The header’s **News** button shows the trip's unread total; the panel lists the spots, and clicking one opens its discussion with a “New” divider above the first unread comment. A thread counts as read once its section has been on screen. The tab title and My trips show unread counts too. Marking comments read writes no activity event, so the admin feed shows only comment writes (`comment.create`, `comment.update`, `comment.delete`).
+
 ## Hardening
 
 From 640 px to 1023 px the list column is 280 px and the spot panel stays a sheet on the right, so the list remains visible. Below 640 px the map is full screen and the list is a bottom sheet (`peek`, `half`, `full`) dragged from the handle or moved with the arrow keys. The toolbar becomes one **Filters** button, and the spot panel and dialogs fill the screen. The panel’s close control is named **Back**.

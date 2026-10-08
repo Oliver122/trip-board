@@ -431,6 +431,57 @@ export const images = pgTable(
   ],
 )
 
+export const spotComments = pgTable(
+  'spot_comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tripId: uuid('trip_id').notNull(),
+    spotId: uuid('spot_id').notNull(),
+    authorId: uuid('author_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+    editedAt: timestamp('edited_at', { withTimezone: true, mode: 'date' }),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.tripId, table.spotId],
+      foreignColumns: [spots.tripId, spots.id],
+    }).onDelete('cascade'),
+    check(
+      'spot_comments_body_check',
+      sql`char_length(btrim(${table.body})) BETWEEN 1 AND 2000`,
+    ),
+    index('spot_comments_spot_idx').on(table.spotId, table.createdAt, table.id),
+    index('spot_comments_trip_time_idx').on(table.tripId, table.createdAt),
+  ],
+)
+
+export const spotCommentReads = pgTable(
+  'spot_comment_reads',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tripId: uuid('trip_id').notNull(),
+    spotId: uuid('spot_id').notNull(),
+    lastReadAt: timestamp('last_read_at', {
+      withTimezone: true,
+      mode: 'date',
+    }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.spotId] }),
+    foreignKey({
+      columns: [table.tripId, table.spotId],
+      foreignColumns: [spots.tripId, spots.id],
+    }).onDelete('cascade'),
+  ],
+)
+
 export const blobDeletions = pgTable('blob_deletions', {
   id: bigint('id', { mode: 'number' }).generatedAlwaysAsIdentity().primaryKey(),
   storageKey: text('storage_key').notNull(),

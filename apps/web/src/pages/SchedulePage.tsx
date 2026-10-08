@@ -440,6 +440,7 @@ export function SchedulePage() {
       {spotPanel ? (
         <SpotPanel
           mode="add"
+          onToast={(message) => setToast(message)}
           draft={spotPanel.draft}
           tripId={tripId}
           lang={lang}

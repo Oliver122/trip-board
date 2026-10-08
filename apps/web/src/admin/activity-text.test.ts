@@ -59,3 +59,36 @@ describe('activity sentences', () => {
     )
   })
 })
+
+describe('comment activity sentences', () => {
+  it('T-24-12 names the actor, spot and trip for create, update and delete in en and de', () => {
+    const metadata = { trip: 'Japan 2026', spot: 'Fushimi Inari' }
+    expect(
+      activitySentence(
+        { action: 'comment.create', actorName: 'aiko', metadata },
+        'en',
+      ),
+    ).toBe('aiko commented on Fushimi Inari in Japan 2026')
+    expect(
+      activitySentence(
+        { action: 'comment.update', actorName: 'aiko', metadata },
+        'en',
+      ),
+    ).toBe('aiko edited a comment on Fushimi Inari in Japan 2026')
+    expect(
+      activitySentence(
+        { action: 'comment.delete', actorName: 'sven', metadata },
+        'en',
+      ),
+    ).toBe('sven deleted a comment on Fushimi Inari in Japan 2026')
+    for (const action of ['create', 'update', 'delete']) {
+      const de = activitySentence(
+        { action: `comment.${action}`, actorName: 'aiko', metadata },
+        'de',
+      )
+      expect(de).toContain('aiko')
+      expect(de).toContain('Fushimi Inari')
+      expect(de).toContain('Japan 2026')
+    }
+  })
+})

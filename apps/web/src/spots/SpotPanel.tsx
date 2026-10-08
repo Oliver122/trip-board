@@ -21,6 +21,7 @@ import { searchAddress } from './client'
 import { CopyAddress } from './CopyAddress'
 import { Dialog } from './Dialog'
 import { Gallery } from '../images/Gallery'
+import { SpotDiscussion } from '../comments/SpotDiscussion'
 import { useTripData } from '../trips/trip-context'
 import { InPlans } from './InPlans'
 import { pinCategory, type Draft } from './model'
@@ -48,6 +49,8 @@ export function SpotPanel({
   onDelete,
   onAddToPlan,
   onRemoveFromPlan,
+  onToast,
+  focusDiscussion = false,
 }: {
   mode: 'add' | 'edit' | 'view'
   draft: Draft
@@ -70,6 +73,8 @@ export function SpotPanel({
     visitTime: string | null
   }) => Promise<void>
   onRemoveFromPlan: (entryId: string, linkId: string) => Promise<void>
+  onToast: (message: string) => void
+  focusDiscussion?: boolean
 }) {
   const { t, i18n } = useTranslation()
   const { imageRevision } = useTripData()
@@ -404,6 +409,14 @@ export function SpotPanel({
               onRemove={onRemoveFromPlan}
             />
           ) : null}
+          {spot ? (
+            <SpotDiscussion
+              key={spot.id}
+              spot={spot}
+              onToast={onToast}
+              focusOnMount={focusDiscussion}
+            />
+          ) : null}
         </div>
 
         {readOnly ? null : (
@@ -414,7 +427,12 @@ export function SpotPanel({
             <div className="flex items-center justify-between gap-2">
               {confirming ? (
                 <>
-                  <p>{t('board.confirmDelete')}</p>
+                  <p>
+                    {t('board.confirmDelete')}
+                    {spot && spot.commentCount > 0
+                      ? ` ${t('board.confirmDeleteComments', { count: spot.commentCount })}`
+                      : null}
+                  </p>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"

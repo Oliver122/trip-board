@@ -5,7 +5,7 @@ import {
   type Spot,
   type SpotListQuery,
 } from '@tripboard/shared'
-import { Calendar, House } from 'lucide-react'
+import { Calendar, House, MessageSquare } from 'lucide-react'
 import {
   Fragment,
   useEffect,
@@ -270,6 +270,10 @@ export function SpotList({
                       {spotSubtitle(spot, locale)}
                     </span>
                   </span>
+                  <CommentMark
+                    count={spot.commentCount}
+                    unread={spot.unreadComments}
+                  />
                   <CategoryMark category={category} filled={spot.primary} />
                 </button>
               </li>
@@ -288,6 +292,33 @@ export function SpotList({
         {t('board.onlyVisible')}
       </label>
     </aside>
+  )
+}
+
+function CommentMark({ count, unread }: { count: number; unread: number }) {
+  const { t } = useTranslation()
+  if (count === 0) return null
+  const label =
+    unread > 0
+      ? `${t('comments.count', { count })}, ${t('news.newCount', { count: unread })}`
+      : t('comments.count', { count })
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      data-testid="comment-count"
+      className={cn(
+        'inline-flex items-center gap-1 self-center pr-2 text-sm',
+        unread > 0 ? 'font-semibold text-accent' : 'text-muted',
+      )}
+    >
+      <MessageSquare
+        aria-hidden="true"
+        className="size-4"
+        fill={unread > 0 ? 'currentColor' : 'none'}
+      />
+      <span aria-hidden="true">{unread > 0 ? unread : count}</span>
+    </span>
   )
 }
 

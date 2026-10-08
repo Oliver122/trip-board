@@ -170,6 +170,7 @@ Filters and sort are kept in the URL query (`?q=ramen&cat=must_go&sort=scheduled
 | Create / revoke invite codes | ✅ | — | — |
 | Change roles, remove members | ✅ | — | — |
 | Delete trip, transfer ownership | ✅ | — | — |
+| Comment on spots (edit and delete your own; owner deletes any) | ✅ | ✅ | ✅ |
 
 - Invite code format `JPN-7K3Q`, link `/join/JPN-7K3Q`, **expires 7 days** after creation.
 - Each invite carries the role it grants: the owner picks **planner** or **visitor**, default **visitor**.
@@ -318,7 +319,7 @@ Every trip-scoped route runs a role guard (`requireTripRole('visitor' | 'planner
 
 ## 10. Extra features backlog (not in v1)
 
-Live updates (WebSocket) · voting on spots · activity feed · route lines + travel times within a bucket · paste Google Maps link to auto-fill · custom categories · budget per person · comments · Discord bot/webhook · public read-only link · offline PWA · packing checklist · “visited” + photo journal · per-bucket participants · distance from home base · JSON / GPX / KML export · trip-wide storage cap · dedicated phone UI.
+Live updates (WebSocket) · voting on spots · activity feed · route lines + travel times within a bucket · paste Google Maps link to auto-fill · custom categories · budget per person · Discord bot/webhook · public read-only link · offline PWA · packing checklist · “visited” + photo journal · per-bucket participants · distance from home base · JSON / GPX / KML export · trip-wide storage cap · dedicated phone UI.
 
 ---
 

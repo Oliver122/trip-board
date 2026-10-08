@@ -207,6 +207,8 @@
     "stayOverlap": "Überschneidet sich mit {{title}}",
     "plannedBadge": "Geplant ({{count}})",
     "saveError": "Der Ort konnte nicht gespeichert werden.",
+    "confirmDeleteComments_one": "Löscht außerdem {{count}} Kommentar.",
+    "confirmDeleteComments_other": "Löscht außerdem {{count}} Kommentare.",
     "draftPin": "Neue Markierung",
     "quota": "{{used}}/{{max}} · {{usedMb}} MB von {{maxMb}} MB",
     "dropImages": "Bilder hierher ziehen oder klicken",
@@ -585,6 +587,11 @@
         },
         "quota": {
           "request": "{{actor}} hat mehr Speicher angefragt"
+        },
+        "comment": {
+          "create": "{{actor}} hat {{spot}} in {{trip}} kommentiert",
+          "update": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} bearbeitet",
+          "delete": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} gelöscht"
         }
       }
     },
@@ -640,5 +647,45 @@
     "maybe": "Vielleicht",
     "planned": "Geplant",
     "home": "Unterkunft"
+  },
+
+  "comments": {
+    "section": "Diskussion",
+    "empty": "Noch keine Kommentare. Frag die anderen, ob sie dort hinwollen.",
+    "placeholder": "Kommentar hinzufügen",
+    "send": "Senden",
+    "counter": "{{count}} / 2000",
+    "count_one": "{{count}} Kommentar",
+    "count_other": "{{count}} Kommentare",
+    "newCount_one": "{{count}} neu",
+    "newCount_other": "{{count}} neu",
+    "newDivider": "Neu",
+    "showOlder": "Ältere anzeigen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "edited": "bearbeitet",
+    "former": "Ehemaliges Mitglied",
+    "confirmDelete": "Diesen Kommentar löschen?",
+    "saveError": "Dein Kommentar konnte nicht gespeichert werden. Bitte versuch es erneut.",
+    "loadError": "Die Kommentare konnten nicht geladen werden.",
+    "editLabel": "Kommentar bearbeiten",
+    "hint": "Strg + Enter sendet"
+  },
+  "news": {
+    "overflow": "99+",
+    "button": "Neuigkeiten",
+    "buttonUnread_one": "Neuigkeiten, {{count}} ungelesen",
+    "buttonUnread_other": "Neuigkeiten, {{count}} ungelesen",
+    "title": "Neuigkeiten",
+    "markAll": "Alle als gelesen markieren",
+    "caughtUp": "Alles gelesen",
+    "newCount_one": "{{count}} neu",
+    "newCount_other": "{{count}} neu",
+    "tripNew_one": "{{count}} neuer Kommentar",
+    "tripNew_other": "{{count}} neue Kommentare",
+    "tabTitle": "({{count}}) {{trip}} · {{app}}",
+    "loadError": "Neuigkeiten konnten nicht geladen werden."
   }
 }

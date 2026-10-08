@@ -27,6 +27,8 @@ const kyoto: Spot = {
   info: null,
   link: null,
   createdBy: null,
+  commentCount: 0,
+  unreadComments: 0,
   createdAt: '2026-04-01T00:00:00.000Z',
   updatedAt: '2026-04-01T00:00:00.000Z',
 }

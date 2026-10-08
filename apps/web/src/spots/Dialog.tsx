@@ -16,11 +16,14 @@ export function Dialog({
   title,
   closeLabel,
   onClose,
+  layer = 'panel',
   children,
 }: {
   title: string
   closeLabel: string
   onClose: () => void
+  /** `top` stacks above another open panel, such as the spot panel. */
+  layer?: 'panel' | 'top'
   children: ReactNode
 }) {
   const titleId = useId()
@@ -79,7 +82,12 @@ export function Dialog({
   }, [])
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-40 flex justify-end">
+    <div
+      className={cn(
+        'pointer-events-none fixed inset-0 flex justify-end',
+        layer === 'top' ? 'z-50' : 'z-40',
+      )}
+    >
       <div
         ref={panelRef}
         role="dialog"

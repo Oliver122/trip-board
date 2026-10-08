@@ -8,6 +8,7 @@ const liveResources = new Set([
   'home',
   'member',
   'trip',
+  'comment',
 ])
 
 export type ActivityInput = {

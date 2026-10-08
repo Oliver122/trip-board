@@ -44,9 +44,12 @@ type SpotRow = {
   creator_id: string | null
   creator_name: string | null
   creator_avatar: string | null
+  comment_count: number
+  unread_comments: number
 }
 
-const spotSelect = `
+/** Columns and joins for a spot read; `user` is the SQL placeholder for the viewer. */
+const spotSelect = (user: string) => `
 SELECT
   s.id,
   s.trip_id,
@@ -67,7 +70,18 @@ SELECT
   s.updated_at,
   u.id AS creator_id,
   COALESCE(u.display_name, u.username) AS creator_name,
-  u.avatar_url AS creator_avatar
+  u.avatar_url AS creator_avatar,
+  (SELECT count(*)::int FROM spot_comments c WHERE c.spot_id = s.id) AS comment_count,
+  (
+    SELECT count(*)::int
+    FROM spot_comments c
+    JOIN trip_members tm ON tm.trip_id = c.trip_id AND tm.user_id = ${user}
+    LEFT JOIN spot_comment_reads r ON r.user_id = ${user} AND r.spot_id = c.spot_id
+    WHERE c.spot_id = s.id
+      AND c.author_id IS DISTINCT FROM ${user}
+      AND c.created_at > tm.joined_at
+      AND (r.last_read_at IS NULL OR c.created_at > r.last_read_at)
+  ) AS unread_comments
 FROM spots_view s
 JOIN trips tr ON tr.id = s.trip_id
 LEFT JOIN users u ON u.id = s.created_by
@@ -107,7 +121,7 @@ export async function listSpots(
     'SELECT count(*)::int AS total FROM spots WHERE trip_id = $1',
     [tripId],
   )
-  const values: unknown[] = [tripId]
+  const values: unknown[] = [tripId, userId]
   const where = ['s.trip_id = $1']
   const pattern = spotSearchPattern(filters.q)
   if (pattern) {
@@ -133,7 +147,7 @@ export async function listSpots(
     )
   }
   const result = await db.query<SpotRow>(
-    `${spotSelect} WHERE ${where.join(' AND ')} ORDER BY ${sortOrderSql[filters.sort]}`,
+    `${spotSelect('$2')} WHERE ${where.join(' AND ')} ORDER BY ${sortOrderSql[filters.sort]}`,
     values,
   )
   return {
@@ -148,9 +162,10 @@ export async function getSpot(
   spotId: string,
   userId: string,
 ): Promise<Spot | null> {
-  const result = await db.query<SpotRow>(`${spotSelect} WHERE s.id = $1`, [
-    spotId,
-  ])
+  const result = await db.query<SpotRow>(
+    `${spotSelect('$2')} WHERE s.id = $1`,
+    [spotId, userId],
+  )
   const row = result.rows[0]
   if (!row) return null
   const access = await requireTripRole(db, row.trip_id, userId, 'visitor')
@@ -301,8 +316,8 @@ async function withImportTransaction(
       },
     })
     const result = await tx.query<SpotRow>(
-      `${spotSelect} WHERE s.id = ANY($1::uuid[])`,
-      [ids],
+      `${spotSelect('$2')} WHERE s.id = ANY($1::uuid[])`,
+      [ids, userId],
     )
     const byId = new Map(result.rows.map((row) => [row.id, rowToSpot(row)]))
     const spots = ids
@@ -624,6 +639,8 @@ function rowToSpot(row: SpotRow): Spot {
           avatar: row.creator_avatar,
         }
       : null,
+    commentCount: Number(row.comment_count),
+    unreadComments: Number(row.unread_comments),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   })

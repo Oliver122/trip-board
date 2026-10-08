@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { repoRoot } from './paths.js'
 import { runPsqlFile } from './psql.js'
 
-export const expectedCheckCount = 42
+export const expectedCheckCount = 49
 
 export async function runChecks(databaseUrl: string): Promise<void> {
   const source = readFileSync(
