@@ -2,7 +2,7 @@
 
 A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japan 2026_), pin spots on an OpenStreetMap-based map, sort them into categories, schedule them into time buckets or single dates, and invite friends via Discord.
 
-**Status:** steps 00–23 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, local dev login, and Google Maps import).
+**Status:** steps 00–25 are in place (repo, database, Discord auth, app shell, trips, map board, spots API and geocoding, spot panel and list, image uploads and quotas, search, filter, and sort, planning API, schedule UI, home spots, members, roles, invites, export, hardening, admin, quality of life, live collaboration, interaction polish, CI/CD, local dev login, Google Maps import, spot discussions, and faster spot switching with right-click add).
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
@@ -72,6 +72,8 @@ Planners upload one photo at a time with `POST /spots/:id/images` (multipart fie
 Quota uses `user_quota_usage` (a per-user override, or the platform default of 100 images and 200 MB). The check runs in a transaction that locks the user row, so two uploads at once cannot both take the last slot. A miss is `413` with the current usage. `GET /me/quota` returns `{usedImages, maxImages, usedBytes, maxBytes}`. Members load a spot’s photos from `GET /spots/:id/images` and `GET /images/:id`. Those responses carry a signed `/images/:id/file` URL that lasts 10 minutes. `DELETE /images/:id` removes the row; the database trigger queues the blob, and a worker drains `blob_deletions` once a minute, backing off after each failure. More than 30 uploads from one user in a minute returns `429`. When `app_settings.uploads_enabled` is false, uploads return `503` with “Uploads are paused”.
 
 The spot panel shows thumbnails, a drop zone, upload progress, a lightbox, and the quota line. A full quota disables the drop zone with “Image limit reached”. The account page shows the same usage as a progress bar.
+
+With a spot panel open, a click on another pin or list card opens that spot straight away. If the panel has unsaved changes, every switch first asks “Discard unsaved changes?”; Cancel keeps the open spot and its edits, and clicks are ignored while a save is running. Planners and owners can also right-click an empty point on the board map to start a new spot there, with the address filled by reverse geocoding; right-clicking a pin, a cluster, or a control does nothing, and visitors keep the browser's own context menu. Touch devices keep **Add new** (there is no long-press add).
 
 ## Search, filter, and sort
 
