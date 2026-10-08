@@ -38,6 +38,7 @@ import {
   draftsEqual,
   emptyDraft,
   pinCategory,
+  switchDecision,
   type Draft,
 } from '../spots/model'
 import { SpotList } from '../spots/SpotList'
@@ -271,6 +272,19 @@ export function BoardPage() {
     setPanel(null)
   }
 
+  // Every way of leaving the open panel for another spot or a new one asks
+  // here first: wait out a save, and confirm before dropping edits.
+  function mayLeavePanel(): boolean {
+    if (!panel) return true
+    const decision = switchDecision({
+      draft: panel.draft,
+      baseline: panel.baseline,
+      saving,
+    })
+    if (decision === 'ignore') return false
+    return decision === 'switch' || window.confirm(t('board.discard'))
+  }
+
   function openAdd() {
     setSelectedId(null)
     setLinkError(null)
@@ -287,6 +301,8 @@ export function BoardPage() {
   function openSpot(spotId: string, focusDiscussion = false) {
     const spot = spots.find((item) => item.id === spotId)
     if (!spot) return
+    if (panel?.spot?.id === spotId && !focusDiscussion) return
+    if (!mayLeavePanel()) return
     const draft = draftFromSpot(spot)
     setSelectedId(spotId)
     setLinkError(null)

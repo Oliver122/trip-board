@@ -364,9 +364,7 @@ export function TripMap({
                 }
                 hover={item.spot.id === hoverId}
                 testId={`pin-${item.spot.id}`}
-                onClick={() => {
-                  if (!placing) onSelect(item.spot.id)
-                }}
+                onClick={() => onSelect(item.spot.id)}
                 onMouseEnter={() => onHover(item.spot.id)}
                 onMouseLeave={() => onHover(null)}
               />
