@@ -128,18 +128,18 @@ async function signIn(page: Page, locale: 'en' | 'de') {
 
   await page.getByRole('button', { name: 'Sven (admin)' }).click()
   await expect(page).toHaveURL(/\/admin\/?$/)
-  if (locale === 'de') {
-    await page.evaluate(async () => {
-      const response = await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ locale: 'de' }),
-      })
-      if (!response.ok) throw new Error(await response.text())
+  // The profile locale outranks the toggle, and other specs flip Sven's, so
+  // pin it for both languages instead of trusting what the account holds.
+  await page.evaluate(async (next) => {
+    const response = await fetch('/api/me', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locale: next }),
     })
-    await page.reload()
-  }
+    if (!response.ok) throw new Error(await response.text())
+  }, locale)
+  await page.reload()
   await expect(
     page.getByRole('heading', { name: copy.dashboard }),
   ).toBeVisible()
