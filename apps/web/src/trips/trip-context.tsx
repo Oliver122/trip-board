@@ -38,6 +38,7 @@ export type MapHandlers = {
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
   onPlace?: (lng: number, lat: number) => void
+  onContextPlace?: (lng: number, lat: number) => boolean
   onDraftMove?: (lng: number, lat: number) => void
   onViewport?: (bounds: LngLatBounds) => void
 }

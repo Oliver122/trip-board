@@ -40,6 +40,7 @@ export function TripMap({
   placing = false,
   draft = null,
   onPlace,
+  onContextPlace,
   onDraftMove,
   onViewport,
   highlightIds = [],
@@ -62,6 +63,8 @@ export function TripMap({
     filled?: boolean
   } | null
   onPlace?: (lng: number, lat: number) => void
+  /** Right-click on empty map; returns true when it was used. */
+  onContextPlace?: (lng: number, lat: number) => boolean
   onDraftMove?: (lng: number, lat: number) => void
   onViewport?: (bounds: LngLatBounds) => void
   highlightIds?: string[]
@@ -105,6 +108,8 @@ export function TripMap({
   scopeRef.current = viewportScope
   const storageKeyRef = useRef(viewportStorageKey)
   storageKeyRef.current = viewportStorageKey
+  const contextPlaceRef = useRef(onContextPlace)
+  contextPlaceRef.current = onContextPlace
   const onViewportRef = useRef(onViewport)
   onViewportRef.current = onViewport
   const flown = useRef<string | null>(null)
@@ -245,6 +250,31 @@ export function TripMap({
     }
   }
 
+  // Handled in the capture phase and kept from MapLibre: react-map-gl always
+  // listens for `contextmenu`, which makes MapLibre cancel the browser menu
+  // everywhere, and its touch long-press would fire this too. A touch event
+  // is left to MapLibre as before; a mouse right-click opens the browser menu
+  // unless it started a spot.
+  function handleContextMenu(event: React.MouseEvent<HTMLDivElement>) {
+    if ((event.nativeEvent as PointerEvent).pointerType === 'touch') return
+    const target = event.target
+    if (!(target instanceof Element)) return
+    if (!target.closest('.maplibregl-canvas-container')) return
+    event.stopPropagation()
+    if (target.closest('button, .maplibregl-marker')) {
+      event.preventDefault()
+      return
+    }
+    const map = mapRef.current?.getMap()
+    if (!map || !contextPlaceRef.current) return
+    const box = map.getCanvas().getBoundingClientRect()
+    const point = map.unproject([
+      event.clientX - box.left,
+      event.clientY - box.top,
+    ])
+    if (contextPlaceRef.current(point.lng, point.lat)) event.preventDefault()
+  }
+
   function withMap(run: (map: MaplibreMap) => void) {
     const map = mapRef.current?.getMap()
     if (map) run(map)
@@ -257,6 +287,7 @@ export function TripMap({
       style={{ backgroundColor: land }}
       role="region"
       aria-label={t('board.map')}
+      onContextMenuCapture={handleContextMenu}
     >
       <Map
         key={`${attempt}-${locale}-${dark ? 'dark' : 'light'}`}

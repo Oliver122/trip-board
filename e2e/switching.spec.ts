@@ -2,10 +2,66 @@ import { expect, test, type Page } from './fixtures'
 import { waitForMap } from './map'
 
 const aikoId = '100000000000000002'
+const tomId = '100000000000000003'
+const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await mockGeocode(page)
+})
+
+test('T-25-01 a right-click on the map starts a spot at that point', async ({
+  page,
+}) => {
+  const trip = await openTrip(page, aikoId, 'Right click add')
+  await page.locator('.maplibregl-canvas').click({
+    button: 'right',
+    position: { x: 80, y: 180 },
+  })
+  await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
+  await expect(page.getByTestId('draft-pin')).toBeVisible()
+  await expect(page.getByRole('combobox', { name: 'Address' })).toHaveValue(
+    'Kyoto, Japan',
+  )
+  await titleField(page).fill('Right-clicked')
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  const spots = await listSpots(page, trip)
+  const saved = spots.find((spot) => spot.title === 'Right-clicked')
+  expect(saved?.lng).toBeGreaterThan(135)
+  expect(saved?.lng).toBeLessThan(140)
+})
+
+test('T-25-02 a right-click on a pin starts nothing, and a visitor keeps the browser menu', async ({
+  page,
+}) => {
+  const trip = await openTrip(page, aikoId, 'Right click pin')
+  const [first] = await listSpots(page, trip)
+  await page.getByTestId(`pin-${first.id}`).click({ button: 'right' })
+  await expect(page.getByRole('dialog', { name: 'New spot' })).toHaveCount(0)
+  await expect(page.getByTestId('draft-pin')).toHaveCount(0)
+
+  await login(page, tomId)
+  await page.goto(japanTrip)
+  await waitForMap(page)
+  const prevented = await page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        const canvas = document.querySelector('.maplibregl-canvas')
+        const box = canvas?.getBoundingClientRect()
+        const event = new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+          clientX: (box?.left ?? 0) + 80,
+          clientY: (box?.top ?? 0) + 180,
+        })
+        canvas?.dispatchEvent(event)
+        resolve(event.defaultPrevented)
+      }),
+  )
+  expect(prevented).toBe(false)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
 test('T-25-03 a clean panel switches spots at once', async ({ page }) => {
@@ -25,10 +81,21 @@ test('T-25-03 a clean panel switches spots at once', async ({ page }) => {
   await card(page, first.id)
   await expect(titleField(page)).toHaveValue(first.title)
 
+  await page.getByRole('button', { name: 'Close' }).click()
+  await page.getByTestId('add-new').click()
+  const canvas = page.locator('.maplibregl-canvas')
+  await canvas.click({ button: 'right', position: { x: 80, y: 180 } })
+  const pin = page.getByTestId('draft-pin')
+  await expect(pin).toBeVisible()
+  const before = await pin.boundingBox()
+  await canvas.click({ button: 'right', position: { x: 300, y: 300 } })
+  await expect
+    .poll(async () => (await pin.boundingBox())?.x ?? 0)
+    .not.toBe(before?.x)
   expect(prompts).toEqual([])
 })
 
-for (const via of ['pin', 'card'] as const) {
+for (const via of ['pin', 'card', 'right-click'] as const) {
   test(`T-25-04 unsaved changes ask first when switching by ${via}`, async ({
     page,
   }) => {
@@ -48,7 +115,12 @@ for (const via of ['pin', 'card'] as const) {
       if (via === 'pin') {
         await mapStill(page)
         await page.getByTestId(`pin-${second.id}`).click()
-      } else await card(page, second.id)
+      } else if (via === 'card') await card(page, second.id)
+      else {
+        await page
+          .locator('.maplibregl-canvas')
+          .click({ button: 'right', position: { x: 80, y: 180 } })
+      }
     }
 
     await trigger()
@@ -58,7 +130,11 @@ for (const via of ['pin', 'card'] as const) {
     accept = true
     await trigger()
     expect(messages).toHaveLength(2)
-    await expect(titleField(page)).toHaveValue(second.title)
+    if (via === 'right-click') {
+      await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
+    } else {
+      await expect(titleField(page)).toHaveValue(second.title)
+    }
     const after = await listSpots(page, trip)
     expect(after.find((spot) => spot.id === first.id)?.title).toBe(first.title)
   })

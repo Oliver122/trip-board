@@ -285,6 +285,21 @@ export function BoardPage() {
     return decision === 'switch' || window.confirm(t('board.discard'))
   }
 
+  // A right-click on empty map: start a new spot there, or in a panel that
+  // holds nothing but a placed pin, just move the pin.
+  function contextAdd(lng: number, lat: number): boolean {
+    if (!canEdit) return false
+    if (panel && saving) return true
+    if (panel?.mode === 'add' && onlyPlaced(panel.draft, panel.baseline)) {
+      void place(lng, lat)
+      return true
+    }
+    if (!mayLeavePanel()) return true
+    openAdd()
+    void place(lng, lat)
+    return true
+  }
+
   function openAdd() {
     setSelectedId(null)
     setLinkError(null)
@@ -613,6 +628,7 @@ export function BoardPage() {
     onPlace: (lng, lat) => {
       void place(lng, lat)
     },
+    onContextPlace: contextAdd,
     onDraftMove: (lng, lat) => {
       void place(lng, lat)
     },
@@ -803,6 +819,20 @@ function PanelSkeleton() {
       <div className="h-24 rounded bg-border" />
       <div className="h-24 rounded bg-border" />
     </div>
+  )
+}
+
+function onlyPlaced(draft: Draft, baseline: Draft): boolean {
+  if (draft.lat == null || draft.lng == null)
+    return draftsEqual(draft, baseline)
+  return draftsEqual(
+    {
+      ...draft,
+      lat: baseline.lat,
+      lng: baseline.lng,
+      address: baseline.address,
+    },
+    baseline,
   )
 }
 

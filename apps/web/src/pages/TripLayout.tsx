@@ -145,6 +145,9 @@ function TripWorkspace() {
           onSelect={(id) => handlersRef.current.onSelect(id)}
           onHover={(id) => handlersRef.current.onHover(id)}
           onPlace={(lng, lat) => handlersRef.current.onPlace?.(lng, lat)}
+          onContextPlace={(lng, lat) =>
+            handlersRef.current.onContextPlace?.(lng, lat) ?? false
+          }
           onDraftMove={(lng, lat) =>
             handlersRef.current.onDraftMove?.(lng, lat)
           }
