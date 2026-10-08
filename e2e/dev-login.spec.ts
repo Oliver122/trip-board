@@ -1,10 +1,33 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { mkdir, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
 
 // 5180 belongs to the flag-off server. This origin must match WEB_ORIGIN.
 const webPort = 5181
 const origin = `http://127.0.0.1:${webPort}`
+
+// The browsers' dev-login runs share the ports and Sven's account, so they take
+// turns. A lock older than the test timeout is left over from a killed run.
+const lock = join(tmpdir(), 'trip-board-dev-login.lock')
+
+async function acquireLock() {
+  for (;;) {
+    try {
+      await mkdir(lock)
+      return
+    } catch {
+      const age = await stat(lock).then(
+        (info) => Date.now() - info.mtimeMs,
+        () => 0,
+      )
+      if (age > 120_000) await rm(lock, { recursive: true, force: true })
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+}
 
 test.describe('dev login on', () => {
   test.describe.configure({ mode: 'serial', timeout: 120_000 })
@@ -14,6 +37,7 @@ test.describe('dev login on', () => {
   let logs = ''
 
   test.beforeAll(async () => {
+    await acquireLock()
     child = spawn('pnpm', ['dev:local'], {
       env: {
         ...process.env,
@@ -46,12 +70,16 @@ test.describe('dev login on', () => {
     throw new Error(`dev login server did not start (${last})\n${logs}`)
   })
 
-  test.afterAll(() => {
-    if (!child?.pid) return
+  test.afterAll(async () => {
     try {
-      process.kill(-child.pid, 'SIGTERM')
-    } catch {
-      child.kill('SIGTERM')
+      if (!child?.pid) return
+      try {
+        process.kill(-child.pid, 'SIGTERM')
+      } catch {
+        child.kill('SIGTERM')
+      }
+    } finally {
+      await rm(lock, { recursive: true, force: true })
     }
   })
 
