@@ -404,8 +404,6 @@ async function newSession(
   const page = await context.newPage()
   await page.setViewportSize({ width: 1280, height: 800 })
   await signIn(page, discordId)
-  // Other specs flip the seeded users' locale; these tests read English.
-  await setLocale(page, 'en')
   return { context, page }
 }
 
