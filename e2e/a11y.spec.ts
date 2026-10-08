@@ -110,5 +110,12 @@ async function login(page: Page, discordId: string) {
       body: JSON.stringify({ discordId: id }),
     })
     if (!response.ok) throw new Error(await response.text())
+    // The profile locale outranks the toggle and other specs flip it, so pin it.
+    await fetch('/api/me', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locale: 'en' }),
+    })
   }, discordId)
 }

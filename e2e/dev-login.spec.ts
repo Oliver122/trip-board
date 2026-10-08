@@ -63,14 +63,9 @@ test.describe('dev login on', () => {
       await page.context().clearCookies()
       await signIn(page, 'de')
     } finally {
-      await page.evaluate(async () => {
-        await fetch('/api/me', {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ locale: 'en' }),
-        })
-      })
+      // The request context shares the page's cookies but not its navigation
+      // state, so the reset survives a page that is mid-load or errored.
+      await page.request.patch('/api/me', { data: { locale: 'en' } })
     }
   })
 })
