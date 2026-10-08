@@ -38,6 +38,7 @@ import {
   draftsEqual,
   emptyDraft,
   pinCategory,
+  switchDecision,
   type Draft,
 } from '../spots/model'
 import { SpotList } from '../spots/SpotList'
@@ -271,6 +272,34 @@ export function BoardPage() {
     setPanel(null)
   }
 
+  // Every way of leaving the open panel for another spot or a new one asks
+  // here first: wait out a save, and confirm before dropping edits.
+  function mayLeavePanel(): boolean {
+    if (!panel) return true
+    const decision = switchDecision({
+      draft: panel.draft,
+      baseline: panel.baseline,
+      saving,
+    })
+    if (decision === 'ignore') return false
+    return decision === 'switch' || window.confirm(t('board.discard'))
+  }
+
+  // A right-click on empty map: start a new spot there, or in a panel that
+  // holds nothing but a placed pin, just move the pin.
+  function contextAdd(lng: number, lat: number): boolean {
+    if (!canEdit) return false
+    if (panel && saving) return true
+    if (panel?.mode === 'add' && onlyPlaced(panel.draft, panel.baseline)) {
+      void place(lng, lat)
+      return true
+    }
+    if (!mayLeavePanel()) return true
+    openAdd()
+    void place(lng, lat)
+    return true
+  }
+
   function openAdd() {
     setSelectedId(null)
     setLinkError(null)
@@ -287,6 +316,8 @@ export function BoardPage() {
   function openSpot(spotId: string, focusDiscussion = false) {
     const spot = spots.find((item) => item.id === spotId)
     if (!spot) return
+    if (panel?.spot?.id === spotId && !focusDiscussion) return
+    if (!mayLeavePanel()) return
     const draft = draftFromSpot(spot)
     setSelectedId(spotId)
     setLinkError(null)
@@ -597,6 +628,7 @@ export function BoardPage() {
     onPlace: (lng, lat) => {
       void place(lng, lat)
     },
+    onContextPlace: contextAdd,
     onDraftMove: (lng, lat) => {
       void place(lng, lat)
     },
@@ -787,6 +819,20 @@ function PanelSkeleton() {
       <div className="h-24 rounded bg-border" />
       <div className="h-24 rounded bg-border" />
     </div>
+  )
+}
+
+function onlyPlaced(draft: Draft, baseline: Draft): boolean {
+  if (draft.lat == null || draft.lng == null)
+    return draftsEqual(draft, baseline)
+  return draftsEqual(
+    {
+      ...draft,
+      lat: baseline.lat,
+      lng: baseline.lng,
+      address: baseline.address,
+    },
+    baseline,
   )
 }
 

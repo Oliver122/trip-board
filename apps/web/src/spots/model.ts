@@ -67,6 +67,21 @@ export function draftsEqual(left: Draft, right: Draft): boolean {
   )
 }
 
+export type SwitchDecision = 'switch' | 'confirm' | 'ignore'
+
+/**
+ * What a pin click, card click or right-click add does while a panel is open:
+ * wait for a save to finish, ask before dropping edits, or just switch.
+ */
+export function switchDecision(panel: {
+  draft: Draft
+  baseline: Draft
+  saving: boolean
+}): SwitchDecision {
+  if (panel.saving) return 'ignore'
+  return draftsEqual(panel.draft, panel.baseline) ? 'switch' : 'confirm'
+}
+
 /** Puts the primary home base first among home spots that share a schedule state. */
 export function orderPrimaryHomes<T extends Spot>(spots: T[]): T[] {
   const next = spots.slice()
