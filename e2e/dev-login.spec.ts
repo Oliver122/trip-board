@@ -1,10 +1,33 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { mkdir, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
 
 // 5180 belongs to the flag-off server. This origin must match WEB_ORIGIN.
 const webPort = 5181
 const origin = `http://127.0.0.1:${webPort}`
+
+// The browsers' dev-login runs share the ports and Sven's account, so they take
+// turns. A lock older than the test timeout is left over from a killed run.
+const lock = join(tmpdir(), 'trip-board-dev-login.lock')
+
+async function acquireLock() {
+  for (;;) {
+    try {
+      await mkdir(lock)
+      return
+    } catch {
+      const age = await stat(lock).then(
+        (info) => Date.now() - info.mtimeMs,
+        () => 0,
+      )
+      if (age > 120_000) await rm(lock, { recursive: true, force: true })
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+}
 
 test.describe('dev login on', () => {
   test.describe.configure({ mode: 'serial', timeout: 120_000 })
@@ -14,6 +37,7 @@ test.describe('dev login on', () => {
   let logs = ''
 
   test.beforeAll(async () => {
+    await acquireLock()
     child = spawn('pnpm', ['dev:local'], {
       env: {
         ...process.env,
@@ -46,12 +70,16 @@ test.describe('dev login on', () => {
     throw new Error(`dev login server did not start (${last})\n${logs}`)
   })
 
-  test.afterAll(() => {
-    if (!child?.pid) return
+  test.afterAll(async () => {
     try {
-      process.kill(-child.pid, 'SIGTERM')
-    } catch {
-      child.kill('SIGTERM')
+      if (!child?.pid) return
+      try {
+        process.kill(-child.pid, 'SIGTERM')
+      } catch {
+        child.kill('SIGTERM')
+      }
+    } finally {
+      await rm(lock, { recursive: true, force: true })
     }
   })
 
@@ -63,14 +91,9 @@ test.describe('dev login on', () => {
       await page.context().clearCookies()
       await signIn(page, 'de')
     } finally {
-      await page.evaluate(async () => {
-        await fetch('/api/me', {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ locale: 'en' }),
-        })
-      })
+      // The request context shares the page's cookies but not its navigation
+      // state, so the reset survives a page that is mid-load or errored.
+      await page.request.patch('/api/me', { data: { locale: 'en' } })
     }
   })
 })
@@ -86,6 +109,54 @@ test('T-22-09 hides dev login when the API flag is off', async ({ page }) => {
   ).toHaveCount(0)
   await expect(page.getByTestId('dev-login-badge')).toHaveCount(0)
 })
+
+// These flip Sven's stored language too, so they live in this isolated spec
+// instead of the admin and insights ones. Axe is engine-agnostic, so one
+// browser is enough.
+test.describe('German admin pages', () => {
+  test.describe.configure({ mode: 'serial' })
+  test.skip(({ browserName }) => browserName !== 'chromium')
+
+  test.afterEach(async ({ page }) => {
+    await page.request.patch('/api/me', { data: { locale: 'en' } })
+  })
+
+  test('T-16-16 admin pages pass axe in German', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await loginAsGerman(page)
+    await page.goto('/admin/users')
+    await expect(page.getByRole('heading', { name: 'Nutzer' })).toBeVisible()
+    await expectNoSeriousViolations(page)
+  })
+
+  test('T-17-15 storage passes axe in German', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await loginAsGerman(page)
+    await page.goto('/admin/storage')
+    await expect(page.getByRole('heading', { name: 'Speicher' })).toBeVisible()
+    await expectNoSeriousViolations(page)
+  })
+})
+
+async function loginAsGerman(page: Page) {
+  await page.goto('/login')
+  await page.evaluate(async (id) => {
+    const response = await fetch('/api/test/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ discordId: id }),
+    })
+    if (!response.ok) throw new Error(await response.text())
+    const patch = await fetch('/api/me', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locale: 'de' }),
+    })
+    if (!patch.ok) throw new Error(await patch.text())
+  }, '100000000000000001')
+}
 
 async function signIn(page: Page, locale: 'en' | 'de') {
   const copy =

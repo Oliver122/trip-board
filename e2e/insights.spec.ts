@@ -47,30 +47,34 @@ test('T-17-13 the feed holds new activity until it is opened', async ({
   test.setTimeout(60_000)
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page, sven)
-  await page.goto('/admin/activity')
-  await expect(page.getByText('Live, updates every 15 seconds')).toBeVisible()
   const title = `Temple Gate ${Date.now()}`
   const tripName = `Feed ${Date.now()}`
   const planner = await browser.newContext()
   const other = await planner.newPage()
   await login(other, aiko)
+  const tripId = await other.evaluate(async (name) => {
+    const trip = await fetch('/api/trips', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        timezone: 'Asia/Tokyo',
+        region: {
+          bbox: { minLng: 135, minLat: 34, maxLng: 140, maxLat: 36 },
+        },
+      }),
+    })
+    if (!trip.ok) throw new Error(await trip.text())
+    return ((await trip.json()) as { id: string }).id
+  }, tripName)
+  // Other specs add activity all the time, so watch this trip's feed only.
+  await page.goto(`/admin/activity?trip=${tripId}`)
+  await expect(page.getByText('Live, updates every 15 seconds')).toBeVisible()
+  await expect(page.getByText(`Aiko created ${tripName}`)).toBeVisible()
   const created = await other.evaluate(
-    async ({ spotTitle, name }) => {
-      const trip = await fetch('/api/trips', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          timezone: 'Asia/Tokyo',
-          region: {
-            bbox: { minLng: 135, minLat: 34, maxLng: 140, maxLat: 36 },
-          },
-        }),
-      })
-      if (!trip.ok) throw new Error(await trip.text())
-      const body = (await trip.json()) as { id: string }
-      const response = await fetch(`/api/trips/${body.id}/spots`, {
+    async ({ spotTitle, id }) => {
+      const response = await fetch(`/api/trips/${id}/spots`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
@@ -83,7 +87,7 @@ test('T-17-13 the feed holds new activity until it is opened', async ({
       })
       return response.status
     },
-    { spotTitle: title, name: tripName },
+    { spotTitle: title, id: tripId },
   )
   expect(created).toBe(201)
   await expect(page.getByRole('button', { name: /\d+ new/ })).toBeVisible({
@@ -116,29 +120,6 @@ test('T-17-15 dashboard and storage pass axe and charts have a table', async ({
   await page.goto('/admin/storage')
   await expect(page.getByRole('heading', { name: 'Storage' })).toBeVisible()
   await expectNoSeriousViolations(page)
-  try {
-    await page.evaluate(async () => {
-      const response = await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ locale: 'de' }),
-      })
-      if (!response.ok) throw new Error(await response.text())
-    })
-    await page.reload()
-    await expect(page.getByRole('heading', { name: 'Speicher' })).toBeVisible()
-    await expectNoSeriousViolations(page)
-  } finally {
-    await page.evaluate(async () => {
-      await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ locale: 'en' }),
-      })
-    })
-  }
 })
 
 async function login(page: Page, discordId: string) {
