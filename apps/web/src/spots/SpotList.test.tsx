@@ -51,7 +51,10 @@ function renderList(
       tripId="10000000-0000-0000-0000-000000000001"
       tripName="Japan 2026"
       timeZone="Asia/Tokyo"
+      lang="en"
       spots={spots}
+      existingSpots={spots}
+      canImport={false}
       total={extra.total ?? spots.length}
       bounds={extra.bounds === undefined ? null : extra.bounds}
       query={extra.query ?? defaultSpotListQuery}
@@ -62,6 +65,8 @@ function renderList(
       selectedId={null}
       onSelect={() => undefined}
       onHover={() => undefined}
+      onImported={() => undefined}
+      onAuthError={() => undefined}
     />,
   )
 }

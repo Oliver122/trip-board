@@ -1,6 +1,7 @@
 import {
   defaultSpotListQuery,
   spotFiltersActive,
+  type GeocodeLang,
   type Spot,
   type SpotListQuery,
 } from '@tripboard/shared'
@@ -59,7 +60,10 @@ export function SpotList({
   tripId,
   tripName,
   timeZone,
+  lang,
   spots,
+  existingSpots,
+  canImport,
   total,
   bounds,
   query,
@@ -71,11 +75,16 @@ export function SpotList({
   selectedId,
   onSelect,
   onHover,
+  onImported,
+  onAuthError,
 }: {
   tripId: string
   tripName: string
   timeZone: string
+  lang: GeocodeLang
   spots: Spot[]
+  existingSpots: Spot[]
+  canImport: boolean
   total: number
   bounds: LngLatBounds | null
   query: SpotListQuery
@@ -87,6 +96,8 @@ export function SpotList({
   selectedId: string | null
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
+  onImported: (spots: Spot[]) => void
+  onAuthError: () => void
 }) {
   const { t, i18n } = useTranslation()
   const { enabled: listFollowsMap } = useListFollowsMap()
@@ -182,12 +193,17 @@ export function SpotList({
         tripId={tripId}
         tripName={tripName}
         timeZone={timeZone}
+        lang={lang}
         query={query}
         members={members}
         entries={entries}
+        existingSpots={existingSpots}
+        canImport={canImport}
         searchDraft={searchDraft}
         onSearchDraft={onSearchDraft}
         onQuery={onQuery}
+        onImported={onImported}
+        onAuthError={onAuthError}
       />
       <ul
         className={cn(

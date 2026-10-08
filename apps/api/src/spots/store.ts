@@ -1,6 +1,7 @@
 import {
   cleanStayDate,
   expandTripBBox,
+  expandTripBBoxForPoints,
   homeStayErrors,
   spotSchema,
   spotSearchPattern,
@@ -9,6 +10,7 @@ import {
   type PatchSpotBody,
   type Spot,
   type SpotCategory,
+  type SpotImportBody,
   type SpotListFilters,
   type SpotSort,
 } from '@tripboard/shared'
@@ -245,6 +247,130 @@ export async function createSpot(
     }
     throw error
   }
+}
+
+export async function importSpots(
+  pool: Pool,
+  userId: string,
+  tripId: string,
+  input: SpotImportBody,
+): Promise<{ ok: true; created: number; spots: Spot[] } | SpotFailure> {
+  try {
+    return await withImportTransaction(pool, userId, tripId, input)
+  } catch (error) {
+    if (isCheckViolation(error)) {
+      return { ok: false, status: 400, fields: { body: 'invalid' } }
+    }
+    throw error
+  }
+}
+
+async function withImportTransaction(
+  pool: Pool,
+  userId: string,
+  tripId: string,
+  input: SpotImportBody,
+): Promise<{ ok: true; created: number; spots: Spot[] } | SpotFailure> {
+  return withTransaction(pool, async (tx) => {
+    const access = await requireTripRole(tx, tripId, userId, 'planner')
+    if (!access.ok) return access
+    const category = input.baseCategory as SpotCategory
+    const columns = 9
+    const values: unknown[] = []
+    const placeholders = input.spots.map((spot, index) => {
+      const base = index * columns
+      values.push(
+        tripId,
+        spot.title.trim(),
+        blankToNull(spot.address),
+        spot.lat,
+        spot.lng,
+        category,
+        blankToNull(spot.info),
+        blankToNull(spot.link),
+        userId,
+      )
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}::spot_category, $${base + 7}, $${base + 8}, $${base + 9})`
+    })
+    const inserted = await tx.query<{ id: string }>(
+      `
+      INSERT INTO spots (
+        trip_id, title, address, lat, lng, base_category, info, link, created_by
+      )
+      VALUES ${placeholders.join(', ')}
+      RETURNING id
+      `,
+      values,
+    )
+    const ids = inserted.rows.map((row) => row.id)
+    const tripName = await expandTripForImport(tx, tripId, input.spots)
+    await activity.record(tx, {
+      actor: userId,
+      trip: tripId,
+      action: 'spot.import',
+      resource: 'spot',
+      metadata: {
+        trip: tripName,
+        count: ids.length,
+        source: input.source,
+      },
+    })
+    const result = await tx.query<SpotRow>(
+      `${spotSelect} WHERE s.id = ANY($1::uuid[])`,
+      [ids],
+    )
+    const byId = new Map(result.rows.map((row) => [row.id, rowToSpot(row)]))
+    const spots = ids
+      .map((id) => byId.get(id))
+      .filter((spot): spot is Spot => spot != null)
+    return { ok: true, created: spots.length, spots }
+  })
+}
+
+async function expandTripForImport(
+  tx: PoolClient,
+  tripId: string,
+  points: readonly { lng: number; lat: number }[],
+): Promise<string> {
+  const result = await tx.query<{
+    name: string
+    bbox_min_lng: number
+    bbox_min_lat: number
+    bbox_max_lng: number
+    bbox_max_lat: number
+  }>(
+    `
+    SELECT name, bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat
+    FROM trips
+    WHERE id = $1
+    FOR UPDATE
+    `,
+    [tripId],
+  )
+  const row = result.rows[0]
+  if (!row) throw new Error('trip missing during spot import')
+  const current: BBox = {
+    minLng: row.bbox_min_lng,
+    minLat: row.bbox_min_lat,
+    maxLng: row.bbox_max_lng,
+    maxLat: row.bbox_max_lat,
+  }
+  const next = expandTripBBoxForPoints(current, points)
+  if (next !== current) {
+    await tx.query(
+      `
+      UPDATE trips
+      SET bbox_min_lng = $2,
+          bbox_min_lat = $3,
+          bbox_max_lng = $4,
+          bbox_max_lat = $5,
+          updated_at = now()
+      WHERE id = $1
+      `,
+      [tripId, next.minLng, next.minLat, next.maxLng, next.maxLat],
+    )
+  }
+  return row.name
 }
 
 export async function updateSpot(

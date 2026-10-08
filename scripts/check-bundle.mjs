@@ -44,6 +44,16 @@ if (initial.has(`assets/${mapChunk}`)) {
   process.exit(1)
 }
 
+const importChunk = assets.find((name) => name.startsWith('ImportDialog-'))
+if (!importChunk) {
+  console.error('Expected a separate chunk for the Google Maps import dialog')
+  process.exit(1)
+}
+if (initial.has(`assets/${importChunk}`)) {
+  console.error(`Import chunk is preloaded on the first route: ${importChunk}`)
+  process.exit(1)
+}
+
 if (total > budget) {
   console.error(
     `First-route JS is ${total} bytes gzip, above the ${budget} byte budget`,

@@ -370,6 +370,51 @@ export const patchSpotSchema = z
 
 export type PatchSpotBody = z.infer<typeof patchSpotSchema>
 
+export const spotImportSources = [
+  'google_csv',
+  'google_geojson',
+  'kml',
+] as const
+export const spotImportSourceSchema = z.enum(spotImportSources)
+export type SpotImportSource = z.infer<typeof spotImportSourceSchema>
+
+export const spotImportBaseCategories = ['must_go', 'maybe'] as const
+export const spotImportBaseCategorySchema = z.enum(spotImportBaseCategories)
+export type SpotImportBaseCategory = z.infer<
+  typeof spotImportBaseCategorySchema
+>
+
+export const spotImportLimit = 500
+
+const spotImportRowSchema = z
+  .object({
+    title: z.string(),
+    lat: z.number(),
+    lng: z.number(),
+    address: z.string().nullable().optional(),
+    info: z.string().nullable().optional(),
+    link: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    checkTitle(data.title, ctx)
+    checkCoord(data.lat, -90, 90, 'lat', ctx)
+    checkCoord(data.lng, -180, 180, 'lng', ctx)
+    checkOptionalText(data.address, spotLimits.address, 'address', ctx)
+    checkOptionalText(data.info, spotLimits.info, 'info', ctx)
+    checkLink(data.link, ctx)
+  })
+  .transform(withNormalizedLink)
+
+export type SpotImportRow = z.infer<typeof spotImportRowSchema>
+
+export const spotImportSchema = z.object({
+  source: spotImportSourceSchema,
+  baseCategory: spotImportBaseCategorySchema,
+  spots: z.array(spotImportRowSchema).min(1).max(spotImportLimit),
+})
+
+export type SpotImportBody = z.infer<typeof spotImportSchema>
+
 const padRatio = 0.1
 
 function clamp(value: number, min: number, max: number): number {
@@ -392,6 +437,53 @@ export function expandTripBBox(bbox: BBox, lng: number, lat: number): BBox {
   const minLat = Math.min(bbox.minLat, lat)
   const maxLng = Math.max(bbox.maxLng, lng)
   const maxLat = Math.max(bbox.maxLat, lat)
+  const padLng = (maxLng - minLng) * padRatio
+  const padLat = (maxLat - minLat) * padRatio
+  const nextMinLng = clamp(minLng - padLng, -180, 180)
+  const nextMaxLng = clamp(maxLng + padLng, -180, 180)
+  const nextMinLat = clamp(minLat - padLat, -90, 90)
+  const nextMaxLat = clamp(maxLat + padLat, -90, 90)
+  return {
+    minLng: Math.min(nextMinLng, nextMaxLng),
+    maxLng: Math.max(nextMinLng, nextMaxLng),
+    minLat: Math.min(nextMinLat, nextMaxLat),
+    maxLat: Math.max(nextMinLat, nextMaxLat),
+  }
+}
+
+/**
+ * Same rule as {@link expandTripBBox}, generalized to many points so an
+ * import expands the trip box once, padded by 10% of the combined span,
+ * instead of compounding the padding once per inserted spot.
+ */
+export function expandTripBBoxForPoints(
+  bbox: BBox,
+  points: readonly { lng: number; lat: number }[],
+): BBox {
+  let minLng = bbox.minLng
+  let minLat = bbox.minLat
+  let maxLng = bbox.maxLng
+  let maxLat = bbox.maxLat
+  let changed = false
+  for (const point of points) {
+    if (point.lng < minLng) {
+      minLng = point.lng
+      changed = true
+    }
+    if (point.lng > maxLng) {
+      maxLng = point.lng
+      changed = true
+    }
+    if (point.lat < minLat) {
+      minLat = point.lat
+      changed = true
+    }
+    if (point.lat > maxLat) {
+      maxLat = point.lat
+      changed = true
+    }
+  }
+  if (!changed) return bbox
   const padLng = (maxLng - minLng) * padRatio
   const padLat = (maxLat - minLat) * padRatio
   const nextMinLng = clamp(minLng - padLng, -180, 180)

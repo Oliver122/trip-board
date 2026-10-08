@@ -19,7 +19,7 @@ import { activeLocale } from '../i18n'
 import { useListFollowsMap } from '../list-follows-map'
 import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
 import type { LiveNotice } from '../trips/trip-context'
-import type { LngLatBounds } from '../map/bounds'
+import { boundsForPoints, type LngLatBounds } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
 import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
 import { useSession } from '../session'
@@ -116,6 +116,10 @@ export function BoardPage() {
     token: string
     lng: number
     lat: number
+  } | null>(null)
+  const [importFocus, setImportFocus] = useState<{
+    key: string
+    bounds: LngLatBounds
   } | null>(null)
   const [toast, setToastState] = useState<ToastMessage | null>(null)
   const setToast = (message: string, kind: ToastMessage['kind'] = 'error') => {
@@ -253,10 +257,10 @@ export function BoardPage() {
       placing,
       draft: draftPin,
       highlightIds: [],
-      focus: null,
+      focus: importFocus,
       flyTo,
     }),
-    [draftPin, flyTo, hoverId, mapSpots, placing, selectedId],
+    [draftPin, flyTo, hoverId, importFocus, mapSpots, placing, selectedId],
   )
 
   function requestClose() {
@@ -385,6 +389,13 @@ export function BoardPage() {
     })
   }
   changeSpotsRef.current = changeSpots
+
+  function onImported(imported: Spot[]) {
+    changeSpots((current) => [...current, ...imported])
+    setToast(t('board.importSuccess', { count: imported.length }), 'info')
+    const next = boundsForPoints(imported)
+    if (next) setImportFocus({ key: `import-${Date.now()}`, bounds: next })
+  }
 
   async function place(lng: number, lat: number) {
     setPanel((current) =>
@@ -620,7 +631,10 @@ export function BoardPage() {
           tripId={tripId}
           tripName={trip.name}
           timeZone={trip.timezone}
+          lang={lang}
           spots={spots}
+          existingSpots={allSpots}
+          canImport={canEdit}
           total={total}
           bounds={bounds}
           query={query}
@@ -632,6 +646,8 @@ export function BoardPage() {
           selectedId={selectedId}
           onSelect={openSpot}
           onHover={setHoverId}
+          onImported={onImported}
+          onAuthError={reload}
         />
       )}
       {panel ? (

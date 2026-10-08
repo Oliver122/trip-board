@@ -303,7 +303,7 @@ What users do (“who is doing what”). The API writes one row per change **in 
 | `trip` | `create`, `update`, `delete`, `transfer` |
 | `member` | `join`, `role_update`, `remove`, `leave` |
 | `invite` | `create`, `revoke` |
-| `spot` | `create`, `update`, `delete` |
+| `spot` | `create`, `update`, `delete`, `import` |
 | `plan` | `create`, `update`, `delete`, `spot_add`, `spot_remove` |
 | `image` | `upload`, `delete` |
 | `export` | `download` |
