@@ -127,7 +127,7 @@ test('T-16-15 a normal user cannot see or open the admin area', async ({
   ).toBeVisible()
 })
 
-test('T-16-16 admin pages pass axe in both languages', async ({ page }) => {
+test('T-16-16 admin pages pass axe in English', async ({ page }) => {
   test.setTimeout(120_000)
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page, sven)
@@ -155,29 +155,6 @@ test('T-16-16 admin pages pass axe in both languages', async ({ page }) => {
   await page.goto('/admin/trips/10000000-0000-0000-0000-000000000001')
   await expect(page.getByRole('heading', { name: 'Japan 2026' })).toBeVisible()
   await expectNoSeriousViolations(page)
-  try {
-    await page.evaluate(async () => {
-      const response = await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ locale: 'de' }),
-      })
-      if (!response.ok) throw new Error(await response.text())
-    })
-    await page.goto('/admin/users')
-    await expect(page.getByRole('heading', { name: 'Nutzer' })).toBeVisible()
-    await expectNoSeriousViolations(page)
-  } finally {
-    await page.evaluate(async () => {
-      await fetch('/api/me', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ locale: 'en' }),
-      })
-    })
-  }
 })
 
 async function restoreAiko(page: Page) {

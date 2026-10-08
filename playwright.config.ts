@@ -34,6 +34,9 @@ export default defineConfig({
       name: 'firefox',
       use: {
         ...devices['Desktop Firefox'],
+        // Headless Firefox gets no WebGL context without a GPU, so MapLibre
+        // cannot load. Headed under Xvfb gets software GL (see run-e2e-tests).
+        headless: !process.env.FIREFOX_HEADED,
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
       },
