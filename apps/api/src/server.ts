@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { loadConfig } from './config.js'
 import { createPool } from './db.js'
 import { buildApp } from './app.js'
+import { RequestLimiter } from './http/limit.js'
 import { startHousekeeping } from './housekeeping/jobs.js'
 import { createS3Storage } from './images/storage.js'
 
@@ -17,7 +18,10 @@ export async function start() {
   const config = loadConfig(process.env)
   const pool = createPool(config.DATABASE_URL)
   const storage = createS3Storage(config)
-  const app = await buildApp(pool, { config, storage })
+  // The e2e suite runs many parallel logins from one IP; keep the limit for real use.
+  const limiter =
+    config.NODE_ENV === 'test' ? new RequestLimiter(Infinity) : undefined
+  const app = await buildApp(pool, { config, storage, limiter })
   const stopHousekeeping = startHousekeeping(pool, storage, () => new Date(), {
     url: config.ADMIN_DISCORD_WEBHOOK_URL,
   })
