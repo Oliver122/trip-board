@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
+import { answerConfirm } from './confirm'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const tokyoEntry = '30000000-0000-0000-0000-000000000001'
@@ -31,11 +32,9 @@ test('T-12-05 switching to Home reveals stay fields and switching away clears th
   await shot(page, 'home-panel-768')
   await page.setViewportSize({ width: 1280, height: 800 })
 
-  page.once('dialog', (dialog) => {
-    expect(dialog.message()).toContain('Stay dates')
-    void dialog.accept()
-  })
   await page.getByLabel('Category').selectOption({ label: 'Maybe' })
+  await expect(page.getByTestId('confirm-dialog')).toContainText('Stay dates')
+  await answerConfirm(page, 'accept')
   await expect(page.getByLabel('Stay from')).toHaveCount(0)
   await expect(page.getByLabel('Primary home base')).toHaveCount(0)
 

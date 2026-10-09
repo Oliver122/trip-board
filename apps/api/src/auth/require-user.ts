@@ -4,6 +4,7 @@ import type { Pool } from 'pg'
 import type { AppConfig } from '../config.js'
 import { readCookie, SESSION_COOKIE, sessionCookie } from './cookies.js'
 import { authenticate } from './login.js'
+import { sendError } from '../http/errors.js'
 
 export async function requireUser(
   request: FastifyRequest,
@@ -14,12 +15,12 @@ export async function requireUser(
 ): Promise<MeResponse | null> {
   const token = readCookie(request.headers.cookie, SESSION_COOKIE)
   if (!token) {
-    reply.code(401).send({ error: 'unauthenticated' })
+    sendError(reply, 401, 'unauthenticated')
     return null
   }
   const session = await authenticate(pool, token, now)
   if (!session) {
-    reply.code(401).send({ error: 'unauthenticated' })
+    sendError(reply, 401, 'unauthenticated')
     return null
   }
   if (session.slid) reply.header('set-cookie', sessionCookie(token, secure))

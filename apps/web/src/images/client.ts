@@ -6,22 +6,19 @@ import {
   type Quota,
   type SpotImage,
 } from '@tripboard/shared'
-import { writeInit } from '../api/write'
-import { AuthError } from '../trips/client'
+import { ApiError, request, requestJson } from '../api/http'
 
 export async function listImages(
   spotId: string,
   signal?: AbortSignal,
 ): Promise<ImageList> {
-  const response = await send(`/api/spots/${spotId}/images`, { signal })
-  if (!response.ok) throw new Error('load')
-  return imageListSchema.parse(await response.json())
+  return requestJson(`/api/spots/${spotId}/images`, imageListSchema, {
+    signal,
+  })
 }
 
 export async function getQuota(signal?: AbortSignal): Promise<Quota> {
-  const response = await send('/api/me/quota', { signal })
-  if (!response.ok) throw new Error('load')
-  return quotaSchema.parse(await response.json())
+  return requestJson('/api/me/quota', quotaSchema, { signal })
 }
 
 export function imageSrc(url: string): string {
@@ -44,7 +41,7 @@ export function uploadImage(
     }
     xhr.onload = () => {
       if (xhr.status === 401) {
-        reject(new AuthError())
+        reject(new ApiError(401))
         return
       }
       if (xhr.status === 201) {
@@ -70,15 +67,5 @@ export function uploadImage(
 }
 
 export async function deleteImage(imageId: string): Promise<void> {
-  const response = await send(`/api/images/${imageId}`, { method: 'DELETE' })
-  if (!response.ok) throw new Error('delete')
-}
-
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, {
-    ...writeInit(init),
-    credentials: 'include',
-  })
-  if (response.status === 401) throw new AuthError()
-  return response
+  await request(`/api/images/${imageId}`, { method: 'DELETE' })
 }

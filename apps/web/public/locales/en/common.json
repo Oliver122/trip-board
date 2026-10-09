@@ -32,6 +32,20 @@
     "error": "Something went wrong. Try again.",
     "retry": "Try again"
   },
+  "ui": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "menu": "Menu"
+  },
+  "confirm": {
+    "discardTitle": "Discard changes?",
+    "discardAction": "Discard",
+    "clearStayTitle": "Change category?",
+    "clearStayAction": "Change",
+    "deleteCommentTitle": "Delete comment?",
+    "deleteAction": "Delete"
+  },
   "home": {
     "placeholder": "Placeholder. The map board comes in a later step.",
     "healthOk": "api ok",

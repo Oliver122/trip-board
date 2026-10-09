@@ -11,10 +11,9 @@ import {
 } from '@tripboard/shared'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Pool } from 'pg'
-import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
-import { deny, fieldErrors, parseBody } from '../http/validate.js'
+import { deny, parseBody } from '../http/validate.js'
 import { readExpected } from '../live/conflict.js'
 import { invalidExpected } from '../live/routes.js'
 import {
@@ -28,6 +27,8 @@ import {
   updatePlanSpot,
   type PlanFailure,
 } from './store.js'
+import { sendError } from '../http/errors.js'
+import { idParams, idLinkParams, parseParams } from '../http/params.js'
 
 export type PlanRouteOptions = {
   pool: Pool
@@ -52,15 +53,6 @@ const knownMessages = new Set([
   'incomplete',
 ])
 
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
-
-const linkParamsSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-  linkId: z.string().uuid({ message: 'invalid' }),
-})
-
 export function registerPlanRoutes(
   app: FastifyInstance,
   options: PlanRouteOptions,
@@ -71,7 +63,7 @@ export function registerPlanRoutes(
   app.get('/trips/:id/plan', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await listPlan(pool, params.id, user.id)
     if (!result.ok) return deny(reply, result.status)
@@ -82,9 +74,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       createPlanEntrySchema,
@@ -102,9 +94,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       patchPlanEntrySchema,
@@ -130,9 +122,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const expected = readExpected(request)
     if (!expected.ok) return invalidExpected(reply)
@@ -145,9 +137,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       addPlanSpotSchema,
@@ -165,9 +157,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseLinkParams(request.params, reply)
+    const params = parseParams(idLinkParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       patchPlanSpotSchema,
@@ -191,9 +183,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseLinkParams(request.params, reply)
+    const params = parseParams(idLinkParams, request.params, reply)
     if (!params) return
     const result = await removePlanSpot(pool, user.id, params.id, params.linkId)
     if (!result.ok) return deny(reply, result.status)
@@ -204,9 +196,9 @@ export function registerPlanRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       reorderPlanSpotsSchema,
@@ -228,48 +220,16 @@ export function registerPlanRoutes(
 
 function sendFailure(reply: FastifyReply, result: PlanFailure) {
   if (result.status === 400) {
-    return reply.code(400).send({
-      error: 'invalid_request',
+    return sendError(reply, 400, 'invalid_request', {
       ...(result.message ? { message: result.message } : {}),
       fields: result.fields,
     })
   }
   if (result.status === 409) {
-    return reply.code(409).send({
-      error: 'conflict',
+    return sendError(reply, 409, 'conflict', {
       updatedBy: result.updatedBy,
       current: result.current,
     })
   }
   return deny(reply, result.status)
-}
-
-function parseParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string } | null {
-  const parsed = idSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
-}
-
-function parseLinkParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string; linkId: string } | null {
-  const parsed = linkParamsSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: fieldErrors(parsed.error, knownMessages),
-    })
-    return null
-  }
-  return parsed.data
 }

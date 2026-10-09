@@ -38,15 +38,30 @@ export async function requireTripRole(
   )
   const row = result.rows[0]
   if (!row) return { ok: false, status: 404 }
-  const role = parseRole(row.role)
+  const role = parseTripRole(row.role)
   const decision = decideTripAccess(role, min)
   if (decision === 'allow' && role) return { ok: true, role }
   if (decision === 'deny') return { ok: false, status: 403 }
   return { ok: false, status: 404 }
 }
 
-function parseRole(value: string | null): TripRole | null {
+export function parseTripRole(
+  value: string | null | undefined,
+): TripRole | null {
   if (value === 'visitor' || value === 'planner' || value === 'owner')
     return value
   return null
+}
+
+/** Unknown stored roles fall back to the least privilege, and are logged. */
+export function roleOrVisitor(
+  value: string | null | undefined,
+  log?: { warn: (message: string) => void },
+): TripRole {
+  const role = parseTripRole(value)
+  if (role) return role
+  const message = `unknown trip role "${String(value)}", treating as visitor`
+  if (log) log.warn(message)
+  else console.warn(message)
+  return 'visitor'
 }

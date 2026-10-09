@@ -13,7 +13,7 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [saveError, setSaveError] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
   const refreshCapacity = useCapacityRefresh()
 
   useEffect(() => {
@@ -41,14 +41,14 @@ export function SettingsPage() {
       className="max-w-xl space-y-6"
       onSubmit={(event) => {
         event.preventDefault()
-        setSaveError(false)
+        setSaveFailed(false)
         void saveSettings(settings)
           .then((next) => {
             setSettings(next)
             setSaved(true)
             refreshCapacity()
           })
-          .catch(() => setSaveError(true))
+          .catch(() => setSaveFailed(true))
       }}
     >
       <h1 className="text-xl font-semibold">{t('admin.nav.settings')}</h1>
@@ -109,7 +109,7 @@ export function SettingsPage() {
         </label>
       </fieldset>
       {saved ? <p role="status">{t('admin.settings.saved')}</p> : null}
-      {saveError ? (
+      {saveFailed ? (
         <ErrorNotice>{t('admin.user.errors.save')}</ErrorNotice>
       ) : null}
       <Button type="submit">{t('trips.save')}</Button>

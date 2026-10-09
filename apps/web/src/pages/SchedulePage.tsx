@@ -2,6 +2,7 @@ import {
   defaultSpotListQuery,
   normalizePlanDraft,
   normalizeSpotLink,
+  planEntrySchema,
   type PlanDraft,
   type PlanEntry,
   type PlanEntryType,
@@ -12,7 +13,8 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { Toast, type ToastMessage } from '../components/Toast'
 import { Button } from '../components/ui/button'
-import { EmptyState, ErrorState } from '../components/states'
+import { EmptyState, ErrorState, PanelSkeleton } from '../components/states'
+import { useConfirm } from '../components/ui/confirm'
 import { activeLocale } from '../i18n'
 import { boundsForPoints } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
@@ -20,7 +22,6 @@ import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
 import { EntryDialog } from '../plan/EntryDialog'
 import {
   addPlanSpot,
-  ConflictError as PlanConflictError,
   createPlanEntry,
   deletePlanEntry,
   listPlan,
@@ -37,14 +38,9 @@ import {
   type Draft,
 } from '../spots/model'
 import { SpotPanel } from '../spots/SpotPanel'
-import {
-  createSpot,
-  listSpots,
-  reverseAddress,
-  SaveError,
-} from '../spots/client'
+import { createSpot, listSpots, reverseAddress } from '../spots/client'
 import { useSession } from '../session'
-import { AuthError } from '../trips/client'
+import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
 import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
 type DialogState =
@@ -57,6 +53,7 @@ type SpotPanelState = {
 
 export function SchedulePage() {
   const { t, i18n } = useTranslation()
+  const confirm = useConfirm()
   const { reload } = useSession()
   const { id } = useParams()
   const {
@@ -137,7 +134,7 @@ export function SchedulePage() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
+        if (isAuth(error)) {
           reload()
           return
         }
@@ -264,11 +261,11 @@ export function SchedulePage() {
       if (entryId) setCreatedSpot({ entryId, spotId: saved.id })
       setSpotPanel(null)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         reload()
         return
       }
-      if (error instanceof SaveError && error.fields.link) {
+      if (isInvalid(error) && error.fields.link) {
         setLinkError(error.fields.link)
       }
       setSpotError(t('board.saveError'))
@@ -287,7 +284,7 @@ export function SchedulePage() {
   }
 
   function fail(error: unknown) {
-    if (error instanceof AuthError) {
+    if (isAuth(error)) {
       reload()
       return
     }
@@ -305,10 +302,11 @@ export function SchedulePage() {
       setDialog(null)
       setConflict(null)
     } catch (error) {
-      if (error instanceof PlanConflictError && dialog.mode === 'edit') {
+      if (isConflict(error) && dialog.mode === 'edit') {
+        const { current, updatedBy } = conflictOf(error, planEntrySchema)
         setConflict({
-          current: error.current,
-          updatedByName: error.updatedBy?.name ?? '',
+          current,
+          updatedByName: updatedBy?.name ?? '',
           body,
         })
         return
@@ -454,10 +452,18 @@ export function SchedulePage() {
           onDraft={changeSpotDraft}
           onClose={() => {
             if (!spotPanel) return
-            if (!draftsEqual(spotPanel.draft, spotPanel.baseline)) {
-              if (!window.confirm(t('board.discard'))) return
+            if (draftsEqual(spotPanel.draft, spotPanel.baseline)) {
+              setSpotPanel(null)
+              return
             }
-            setSpotPanel(null)
+            void confirm({
+              title: t('confirm.discardTitle'),
+              message: t('board.discard'),
+              confirmLabel: t('confirm.discardAction'),
+              danger: true,
+            }).then((ok) => {
+              if (ok) setSpotPanel(null)
+            })
           }}
           onSubmit={() => {
             void saveSpot()
@@ -505,19 +511,6 @@ export function SchedulePage() {
       ) : null}
       {toast ? <Toast toast={toast} onClose={() => setToast('')} /> : null}
     </main>
-  )
-}
-
-function PanelSkeleton() {
-  return (
-    <div
-      data-testid="panel-skeleton"
-      className="flex flex-col gap-3 p-4"
-      aria-hidden="true"
-    >
-      <div className="h-8 rounded bg-border" />
-      <div className="h-24 rounded bg-border" />
-    </div>
   )
 }
 

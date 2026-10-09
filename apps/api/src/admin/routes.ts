@@ -27,7 +27,6 @@ import {
 } from '@tripboard/shared'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { Pool } from 'pg'
-import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import { requireAppRole } from '../auth/require-role.js'
 import type { AppConfig } from '../config.js'
@@ -57,6 +56,8 @@ import {
   unsuspendUser,
   updateQuota,
 } from './users.js'
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
 
 export type AdminRoute = {
   method: string
@@ -68,10 +69,6 @@ const indexed = new WeakMap<FastifyInstance, AdminRoute[]>()
 export function listAdminRoutes(app: FastifyInstance): AdminRoute[] {
   return indexed.get(app) ?? []
 }
-
-const idParams = z.object({
-  id: z.string().uuid(),
-})
 
 export type AdminRouteOptions = {
   pool: Pool
@@ -112,8 +109,7 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = statsQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     const stats = await readStats(pool, query.data.range, now())
     await reportCapacityWarnings(pool, {
       url: webhookUrl,
@@ -127,10 +123,9 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = metricsQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     if (metricsRangeError(query.data.from, query.data.to)) {
-      return reply.code(400).send({ error: 'invalid_request' })
+      return sendError(reply, 400, 'invalid_request')
     }
     return adminMetricsSchema.parse(
       await readMetrics(pool, query.data.from, query.data.to),
@@ -141,19 +136,17 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = activityQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     if (query.data.from && query.data.to && query.data.from > query.data.to) {
-      return reply.code(400).send({ error: 'invalid_request' })
+      return sendError(reply, 400, 'invalid_request')
     }
     try {
       const result = await listActivity(pool, query.data)
-      if ('error' in result)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
       return activityListSchema.parse(result)
     } catch (error) {
       if (isInvalidCursor(error))
-        return reply.code(400).send({ error: 'invalid_request' })
+        return sendError(reply, 400, 'invalid_request')
       throw error
     }
   })
@@ -162,13 +155,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = activityQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     if (query.data.from && query.data.to && query.data.from > query.data.to) {
-      return reply.code(400).send({ error: 'invalid_request' })
+      return sendError(reply, 400, 'invalid_request')
     }
     if (query.data.cursor && decodeCursor(query.data.cursor) === 'invalid') {
-      return reply.code(400).send({ error: 'invalid_request' })
+      return sendError(reply, 400, 'invalid_request')
     }
     return reply
       .header('content-disposition', 'attachment; filename="activity.csv"')
@@ -186,16 +178,14 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = userListQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     try {
       const result = await listUsers(pool, query.data)
-      if ('error' in result)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
       return adminUserListSchema.parse(result)
     } catch (error) {
       if (isInvalidCursor(error))
-        return reply.code(400).send({ error: 'invalid_request' })
+        return sendError(reply, 400, 'invalid_request')
       throw error
     }
   })
@@ -203,10 +193,10 @@ export function registerAdminRoutes(
   app.get('/admin/users/:id', async (request, reply) => {
     const user = await admin(request, reply)
     if (!user) return
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const detail = await getAdminUser(pool, params.id)
-    if (!detail) return reply.code(404).send({ error: 'not_found' })
+    if (!detail) return sendError(reply, 404, 'not_found')
     return adminUserDetailSchema.parse(detail)
   })
 
@@ -214,15 +204,14 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = quotaPatchSchema.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await updateQuota(pool, user.id, params.id, body.data, hooks)
-    if (!result.ok)
-      return reply.code(result.status).send({ error: 'not_found' })
+    if (!result.ok) return sendError(reply, result.status, 'not_found')
     return result.user
   })
 
@@ -230,12 +219,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = suspendSchema.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await suspendUser(
       pool,
       user.id,
@@ -245,7 +234,7 @@ export function registerAdminRoutes(
       hooks,
     )
     if (!result.ok) {
-      return reply.code(result.status).send({ error: result.error })
+      return sendError(reply, result.status, result.error)
     }
     return reply.code(204).send()
   })
@@ -254,13 +243,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await unsuspendUser(pool, user.id, params.id, hooks)
-    if (!result.ok)
-      return reply.code(result.status).send({ error: 'not_found' })
+    if (!result.ok) return sendError(reply, result.status, 'not_found')
     return reply.code(204).send()
   })
 
@@ -268,12 +256,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = rolePatchSchema.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await setUserRole(
       pool,
       user.id,
@@ -281,8 +269,7 @@ export function registerAdminRoutes(
       body.data.appRole,
       hooks,
     )
-    if (!result.ok)
-      return reply.code(result.status).send({ error: result.error })
+    if (!result.ok) return sendError(reply, result.status, result.error)
     return reply.code(204).send()
   })
 
@@ -290,13 +277,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await logoutUser(pool, user.id, params.id, hooks)
-    if (!result.ok)
-      return reply.code(result.status).send({ error: 'not_found' })
+    if (!result.ok) return sendError(reply, result.status, 'not_found')
     return reply.code(204).send()
   })
 
@@ -304,16 +290,14 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = tripListQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     try {
       const result = await listTrips(pool, query.data)
-      if ('error' in result)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
       return adminTripListSchema.parse(result)
     } catch (error) {
       if (isInvalidCursor(error))
-        return reply.code(400).send({ error: 'invalid_request' })
+        return sendError(reply, 400, 'invalid_request')
       throw error
     }
   })
@@ -321,10 +305,10 @@ export function registerAdminRoutes(
   app.get('/admin/trips/:id', async (request, reply) => {
     const user = await admin(request, reply)
     if (!user) return
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const detail = await getAdminTrip(pool, params.id)
-    if (!detail) return reply.code(404).send({ error: 'not_found' })
+    if (!detail) return sendError(reply, 404, 'not_found')
     return adminTripDetailSchema.parse(detail)
   })
 
@@ -332,16 +316,14 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = requestListQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     try {
       const result = await listQuotaRequests(pool, query.data)
-      if ('error' in result)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
       return quotaRequestListSchema.parse(result)
     } catch (error) {
       if (isInvalidCursor(error))
-        return reply.code(400).send({ error: 'invalid_request' })
+        return sendError(reply, 400, 'invalid_request')
       throw error
     }
   })
@@ -350,12 +332,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = quotaApproveSchema.safeParse(request.body ?? {})
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await approveQuotaRequest(
       pool,
       user.id,
@@ -364,8 +346,7 @@ export function registerAdminRoutes(
       now(),
       hooks,
     )
-    if (!result.ok)
-      return reply.code(result.status).send({ error: result.error })
+    if (!result.ok) return sendError(reply, result.status, result.error)
     return reply.code(204).send()
   })
 
@@ -373,12 +354,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseId(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = quotaRejectSchema.safeParse(request.body ?? {})
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await rejectQuotaRequest(
       pool,
       user.id,
@@ -387,8 +368,7 @@ export function registerAdminRoutes(
       now(),
       hooks,
     )
-    if (!result.ok)
-      return reply.code(result.status).send({ error: result.error })
+    if (!result.ok) return sendError(reply, result.status, result.error)
     return reply.code(204).send()
   })
 
@@ -396,7 +376,7 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const settings = await readSettings(pool)
-    if (!settings) return reply.code(404).send({ error: 'not_found' })
+    if (!settings) return sendError(reply, 404, 'not_found')
     return appSettingsSchema.parse(settings)
   })
 
@@ -404,13 +384,12 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const body = settingsPatchSchema.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await updateSettings(pool, user.id, body.data, hooks)
-    if (!result.ok)
-      return reply.code(result.status).send({ error: 'not_found' })
+    if (!result.ok) return sendError(reply, result.status, 'not_found')
     return appSettingsSchema.parse(result.settings)
   })
 
@@ -418,16 +397,14 @@ export function registerAdminRoutes(
     const user = await admin(request, reply)
     if (!user) return
     const query = auditQuerySchema.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     try {
       const result = await listAudit(pool, query.data)
-      if ('error' in result)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
       return auditListSchema.parse(result)
     } catch (error) {
       if (isInvalidCursor(error))
-        return reply.code(400).send({ error: 'invalid_request' })
+        return sendError(reply, 400, 'invalid_request')
       throw error
     }
   })
@@ -450,13 +427,12 @@ export function registerAdminRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const body = quotaRequestCreateSchema.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const result = await createQuotaRequest(pool, user.id, body.data)
-    if (!result.ok)
-      return reply.code(result.status).send({ error: result.error })
+    if (!result.ok) return sendError(reply, result.status, result.error)
     await notifyQuotaRequest({
       url: webhookUrl,
       username: result.request.displayName ?? result.request.username,
@@ -464,13 +440,4 @@ export function registerAdminRoutes(
     }).catch(() => undefined)
     return reply.code(201).send(result.request)
   })
-}
-
-function parseId(value: unknown, reply: FastifyReply): { id: string } | null {
-  const parsed = idParams.safeParse(value)
-  if (!parsed.success) {
-    reply.code(400).send({ error: 'invalid_request' })
-    return null
-  }
-  return parsed.data
 }

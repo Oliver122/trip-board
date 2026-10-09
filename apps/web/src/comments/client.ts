@@ -5,18 +5,7 @@ import {
   type Comment,
   type News,
 } from '@tripboard/shared'
-import { writeInit } from '../api/write'
-import { AuthError } from '../trips/client'
-
-export class CommentError extends Error {
-  readonly status: number
-
-  constructor(status: number) {
-    super('comment')
-    this.name = 'CommentError'
-    this.status = status
-  }
-}
+import { request, requestJson } from '../api/http'
 
 /** Loads the whole thread, oldest first. Pages follow `nextCursor`. */
 export async function listComments(
@@ -27,11 +16,11 @@ export async function listComments(
   let cursor: string | null = null
   do {
     const query: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
-    const response = await send(`/api/spots/${spotId}/comments${query}`, {
-      signal,
-    })
-    if (!response.ok) throw new CommentError(response.status)
-    const page = commentListSchema.parse(await response.json())
+    const page = await requestJson(
+      `/api/spots/${spotId}/comments${query}`,
+      commentListSchema,
+      { signal },
+    )
     comments.push(...page.comments)
     cursor = page.nextCursor
   } while (cursor)
@@ -42,71 +31,43 @@ export async function createComment(
   spotId: string,
   body: string,
 ): Promise<Comment> {
-  const response = await send(`/api/spots/${spotId}/comments`, {
+  return requestJson(`/api/spots/${spotId}/comments`, commentSchema, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ body }),
   })
-  if (!response.ok) throw new CommentError(response.status)
-  return commentSchema.parse(await response.json())
 }
 
 export async function updateComment(
   commentId: string,
   body: string,
 ): Promise<Comment> {
-  const response = await send(`/api/comments/${commentId}`, {
+  return requestJson(`/api/comments/${commentId}`, commentSchema, {
     method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ body }),
   })
-  if (!response.ok) throw new CommentError(response.status)
-  return commentSchema.parse(await response.json())
 }
 
 export async function deleteComment(commentId: string): Promise<void> {
-  const response = await send(`/api/comments/${commentId}`, {
-    method: 'DELETE',
-  })
-  if (!response.ok && response.status !== 204)
-    throw new CommentError(response.status)
+  await request(`/api/comments/${commentId}`, { method: 'DELETE' })
 }
 
 export async function markSpotRead(
   spotId: string,
   upTo: string,
 ): Promise<void> {
-  const response = await send(`/api/spots/${spotId}/comments/read`, {
+  await request(`/api/spots/${spotId}/comments/read`, {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ upTo }),
   })
-  if (!response.ok && response.status !== 204)
-    throw new CommentError(response.status)
 }
 
 export async function markTripRead(tripId: string): Promise<void> {
-  const response = await send(`/api/trips/${tripId}/news/read`, {
-    method: 'POST',
-  })
-  if (!response.ok && response.status !== 204)
-    throw new CommentError(response.status)
+  await request(`/api/trips/${tripId}/news/read`, { method: 'POST' })
 }
 
 export async function getNews(
   tripId: string,
   signal?: AbortSignal,
 ): Promise<News> {
-  const response = await send(`/api/trips/${tripId}/news`, { signal })
-  if (!response.ok) throw new CommentError(response.status)
-  return newsSchema.parse(await response.json())
-}
-
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, {
-    ...writeInit(init),
-    credentials: 'include',
-  })
-  if (response.status === 401) throw new AuthError()
-  return response
+  return requestJson(`/api/trips/${tripId}/news`, newsSchema, { signal })
 }

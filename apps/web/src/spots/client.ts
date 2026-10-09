@@ -13,32 +13,7 @@ import {
   type SpotDetail,
   type SpotListQuery,
 } from '@tripboard/shared'
-import { writeInit } from '../api/write'
-import { AuthError } from '../trips/client'
-
-export class ConflictError extends Error {
-  readonly current: Spot
-  readonly updatedBy: { id: string; name: string } | null
-
-  constructor(current: Spot, updatedBy: { id: string; name: string } | null) {
-    super('conflict')
-    this.name = 'ConflictError'
-    this.current = current
-    this.updatedBy = updatedBy
-  }
-}
-
-export class SaveError extends Error {
-  readonly status: number
-  readonly fields: Record<string, string>
-
-  constructor(status: number, fields: Record<string, string>) {
-    super('save')
-    this.name = 'SaveError'
-    this.status = status
-    this.fields = fields
-  }
-}
+import { isAuth, request, requestJson } from '../api/http'
 
 export async function listSpots(
   tripId: string,
@@ -51,9 +26,7 @@ export async function listSpots(
   const path = search
     ? `/api/trips/${tripId}/spots?${search}`
     : `/api/trips/${tripId}/spots`
-  const response = await send(path, { signal })
-  if (!response.ok) throw new Error('load')
-  const body = spotListSchema.parse(await response.json())
+  const body = await requestJson(path, spotListSchema, { signal })
   return { spots: body.spots, total: body.total }
 }
 
@@ -61,13 +34,10 @@ export async function createSpot(
   tripId: string,
   body: CreateSpotBody,
 ): Promise<Spot> {
-  const response = await send(`/api/trips/${tripId}/spots`, {
+  return requestJson(`/api/trips/${tripId}/spots`, spotSchema, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw await saveError(response)
-  return spotSchema.parse(await response.json())
 }
 
 export async function updateSpot(
@@ -75,30 +45,23 @@ export async function updateSpot(
   body: PatchSpotBody,
   expectedUpdatedAt?: string,
 ): Promise<Spot> {
-  const response = await send(`/api/spots/${spotId}`, {
+  return requestJson(`/api/spots/${spotId}`, spotSchema, {
     method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(
       expectedUpdatedAt ? { ...body, expectedUpdatedAt } : body,
     ),
   })
-  if (response.status === 409) throw await conflictError(response)
-  if (!response.ok) throw await saveError(response)
-  return spotSchema.parse(await response.json())
 }
 
 export async function getSpot(
   spotId: string,
   signal?: AbortSignal,
 ): Promise<SpotDetail> {
-  const response = await send(`/api/spots/${spotId}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return spotDetailSchema.parse(await response.json())
+  return requestJson(`/api/spots/${spotId}`, spotDetailSchema, { signal })
 }
 
 export async function deleteSpot(spotId: string): Promise<void> {
-  const response = await send(`/api/spots/${spotId}`, { method: 'DELETE' })
-  if (!response.ok) throw new Error('save')
+  await request(`/api/spots/${spotId}`, { method: 'DELETE' })
 }
 
 export async function searchAddress(
@@ -108,9 +71,21 @@ export async function searchAddress(
   signal?: AbortSignal,
 ): Promise<GeocodePlace[]> {
   const params = new URLSearchParams({ q: query, lang, tripId })
-  const response = await send(`/api/geocode/search?${params}`, { signal })
-  if (!response.ok) return []
-  return geocodeSearchSchema.parse(await response.json()).results
+  try {
+    const body = await requestJson(
+      `/api/geocode/search?${params}`,
+      geocodeSearchSchema,
+      { signal },
+    )
+    return body.results
+  } catch (error) {
+    if (
+      isAuth(error) ||
+      (error instanceof DOMException && error.name === 'AbortError')
+    )
+      throw error
+    return []
+  }
 }
 
 export async function reverseAddress(
@@ -124,48 +99,18 @@ export async function reverseAddress(
     lng: String(lng),
     lang,
   })
-  const response = await send(`/api/geocode/reverse?${params}`, { signal })
-  if (!response.ok) return null
-  return geocodePlaceSchema.parse(await response.json())
-}
-
-async function conflictError(response: Response): Promise<ConflictError> {
-  const body = (await response.json()) as {
-    current?: unknown
-    updatedBy?: { id?: unknown; name?: unknown } | null
-  }
-  const current = spotSchema.parse(body.current)
-  const updatedBy =
-    body.updatedBy &&
-    typeof body.updatedBy.id === 'string' &&
-    typeof body.updatedBy.name === 'string'
-      ? { id: body.updatedBy.id, name: body.updatedBy.name }
-      : null
-  return new ConflictError(current, updatedBy)
-}
-
-async function saveError(response: Response): Promise<SaveError> {
-  let fields: Record<string, string> = {}
   try {
-    const body = (await response.json()) as { fields?: unknown }
-    if (body.fields && typeof body.fields === 'object') {
-      fields = Object.fromEntries(
-        Object.entries(body.fields).filter(
-          (entry): entry is [string, string] => typeof entry[1] === 'string',
-        ),
-      )
-    }
-  } catch {
-    /* empty body */
+    return await requestJson(
+      `/api/geocode/reverse?${params}`,
+      geocodePlaceSchema,
+      { signal },
+    )
+  } catch (error) {
+    if (
+      isAuth(error) ||
+      (error instanceof DOMException && error.name === 'AbortError')
+    )
+      throw error
+    return null
   }
-  return new SaveError(response.status, fields)
-}
-
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, {
-    ...writeInit(init),
-    credentials: 'include',
-  })
-  if (response.status === 401) throw new AuthError()
-  return response
 }

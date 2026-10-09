@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '../components/states'
 import { megabytes } from '../images/format'
 import { activeLocale } from '../i18n'
 import { activitySentence } from './activity-text'
+import { isNotFound } from '../api/http'
 import { getAdminTrip } from './client'
 import { Sparkline } from './Sparkline'
 
@@ -27,8 +28,7 @@ export function TripPage() {
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return
-        if (reason instanceof Error && reason.message === 'missing')
-          setMissing(true)
+        if (isNotFound(reason)) setMissing(true)
         else setError(true)
       })
     return () => controller.abort()

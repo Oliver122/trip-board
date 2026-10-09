@@ -5,3 +5,5 @@ dist
 coverage
 test-results
 playwright-report
+# Claude Code command files and scratch briefs are tool config, not app code.
+.claude

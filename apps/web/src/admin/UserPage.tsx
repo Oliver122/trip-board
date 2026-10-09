@@ -12,6 +12,7 @@ import { megabytes } from '../images/format'
 import { activeLocale } from '../i18n'
 import { activitySentence } from './activity-text'
 import { Sparkline } from './Sparkline'
+import { isNotFound } from '../api/http'
 import { useSession } from '../session'
 import {
   bytesFromMb,
@@ -39,8 +40,7 @@ export function UserPage() {
         setError(false)
       })
       .catch((reason: unknown) => {
-        if (reason instanceof Error && reason.message === 'missing')
-          setMissing(true)
+        if (isNotFound(reason)) setMissing(true)
         else setError(true)
       })
   }
@@ -53,8 +53,7 @@ export function UserPage() {
       })
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return
-        if (reason instanceof Error && reason.message === 'missing')
-          setMissing(true)
+        if (isNotFound(reason)) setMissing(true)
         else setError(true)
       })
     return () => controller.abort()

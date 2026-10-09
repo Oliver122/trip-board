@@ -7,7 +7,12 @@ import {
   CategoryDot,
   CategoryStrip,
 } from './components/category'
-import { EmptyState, ErrorState, LoadingState } from './components/states'
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PanelSkeleton,
+} from './components/states'
 import i18n from './i18n'
 
 describe('state components', () => {
@@ -40,6 +45,14 @@ describe('state components', () => {
     expect(
       screen.getByRole('button', { name: 'Erneut versuchen' }),
     ).toBeInTheDocument()
+  })
+
+  it('T-26-01 PanelSkeleton is a busy status region', () => {
+    render(<PanelSkeleton />)
+    const skeleton = screen.getByTestId('panel-skeleton')
+    expect(skeleton).toHaveAttribute('role', 'status')
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveTextContent('Loading…')
   })
 })
 

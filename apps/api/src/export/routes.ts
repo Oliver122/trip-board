@@ -1,21 +1,18 @@
 import { strictSpotListQuery } from '@tripboard/shared'
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import type { Pool } from 'pg'
-import { z } from 'zod'
 import { requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
 import { deny } from '../http/validate.js'
 import { buildExport, type ExportFormat } from './store.js'
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
 
 export type ExportRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date
 }
-
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
 
 export function registerExportRoutes(
   app: FastifyInstance,
@@ -27,19 +24,17 @@ export function registerExportRoutes(
   app.get('/trips/:id/export', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const format = readFormat(request.query)
     if (!format) {
-      return reply.code(400).send({
-        error: 'invalid_request',
+      return sendError(reply, 400, 'invalid_request', {
         fields: { format: 'invalid' },
       })
     }
     const filters = strictSpotListQuery(request.query)
     if (!filters.ok) {
-      return reply.code(400).send({
-        error: 'invalid_request',
+      return sendError(reply, 400, 'invalid_request', {
         fields: filters.fields,
       })
     }
@@ -69,19 +64,4 @@ function readFormat(query: unknown): ExportFormat | null {
   const format = (query as { format?: unknown }).format
   if (format === 'csv' || format === 'pdf' || format === 'ics') return format
   return null
-}
-
-function parseParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string } | null {
-  const parsed = idSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
 }

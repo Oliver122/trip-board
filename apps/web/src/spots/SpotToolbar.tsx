@@ -20,6 +20,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Select } from '../components/ui/select'
 import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
@@ -285,10 +286,9 @@ export function SpotToolbar({
               </label>
             ))}
           </fieldset>
-          <label className="mt-3 block text-sm font-semibold">
-            {t('board.addedBy')}
-            <select
-              className="mt-1 w-full min-h-11 rounded-[8px] border border-border bg-card px-3 font-normal"
+          <div className="mt-3">
+            <Select
+              label={t('board.addedBy')}
               value={query.by ?? ''}
               onChange={(event) =>
                 onQuery({
@@ -306,12 +306,11 @@ export function SpotToolbar({
               {query.by && !members.some((member) => member.id === query.by) ? (
                 <option value={query.by}>{query.by}</option>
               ) : null}
-            </select>
-          </label>
-          <label className="mt-3 block text-sm font-semibold">
-            {t('board.planEntry')}
-            <select
-              className="mt-1 w-full min-h-11 rounded-[8px] border border-border bg-card px-3 font-normal"
+            </Select>
+          </div>
+          <div className="mt-3">
+            <Select
+              label={t('board.planEntry')}
               value={query.entry ?? ''}
               onChange={(event) =>
                 onQuery({
@@ -330,8 +329,8 @@ export function SpotToolbar({
               !entries.some((entry) => entry.id === query.entry) ? (
                 <option value={query.entry}>{query.entry}</option>
               ) : null}
-            </select>
-          </label>
+            </Select>
+          </div>
           <label className="mt-3 flex min-h-11 items-center gap-2">
             <input
               type="checkbox"

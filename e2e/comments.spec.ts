@@ -1,5 +1,7 @@
 import { expectNoSeriousViolations } from './a11y'
+import { answerConfirm } from './confirm'
 import { expect, test, type BrowserContext, type Page } from './fixtures'
+import { showLocale } from './locale'
 
 // Each test reads and writes one trip; keep the file's tests in order.
 test.describe.configure({ mode: 'serial' })
@@ -141,8 +143,8 @@ test('T-24-15 authors edit and delete their own comments; the owner deletes any'
   await expect(page.getByTestId('comment')).toContainText('Go very early')
   await expect(page.getByTestId('comment')).toContainText('edited')
 
-  page.once('dialog', (dialog) => dialog.accept())
   await discussion.getByRole('button', { name: 'Delete', exact: true }).click()
+  await answerConfirm(page, 'accept')
   await expect(page.getByTestId('comment')).toHaveCount(0)
   await expect(page.getByTestId('discussion-empty')).toBeVisible()
 })
@@ -462,37 +464,21 @@ test('T-24-13 the discussion reads in German for a German member', async ({
   await signIn(page, aikoId)
   await createSpot(page, tripId, title)
   await signIn(page, tomId)
-  await setLocale(page, 'de')
-  try {
-    await page.goto(`/trips/${tripId}`)
-    await page
-      .getByTestId('spot-list')
-      .getByRole('button', { name: new RegExp(title) })
-      .click()
-    const discussion = page.getByTestId('discussion')
-    await expect(discussion.getByText('Diskussion')).toBeVisible()
-    await expect(discussion.getByTestId('discussion-empty')).toContainText(
-      'Noch keine Kommentare',
-    )
-    const field = discussion.getByRole('textbox', {
-      name: 'Kommentar hinzufügen',
-    })
-    await field.fill('Zeile eins\nZeile zwei')
-    await discussion.getByRole('button', { name: 'Senden' }).click()
-    await expect(discussion.getByTestId('comment')).toContainText('Zeile zwei')
-  } finally {
-    await setLocale(page, 'en')
-  }
+  await showLocale(page, 'de')
+  await page.goto(`/trips/${tripId}`)
+  await page
+    .getByTestId('spot-list')
+    .getByRole('button', { name: new RegExp(title) })
+    .click()
+  const discussion = page.getByTestId('discussion')
+  await expect(discussion.getByText('Diskussion')).toBeVisible()
+  await expect(discussion.getByTestId('discussion-empty')).toContainText(
+    'Noch keine Kommentare',
+  )
+  const field = discussion.getByRole('textbox', {
+    name: 'Kommentar hinzufügen',
+  })
+  await field.fill('Zeile eins\nZeile zwei')
+  await discussion.getByRole('button', { name: 'Senden' }).click()
+  await expect(discussion.getByTestId('comment')).toContainText('Zeile zwei')
 })
-
-async function setLocale(page: Page, locale: 'en' | 'de') {
-  await page.evaluate(async (next) => {
-    const response = await fetch('/api/me', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ locale: next }),
-    })
-    if (!response.ok) throw new Error(await response.text())
-  }, locale)
-}

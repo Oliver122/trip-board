@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Select } from '../components/ui/select'
 import { cn } from '../lib/utils'
 import { activeLocale } from '../i18n'
 import { formatDate } from '../lib/format'
@@ -112,25 +113,22 @@ export function InPlans({
               if (event.key === 'Enter') event.preventDefault()
             }}
           >
-            <label htmlFor={entryId} className="block text-sm font-semibold">
-              {t('board.planEntry')}
-              <select
-                id={entryId}
-                className={inputClass}
-                value={chosen}
-                onChange={(event) => {
-                  setChosen(event.target.value)
-                  setVisitDate(null)
-                }}
-              >
-                <option value="">{t('board.chooseEntry')}</option>
-                {entries.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select
+              id={entryId}
+              label={t('board.planEntry')}
+              value={chosen}
+              onChange={(event) => {
+                setChosen(event.target.value)
+                setVisitDate(null)
+              }}
+            >
+              <option value="">{t('board.chooseEntry')}</option>
+              {entries.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </Select>
             {entry && entry.type === 'bucket' ? (
               <VisitDatePicker
                 start={entry.startDate}

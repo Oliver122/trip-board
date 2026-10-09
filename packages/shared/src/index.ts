@@ -301,3 +301,5 @@ export type {
   QuotaRequestCreate,
   SettingsPatch,
 } from './admin.js'
+export { apiErrorBodySchema } from './errors.js'
+export type { ApiErrorBody } from './errors.js'

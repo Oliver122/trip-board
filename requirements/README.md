@@ -45,6 +45,8 @@ flowchart LR
     S07 --> S23[23 Google Maps import]
     S17 --> S23
     S19 --> S23
+    S23 --> S26[26 Menu cleanup & core hardening]
+    S26 --> S27[27 Stable cleanup e2e tests]
 ```
 
 | # | Step | Result you can check |
@@ -73,6 +75,8 @@ flowchart LR
 | 21 | [CI/CD](./21-ci-cd.md) | Pull requests run e2e on Chromium, Firefox and WebKit with a downloadable report; merge needs a green `ci-passed`; each merge to `main` deploys |
 | 22 | [Local dev login](./22-local-dev-login.md) | `pnpm dev:local`, click “Sven (admin)” on the login page, land in the admin area without Discord |
 | 23 | [Google Maps import](./23-google-maps-import.md) | Drop a Google Takeout list CSV on the board, check the preview, and its places appear as spots |
+| 26 | [Menu cleanup & core hardening](./26-menu-cleanup-core-hardening.md) | All dialogs, menus, confirms and selects share one component; one web error/request path and one API role/param/error helper; guards fail CI on duplicates |
+| 27 | [Stable cleanup e2e tests](./27-e2e-stability.md) | `e2e/cleanup.spec.ts` passes every test in 10 repeats and next to the full suite; root causes written down; prettier and report gaps closed |
 
 Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any order. Step 16 can come before 15.
 

@@ -12,7 +12,9 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
+import { Select } from '../components/ui/select'
 import { activeLocale } from '../i18n'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
@@ -77,6 +79,7 @@ export function SpotPanel({
   focusDiscussion?: boolean
 }) {
   const { t, i18n } = useTranslation()
+  const confirm = useConfirm()
   const { imageRevision } = useTripData()
   const phone = useMediaQuery(phoneQuery)
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
@@ -158,13 +161,22 @@ export function SpotPanel({
         )
       : []
 
-  function changeCategory(value: string) {
+  async function changeCategory(value: string) {
     const next = value as SpotCategory
     const leavingHome =
       draft.baseCategory === 'home' &&
       next !== 'home' &&
       (draft.stayFrom !== '' || draft.stayTo !== '' || draft.primary)
-    if (leavingHome && !window.confirm(t('board.clearStay'))) return
+    if (
+      leavingHome &&
+      !(await confirm({
+        title: t('confirm.clearStayTitle'),
+        message: t('board.clearStay'),
+        confirmLabel: t('confirm.clearStayAction'),
+        danger: true,
+      }))
+    )
+      return
     onDraft({
       ...draft,
       baseCategory: next,
@@ -249,22 +261,19 @@ export function SpotPanel({
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-40 flex-1">
-              <label htmlFor={categoryId} className="mb-1 block">
-                {t('board.category')}
-              </label>
-              <select
+              <Select
                 id={categoryId}
+                label={t('board.category')}
                 value={draft.baseCategory}
                 disabled={readOnly}
-                onChange={(event) => changeCategory(event.target.value)}
-                className={inputClass}
+                onChange={(event) => void changeCategory(event.target.value)}
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
                     {t(`category.${pinCategory(category)}`)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {spot && spot.displayCategory === 'planned' ? (
               <p className="pb-3">

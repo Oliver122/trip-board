@@ -32,6 +32,20 @@
     "error": "Etwas ist schiefgelaufen. Versuch es noch einmal.",
     "retry": "Erneut versuchen"
   },
+  "ui": {
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "menu": "Menü"
+  },
+  "confirm": {
+    "discardTitle": "Änderungen verwerfen?",
+    "discardAction": "Verwerfen",
+    "clearStayTitle": "Kategorie ändern?",
+    "clearStayAction": "Ändern",
+    "deleteCommentTitle": "Kommentar löschen?",
+    "deleteAction": "Löschen"
+  },
   "home": {
     "placeholder": "Platzhalter. Die Karte kommt in einem späteren Schritt.",
     "healthOk": "API ok",

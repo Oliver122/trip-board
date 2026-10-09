@@ -1,4 +1,5 @@
 import { expectNoSeriousViolations } from './a11y'
+import { answerConfirm } from './confirm'
 import { expect, test, type Page } from './fixtures'
 import { waitForMap } from './map'
 
@@ -167,11 +168,11 @@ test('T-07-08 unsaved changes ask before closing', async ({ page }) => {
   await page.goto(`/trips/${tripId}`)
   await page.getByTestId('add-new').click()
   await titleField(page).fill('Draft')
-  page.once('dialog', (dialog) => dialog.dismiss())
   await page.keyboard.press('Escape')
+  await answerConfirm(page, 'dismiss')
   await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
-  page.once('dialog', (dialog) => dialog.accept())
   await page.keyboard.press('Escape')
+  await answerConfirm(page, 'accept')
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 

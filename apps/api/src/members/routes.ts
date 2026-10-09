@@ -30,6 +30,8 @@ import {
   updateMemberRole,
   type MemberFailure,
 } from './store.js'
+import { sendError } from '../http/errors.js'
+import { idUserParams, parseParams } from '../http/params.js'
 
 export type MemberRouteOptions = {
   pool: Pool
@@ -49,12 +51,7 @@ const idSchema = z.object({
   id: z.string().uuid({ message: 'invalid' }),
 })
 
-const memberParamsSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-  userId: z.string().uuid({ message: 'invalid' }),
-})
-
-const codeSchema = z.object({
+const codeParams = z.object({
   code: z.string().regex(inviteCodePattern, { message: 'invalid' }),
 })
 
@@ -79,9 +76,9 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseMemberParams(request.params, reply)
+    const params = parseParams(idUserParams, request.params, reply, 'id')
     if (!params) return
     const input = parseBody(
       patchMemberSchema,
@@ -105,9 +102,9 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseMemberParams(request.params, reply)
+    const params = parseParams(idUserParams, request.params, reply, 'id')
     if (!params) return
     const result = await removeMember(pool, user.id, params.id, params.userId)
     if (!result.ok) return sendFailure(reply, result)
@@ -118,7 +115,7 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const params = parseId(request.params, reply)
     if (!params) return
@@ -131,7 +128,7 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const params = parseId(request.params, reply)
     if (!params) return
@@ -166,7 +163,7 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const params = parseId(request.params, reply)
     if (!params) return
@@ -192,7 +189,7 @@ export function registerMemberRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const params = parseId(request.params, reply)
     if (!params) return
@@ -202,35 +199,35 @@ export function registerMemberRoutes(
   })
 
   app.get('/join/:code', async (request, reply) => {
-    const params = parseCode(request.params, reply)
+    const params = parseParams(codeParams, request.params, reply)
     if (!params) return
     if (!limiter.allow(request.ip, now())) {
-      return reply.code(429).send({ error: 'rate_limited' })
+      return sendError(reply, 429, 'rate_limited')
     }
     const result = await previewInvite(pool, params.code, now())
     const bot = isPreviewBot(headerValue(request.headers['user-agent']))
     if (!result.ok) {
       if (bot) return html(reply, result.status, null)
-      return reply.code(result.status).send({ error: result.reason })
+      return sendError(reply, result.status, result.reason)
     }
     if (bot) return html(reply, 200, result.preview.tripName)
     return joinPreviewSchema.parse(result.preview)
   })
 
   app.post('/join/:code', async (request, reply) => {
-    const params = parseCode(request.params, reply)
+    const params = parseParams(codeParams, request.params, reply)
     if (!params) return
     if (!limiter.allow(request.ip, now())) {
-      return reply.code(429).send({ error: 'rate_limited' })
+      return sendError(reply, 429, 'rate_limited')
     }
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const result = await joinTrip(pool, user.id, params.code, now())
     if (!result.ok) {
-      return reply.code(result.status).send({ error: result.reason })
+      return sendError(reply, result.status, result.reason)
     }
     return joinResultSchema.parse({ tripId: result.tripId })
   })
@@ -245,14 +242,10 @@ function html(reply: FastifyReply, status: number, tripName: string | null) {
 
 function sendFailure(reply: FastifyReply, result: MemberFailure) {
   if (result.status === 400) {
-    return reply.code(400).send({
-      error: 'invalid_request',
-      fields: result.fields,
-    })
+    return sendError(reply, 400, 'invalid_request', { fields: result.fields })
   }
   if (result.status === 409) {
-    return reply.code(409).send({
-      error: 'conflict',
+    return sendError(reply, 409, 'conflict', {
       message: result.message ?? 'conflict',
     })
   }
@@ -262,40 +255,7 @@ function sendFailure(reply: FastifyReply, result: MemberFailure) {
 function parseId(params: unknown, reply: FastifyReply): { id: string } | null {
   const parsed = idSchema.safeParse(params)
   if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
-}
-
-function parseMemberParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string; userId: string } | null {
-  const parsed = memberParamsSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
-}
-
-function parseCode(
-  params: unknown,
-  reply: FastifyReply,
-): { code: string } | null {
-  const parsed = codeSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { code: 'invalid' },
-    })
+    sendError(reply, 400, 'invalid_request', { fields: { id: 'invalid' } })
     return null
   }
   return parsed.data

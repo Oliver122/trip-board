@@ -3,12 +3,10 @@ import {
   spotListSearchParams,
   type SpotListQuery,
 } from '@tripboard/shared'
-import { X } from 'lucide-react'
-import { hoverClass } from '../components/ui/hover'
-import { cn } from '../lib/utils'
-import { useEffect, useId, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { buttonVariants } from '../components/ui/button'
+import { Modal } from '../components/ui/modal'
 
 type Scope = 'full' | 'view'
 type Format = 'csv' | 'pdf' | 'ics'
@@ -33,18 +31,9 @@ export function ExportDialog({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const titleId = useId()
   const [scope, setScope] = useState<Scope>('full')
   const [format, setFormat] = useState<Format>('csv')
   const filters = activeFilterCount(query)
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   const params =
     scope === 'view'
@@ -53,32 +42,23 @@ export function ExportDialog({
   params.set('format', format)
 
   return (
-    <div
-      className="fixed inset-0 z-40 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
-      onMouseDown={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="relative w-full max-w-md rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-w-none max-sm:rounded-none"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id={titleId} className="pr-10 text-lg font-semibold">
-          {t('board.exportTitle', { name: tripName })}
-        </h2>
-        <button
-          type="button"
-          className={cn(
-            hoverClass.ghost,
-            'absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-[8px]',
-          )}
-          aria-label={t('board.close')}
-          onClick={onClose}
+    <Modal
+      title={t('board.exportTitle', { name: tripName })}
+      closeLabel={t('board.close')}
+      size="sm"
+      onClose={onClose}
+      footer={
+        <a
+          className={buttonVariants({ variant: 'outline' })}
+          href={`/api/trips/${tripId}/export?${params.toString()}`}
+          download={exportDownloadName(tripName, timeZone, format)}
         >
-          <X aria-hidden="true" className="size-4" />
-        </button>
-        <fieldset className="m-0 mt-4 border-0 p-0">
+          {t('board.download')}
+        </a>
+      }
+    >
+      <div className="px-4 py-4">
+        <fieldset className="m-0 border-0 p-0">
           <legend className="mb-2 text-sm font-semibold">
             {t('board.exportScope')}
           </legend>
@@ -117,17 +97,8 @@ export function ExportDialog({
             </label>
           ))}
         </fieldset>
-        <div className="mt-4 flex justify-end">
-          <a
-            className={buttonVariants({ variant: 'outline' })}
-            href={`/api/trips/${tripId}/export?${params.toString()}`}
-            download={exportDownloadName(tripName, timeZone, format)}
-          >
-            {t('board.download')}
-          </a>
-        </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

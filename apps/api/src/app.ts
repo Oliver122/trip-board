@@ -23,6 +23,7 @@ import { registerMemberRoutes } from './members/routes.js'
 import { registerCommentRoutes } from './comments/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
+import { sendError } from './http/errors.js'
 
 export type BuildAppOptions = {
   config?: AppConfig
@@ -55,10 +56,10 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     const statusCode = statusCodeOf(error)
     if (statusCode < 500) {
       const message = error instanceof Error ? error.message : 'error'
-      return reply.code(statusCode).send({ error: message })
+      return sendError(reply, statusCode, message)
     }
     request.log.error({ requestId: request.id, err: error }, 'internal')
-    return reply.code(500).send({ error: 'internal', requestId: request.id })
+    return sendError(reply, 500, 'internal', { requestId: request.id })
   })
 
   app.addHook('onRequest', async (request, reply) => {
@@ -75,7 +76,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     const decision = limiter.check(key, now())
     if (!decision.ok) {
       reply.header('retry-after', String(decision.retryAfter))
-      return reply.code(429).send({ error: 'rate_limited' })
+      return sendError(reply, 429, 'rate_limited')
     }
   })
 

@@ -16,6 +16,8 @@ import {
   markTripRead,
   updateComment,
 } from './store.js'
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
 
 export type CommentRouteOptions = {
   pool: Pool
@@ -25,10 +27,6 @@ export type CommentRouteOptions = {
 }
 
 const knownMessages = new Set(['empty', 'too_long', 'invalid'])
-
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
 
 const cursorSchema = z.object({
   cursor: z.string().optional(),
@@ -45,7 +43,7 @@ export function registerCommentRoutes(
   app.get('/spots/:id/comments', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const query = cursorSchema.safeParse(request.query)
     if (!query.success) return invalidRequest(reply, 'cursor')
@@ -63,9 +61,9 @@ export function registerCommentRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       commentBodySchema,
@@ -77,7 +75,7 @@ export function registerCommentRoutes(
     const decision = limiter.check(user.id, now())
     if (!decision.ok) {
       reply.header('retry-after', String(decision.retryAfter))
-      return reply.code(429).send({ error: 'rate_limited' })
+      return sendError(reply, 429, 'rate_limited')
     }
     const result = await createComment(pool, user.id, params.id, input.body)
     if (!result.ok) return deny(reply, result.status)
@@ -88,9 +86,9 @@ export function registerCommentRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       commentBodySchema,
@@ -108,9 +106,9 @@ export function registerCommentRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await deleteComment(pool, user.id, params.id)
     if (!result.ok) return deny(reply, result.status)
@@ -121,9 +119,9 @@ export function registerCommentRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const input = parseBody(
       commentReadSchema,
@@ -140,7 +138,7 @@ export function registerCommentRoutes(
   app.get('/trips/:id/news', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await listNews(pool, params.id, user.id)
     if (!result.ok) return deny(reply, result.status)
@@ -151,9 +149,9 @@ export function registerCommentRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await markTripRead(pool, user.id, params.id)
     if (!result.ok) return deny(reply, result.status)
@@ -162,23 +160,7 @@ export function registerCommentRoutes(
 }
 
 function invalidRequest(reply: FastifyReply, field: string) {
-  return reply.code(400).send({
-    error: 'invalid_request',
+  return sendError(reply, 400, 'invalid_request', {
     fields: { [field]: 'invalid' },
   })
-}
-
-function parseParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string } | null {
-  const parsed = idSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
 }

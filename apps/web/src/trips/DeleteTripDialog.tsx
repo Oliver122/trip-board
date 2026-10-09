@@ -3,8 +3,9 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
-import { AuthError, deleteTrip } from './client'
-import { DialogFrame } from './CreateTripDialog'
+import { isAuth } from '../api/http'
+import { deleteTrip } from './client'
+import { Modal } from '../components/ui/modal'
 
 export function DeleteTripDialog({
   trip,
@@ -19,6 +20,7 @@ export function DeleteTripDialog({
 }) {
   const { t } = useTranslation()
   const inputId = useId()
+  const formId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const alive = useRef(true)
   const [typed, setTyped] = useState('')
@@ -55,7 +57,7 @@ export function DeleteTripDialog({
       onDeleted()
     } catch (caught) {
       if (!alive.current) return
-      if (caught instanceof AuthError) {
+      if (isAuth(caught)) {
         onUnauthorized()
         return
       }
@@ -65,8 +67,32 @@ export function DeleteTripDialog({
   }
 
   return (
-    <DialogFrame title={t('trips.delete')} onClose={onClose}>
-      <form onSubmit={(event) => void onSubmit(event)}>
+    <Modal
+      title={t('trips.delete')}
+      size="md"
+      onClose={onClose}
+      initialFocus={inputRef}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('trips.cancel')}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            variant="dangerSolid"
+            disabled={!matches || saving}
+          >
+            {t('trips.delete')}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id={formId}
+        className="p-4"
+        onSubmit={(event) => void onSubmit(event)}
+      >
         <label htmlFor={inputId} className="mb-1 block">
           {t('trips.confirmName')}
         </label>
@@ -80,19 +106,7 @@ export function DeleteTripDialog({
             autoComplete="off"
           />
         </FieldError>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            {t('trips.cancel')}
-          </Button>
-          <Button
-            type="submit"
-            variant="dangerSolid"
-            disabled={!matches || saving}
-          >
-            {t('trips.delete')}
-          </Button>
-        </div>
       </form>
-    </DialogFrame>
+    </Modal>
   )
 }
