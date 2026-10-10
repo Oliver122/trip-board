@@ -15,10 +15,6 @@ const csv = [
   `${fushimiInari},"https://maps.google.com/@34.967,135.772,15z"`,
 ].join('\r\n')
 
-// Aiko's language is stored on her account, so the English and German runs
-// must not overlap.
-test.describe.configure({ mode: 'serial' })
-
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await mockGeocode(page)
@@ -59,8 +55,11 @@ async function run(
     importCount: string
   },
 ) {
-  const tripId = await newTrip(browser)
-  await login(page, aikoId)
+  // The language is stored on the account, so these runs plan as a user of
+  // their own; switching the shared Aiko would race specs that expect English.
+  const plannerId = `9${Date.now()}${Math.floor(Math.random() * 1e4)}`
+  const tripId = await newTrip(browser, plannerId)
+  await login(page, plannerId)
   await setLocale(page, locale)
   await page.goto(`/trips/${tripId}`)
   // The duplicate check reads the spots the board has loaded by now.
@@ -264,7 +263,7 @@ async function setLocale(page: Page, locale: 'en' | 'de') {
 // trip the other specs count, and a second import of the same file would
 // flag the first one's spots as duplicates. Aiko plans it, Tom only visits,
 // and Fushimi Inari is already on it so the CSV has a duplicate row.
-async function newTrip(browser: Browser): Promise<string> {
+async function newTrip(browser: Browser, plannerId = aikoId): Promise<string> {
   const sven = await newSession(browser, svenId)
   const created = await sven.page.evaluate(async (title) => {
     const post = async (path: string, body: unknown) => {
@@ -302,7 +301,7 @@ async function newTrip(browser: Browser): Promise<string> {
   await sven.context.close()
 
   for (const [discordId, code] of [
-    [aikoId, created.planner],
+    [plannerId, created.planner],
     [tomId, created.visitor],
   ] as const) {
     const member = await newSession(browser, discordId)
