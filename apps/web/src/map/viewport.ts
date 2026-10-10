@@ -23,7 +23,16 @@ const schedulePattern = new RegExp(`^#s/(${number})/(${number})/(${number})$`)
  * One map instance now outlives both pages. A `moveend` is tagged with the
  * page that started the gesture. Writing it after a tab switch would store
  * the old camera under the new page's hash, so mismatched scopes write nothing.
+ *
+ * The map also stays mounted, hidden, under trip settings, and a resize there
+ * or right after leaving the trip still ends in a `moveend`. Only the page a
+ * scope belongs to gets its hash, so settings and /trips stay clean.
  */
+const scopePages: Record<ViewportScope, RegExp> = {
+  board: /^\/trips\/[^/]+\/?$/,
+  schedule: /^\/trips\/[^/]+\/schedule\/?$/,
+}
+
 export const viewportTransitionMs = 500
 
 /** Animated tab changes use ~500 ms. Reduced motion jumps in the same frame. */
@@ -44,6 +53,7 @@ export function rememberViewport(input: {
   persistBoard: boolean
 } | null {
   if (input.eventScope !== input.activeScope) return null
+  if (!scopePages[input.activeScope].test(input.pathname)) return null
   const view = roundViewport(input.view)
   const hash = formatViewportHash(view, input.activeScope)
   return {
