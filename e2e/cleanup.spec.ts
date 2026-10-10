@@ -359,20 +359,17 @@ test('T-26-10 a 401 from the API sends the user to the login page', async ({
   await expect(page).toHaveURL(/\/login/)
 })
 
+// One test per modal, plus one for the menu and selects, so each stays well
+// inside the 30 s test timeout on headed Firefox in CI.
 for (const locale of ['en', 'de'] as const) {
-  test(`T-26-15 shared dialogs, menu and selects have no serious a11y issues in ${locale}`, async ({
-    page,
-  }) => {
-    // Every modal, the menu, the board and the selects each get an axe run.
-    // Headed Firefox on software GL needs ~27s locally and more on CI.
-    test.setTimeout(90_000)
-    await page.setViewportSize({ width: 1280, height: 800 })
-    await login(page, freshDiscordId())
-    await setLocale(page, locale)
-    const tripId = await createTrip(page, `Axe ${locale}`)
-    const spotId = await createSpot(page, tripId, 'Axe spot')
-
-    for (const name of modalNames) {
+  for (const name of modalNames) {
+    test(`T-26-15 the ${name} dialog has no serious a11y issues in ${locale}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 800 })
+      await login(page, freshDiscordId())
+      await setLocale(page, locale)
+      const tripId = await createTrip(page, `Axe ${name} ${locale}`)
       const dialog = await openModal(page, tripId, name, 1280)
       await expect(dialog).toBeVisible()
       await expectNoSeriousViolations(page, {
@@ -381,7 +378,17 @@ for (const locale of ['en', 'de'] as const) {
       })
       await page.keyboard.press('Escape')
       await expect(dialog).toHaveCount(0)
-    }
+    })
+  }
+
+  test(`T-26-15 the shared menu and selects have no serious a11y issues in ${locale}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await login(page, freshDiscordId())
+    await setLocale(page, locale)
+    const tripId = await createTrip(page, `Axe ${locale}`)
+    const spotId = await createSpot(page, tripId, 'Axe spot')
 
     await page.goto('/trips')
     await page

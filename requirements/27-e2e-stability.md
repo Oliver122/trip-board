@@ -39,6 +39,6 @@ Suspects to confirm or rule out, not assume: tests running in parallel share use
 | T-27-05 | e2e | R-27-05 | `pnpm test:e2e e2e/cleanup.spec.ts -g "401" --repeat-each=20 --project=chromium` passes 20 of 20 |
 | T-27-06 | e2e | R-27-06 | The `T-26-16` test exists in `cleanup.spec.ts` and passes in en and de; removing one de key makes it fail |
 | T-27-07 | ci | R-27-07 | `pnpm exec prettier --check .` exits 0 |
-| T-27-08 | e2e | R-27-02, R-27-03, R-27-08 | `pnpm test:e2e e2e/cleanup.spec.ts --project=chromium --repeat-each=10` passes every test in all 10 repeats (16 tests: 160 of 160, plus the dev-login teardown); then the full suite with `cleanup.spec.ts` included passes three times in a row |
+| T-27-08 | e2e | R-27-02, R-27-03, R-27-08 | `pnpm test:e2e e2e/cleanup.spec.ts --project=chromium --repeat-each=10` passes every test in all 10 repeats (26 tests: 260 of 260, plus the dev-login teardown); then the full suite with `cleanup.spec.ts` included passes three times in a row |
 | T-27-09 | e2e | R-27-09 | `pnpm test:e2e e2e/cleanup.spec.ts --project=firefox --project=webkit` passes (excluding documented `@chromium` tests) |
 | T-27-10 | manual | R-27-09 | Each shared component in the T-26-17 list appears in `docs/DESIGN.md` "Components" with usage guidance and a file link; the checker ticks them off in the report |
