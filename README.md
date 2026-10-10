@@ -179,27 +179,28 @@ The dashboard reads `GET /admin/stats` and `GET /admin/metrics`, and shows how m
 
 ## Scripts
 
-| Script              | What it does                                                                                                                                                    |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`          | Starts the Vite web app and the Fastify API together                                                                                                            |
-| `pnpm dev:local`    | Same ports as `pnpm dev`, with `DEV_LOGIN=1`, so the login page can sign in as Sven, Aiko, or Tom without Discord                                               |
-| `pnpm build`        | Typechecks the API and shared package, and builds the web app                                                                                                   |
-| `pnpm lint`         | ESLint and Prettier                                                                                                                                             |
-| `pnpm typecheck`    | `tsc --noEmit` in each package                                                                                                                                  |
-| `pnpm test`         | Unit and API tests (Vitest). The Postgres-up health test runs when `DATABASE_URL` is set                                                                        |
-| `pnpm test:e2e`     | Playwright on Chromium, Firefox, WebKit, and an iPhone 14 viewport. One project: `pnpm test:e2e --project=firefox` after `pnpm exec playwright install firefox` |
-| `pnpm check:bundle` | Fails when the first-route JS bundle exceeds 250 kB gzip, or the map library is in that bundle                                                                  |
-| `pnpm db:migrate`   | Applies the Drizzle table migration and the rules migration (triggers, views, trigram index)                                                                    |
-| `pnpm db:seed`      | Loads the Japan 2026 seed (3 users, 1 trip, 6 spots, 90 days of activity and metrics). Safe to run again                                                        |
-| `pnpm db:check`     | Migrates a temporary database and runs `docs/database/checks.sql` (42 `ok` lines)                                                                               |
-| `pnpm db:metrics`   | Backfills missing `metrics_daily` rows through yesterday (UTC)                                                                                                  |
-| `pnpm push`         | Runs `scripts/deploy.sh` with the local `deploy.env` (see CI/CD and deployment)                                                                                 |
+| Script                 | What it does                                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`             | Starts the Vite web app and the Fastify API together                                                                                                                           |
+| `pnpm dev:local`       | Same ports as `pnpm dev`, with `DEV_LOGIN=1`, so the login page can sign in as Sven, Aiko, or Tom without Discord                                                              |
+| `pnpm build`           | Typechecks the API and shared package, and builds the web app                                                                                                                  |
+| `pnpm lint`            | ESLint and Prettier                                                                                                                                                            |
+| `pnpm typecheck`       | `tsc --noEmit` in each package                                                                                                                                                 |
+| `pnpm test`            | Unit and API tests (Vitest). The Postgres-up health test runs when `DATABASE_URL` is set                                                                                       |
+| `pnpm test:e2e`        | Playwright on Chromium, Firefox, WebKit, and an iPhone 14 viewport. One project: `pnpm test:e2e --project=firefox` after `pnpm exec playwright install firefox`                |
+| `pnpm test:e2e:docker` | The whole Playwright suite in the Playwright Docker image, as CI runs it: fresh Postgres and MinIO, seeded data, headed Firefox under Xvfb. Extra args go to `playwright test` |
+| `pnpm check:bundle`    | Fails when the first-route JS bundle exceeds 250 kB gzip, or the map library is in that bundle                                                                                 |
+| `pnpm db:migrate`      | Applies the Drizzle table migration and the rules migration (triggers, views, trigram index)                                                                                   |
+| `pnpm db:seed`         | Loads the Japan 2026 seed (3 users, 1 trip, 6 spots, 90 days of activity and metrics). Safe to run again                                                                       |
+| `pnpm db:check`        | Migrates a temporary database and runs `docs/database/checks.sql` (42 `ok` lines)                                                                                              |
+| `pnpm db:metrics`      | Backfills missing `metrics_daily` rows through yesterday (UTC)                                                                                                                 |
+| `pnpm push`            | Runs `scripts/deploy.sh` with the local `deploy.env` (see CI/CD and deployment)                                                                                                |
 
 ## CI/CD and deployment
 
 [Step 21](requirements/21-ci-cd.md) defines the pipeline in `.github/workflows/ci.yml`. Every pull request runs `static` (migrate, `db:check`, lint, typecheck, unit and API tests), `build` (`pnpm build`, `pnpm check:bundle`), and Playwright once per project: `chromium`, `firefox`, `webkit` (the Safari engine), and `mobile`. A green Playwright run does not prove the build: e2e runs against the Vite dev server and `tsx`, which neither type-check nor bundle, so `build` is a separate required job.
 
-The `e2e-report` job merges all browsers into one HTML report, uploaded as the `playwright-report` artifact for 14 days, also when tests fail. Download it from the run page, unzip it, and open it with `pnpm exec playwright show-report <folder>`. To run one browser locally, run `pnpm exec playwright install firefox`, then `pnpm test:e2e --project=firefox`.
+The `e2e-report` job merges all browsers into one HTML report, uploaded as the `playwright-report` artifact for 14 days, also when tests fail. Download it from the run page, unzip it, and open it with `pnpm exec playwright show-report <folder>`. To run one browser locally, run `pnpm exec playwright install firefox`, then `pnpm test:e2e --project=firefox`. To reproduce a CI failure, use `pnpm test:e2e:docker` (for example `pnpm test:e2e:docker e2e/cleanup.spec.ts --project=firefox`). It needs only Docker, keeps clear of the dev stack, and ignores the local `.env`.
 
 `ci-passed` succeeds only when every other check succeeded. It is the only required check. Set up a ruleset on `main` under **Settings → Rules → Rulesets** with these rules: require a pull request before merging, require the status check `ci-passed`, require the branch to be up to date, block force pushes and deletion, and leave the bypass list empty.
 
