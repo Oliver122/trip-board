@@ -363,6 +363,9 @@ for (const locale of ['en', 'de'] as const) {
   test(`T-26-15 shared dialogs, menu and selects have no serious a11y issues in ${locale}`, async ({
     page,
   }) => {
+    // Every modal, the menu, the board and the selects each get an axe run.
+    // Headed Firefox on software GL needs ~27s locally and more on CI.
+    test.setTimeout(90_000)
     await page.setViewportSize({ width: 1280, height: 800 })
     await login(page, freshDiscordId())
     await setLocale(page, locale)
