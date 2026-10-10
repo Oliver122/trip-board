@@ -1,4 +1,4 @@
-import { joinPreviewSchema, type JoinPreview } from '@tripboard/shared'
+import { type JoinPreview } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
@@ -7,9 +7,9 @@ import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button, buttonVariants } from '../components/ui/button'
 import { cn } from '../lib/utils'
-import { acceptJoin } from '../members/client'
+import { ApiError, isAuth } from '../api/http'
+import { acceptJoin, previewJoin } from '../members/client'
 import { useSession } from '../session'
-import { AuthError } from '../trips/client'
 import { roleName } from '../trips/TripCard'
 
 type JoinState = 'loading' | 'ready' | 'expired' | 'unknown' | 'error'
@@ -30,25 +30,22 @@ export function JoinPage() {
     setState('loading')
     setPreview(null)
     setJoinError('')
-    void fetch(`/api/join/${encodeURIComponent(code)}`, {
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (response.status === 410) {
-          setState('expired')
-          return
-        }
-        if (response.status === 404 || response.status === 400) {
-          setState('unknown')
-          return
-        }
-        if (!response.ok) throw new Error('load')
-        setPreview(joinPreviewSchema.parse(await response.json()))
+    void previewJoin(code, controller.signal)
+      .then((next) => {
+        setPreview(next)
         setState('ready')
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         if (error instanceof Error && error.name === 'AbortError') return
+        if (error instanceof ApiError && error.status === 410) {
+          setState('expired')
+          return
+        }
+        if (error instanceof ApiError && [400, 404].includes(error.status)) {
+          setState('unknown')
+          return
+        }
         setState('error')
       })
     return () => controller.abort()
@@ -61,7 +58,7 @@ export function JoinPage() {
       const tripId = await acceptJoin(code)
       navigate(`/trips/${tripId}`)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         session.reload()
         return
       }

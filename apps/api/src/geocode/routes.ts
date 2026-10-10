@@ -17,6 +17,7 @@ import {
   GeocodeNotFoundError,
   GeocodeUpstreamError,
 } from './store.js'
+import { sendError } from '../http/errors.js'
 
 export type GeocodeRouteOptions = {
   pool: Pool
@@ -107,8 +108,7 @@ export function registerGeocodeRoutes(
     const query = oneQuery(request.query)
     const parsed = searchSchema.safeParse(query)
     if (!parsed.success) {
-      return reply.code(400).send({
-        error: 'invalid_request',
+      return sendError(reply, 400, 'invalid_request', {
         fields: fieldErrors(parsed.error, knownMessages),
       })
     }
@@ -134,8 +134,7 @@ export function registerGeocodeRoutes(
     const query = oneQuery(request.query)
     const parsed = reverseSchema.safeParse(query)
     if (!parsed.success) {
-      return reply.code(400).send({
-        error: 'invalid_request',
+      return sendError(reply, 400, 'invalid_request', {
         fields: fieldErrors(parsed.error, knownMessages),
       })
     }
@@ -158,10 +157,10 @@ async function run(
     return await load()
   } catch (error) {
     if (error instanceof GeocodeNotFoundError) {
-      return reply.code(404).send({ error: 'not_found' })
+      return sendError(reply, 404, 'not_found')
     }
     if (error instanceof GeocodeUpstreamError) {
-      return reply.code(502).send({ error: 'geocode_unavailable' })
+      return sendError(reply, 502, 'geocode_unavailable')
     }
     throw error
   }

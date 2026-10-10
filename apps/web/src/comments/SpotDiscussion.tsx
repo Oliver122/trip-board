@@ -2,8 +2,10 @@ import type { Comment, Spot } from '@tripboard/shared'
 import { commentLimits } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { isAuth } from '../api/http'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { useSession } from '../session'
@@ -39,6 +41,7 @@ export function SpotDiscussion({
   focusOnMount?: boolean
 }) {
   const { t, i18n } = useTranslation()
+  const confirm = useConfirm()
   const { user } = useSession()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const headingId = useId()
@@ -79,7 +82,7 @@ export function SpotDiscussion({
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof Error && error.name === 'AuthError') return
+        if (isAuth(error)) return
         setLoadFailed(true)
       })
     return () => controller.abort()
@@ -200,7 +203,13 @@ export function SpotDiscussion({
   }
 
   async function remove(comment: Comment) {
-    if (!window.confirm(t('comments.confirmDelete'))) return
+    const ok = await confirm({
+      title: t('confirm.deleteCommentTitle'),
+      message: t('comments.confirmDelete'),
+      confirmLabel: t('confirm.deleteAction'),
+      danger: true,
+    })
+    if (!ok) return
     try {
       await deleteComment(comment.id)
       setComments((current) =>

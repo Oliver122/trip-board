@@ -510,6 +510,25 @@ flowchart LR
 
 ---
 
+## Components
+
+Shared UI pieces live in `apps/web/src/components/`. **Rule: reuse a shared component before adding a variant.** If none fits, extend the shared one (a prop, not a copy) and update this table. `apps/web/src/structure-lint.test.ts` fails CI on `window.confirm`, `fixed inset-0` outside the modal, a raw `<select` outside the shared select, and `fetch(` outside `api/`.
+
+| Component | File | Use when | Props summary |
+| --- | --- | --- | --- |
+| Button | [`components/ui/button.tsx`](../apps/web/src/components/ui/button.tsx) | Any clickable action; `buttonVariants()` for links styled as buttons; hover classes in `ui/hover.ts` | `variant` (primary, secondary, ghost, dangerSolid, …), `size`, native button props |
+| Modal | [`components/ui/modal.tsx`](../apps/web/src/components/ui/modal.tsx) | Every dialog: forms, export/import, members, conflict. Centered above 640 px, full-screen below; `variant="side"` for the spot panel (`spots/Dialog.tsx` wraps it) | `title`, `onClose`, `size` (sm/md/lg), `variant` (center/side), `layer` (panel 20 / modal 40 / top 50), `footer`, `closeOnBackdrop`, `initialFocus`, `testId` |
+| Menu | [`components/ui/menu.tsx`](../apps/web/src/components/ui/menu.tsx) | A trigger that opens a short list of actions or links (avatar menu) | `Menu`: `label`, `trigger`, `align`; children `MenuItem` (`onSelect`, `danger`) and `MenuLink` (`to`) |
+| Confirm | [`components/ui/confirm.tsx`](../apps/web/src/components/ui/confirm.tsx) | Any "are you sure?" question; never `window.confirm`. Use `danger` for destructive actions | `useConfirm()` returns `(opts: { title, message?, confirmLabel?, cancelLabel?, danger? }) => Promise<boolean>`; `ConfirmProvider` is mounted once in `App.tsx` |
+| Select | [`components/ui/select.tsx`](../apps/web/src/components/ui/select.tsx) | Choosing one of a few options; keeps the native picker | native select props plus `label`, `hideLabel`, `wrapperClassName` |
+| Notice | [`components/notice.tsx`](../apps/web/src/components/notice.tsx) | Inline form feedback: `FieldError` under a field, `ErrorNotice` for a failed action | `message`, optional `id` / retry handler |
+| Toast | [`components/Toast.tsx`](../apps/web/src/components/Toast.tsx) | Short, non-blocking result messages (saved, deleted by someone else) | `ToastMessage` (`text`, `tone`) |
+| States | [`components/states.tsx`](../apps/web/src/components/states.tsx) | Anything that fetches: `LoadingState`, `EmptyState`, `ErrorState`, and `PanelSkeleton` (the one skeleton, `aria-busy`) for panels | `label` / `title` / `retry` |
+| Avatar group | `MemberAvatars` in [`trips/TripCard.tsx`](../apps/web/src/trips/TripCard.tsx) | Showing who is on a trip: overlapping faces with a "+N" overflow and a spoken group label | `members`, `max` |
+| Category badge | [`components/category.tsx`](../apps/web/src/components/category.tsx) | Showing a spot category: `CategoryBadge` (label), `CategoryDot`, `CategoryStrip` (list-item border) | `category` |
+
+---
+
 ## 7. Translation files
 
 `apps/web/public/locales/en/common.json`

@@ -32,6 +32,7 @@ import {
   loginWithDiscord,
   updateLocale,
 } from './login.js'
+import { sendError } from '../http/errors.js'
 
 export type AuthRouteOptions = {
   pool: Pool
@@ -68,8 +69,7 @@ export function registerAuthRoutes(
 
   app.get('/auth/discord', async (request, reply) => {
     const query = startQuery.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     const next = safeNextPath(query.data.next)
     const secrets = newOAuthSecrets()
     const exp = now().getTime() + OAUTH_TTL_MS
@@ -86,8 +86,7 @@ export function registerAuthRoutes(
 
   app.get('/auth/discord/callback', async (request, reply) => {
     const query = callbackQuery.safeParse(request.query)
-    if (!query.success)
-      return reply.code(400).send({ error: 'invalid_request' })
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
     const clearState = clearCookie(OAUTH_COOKIE, secure)
 
     if (query.data.error) {
@@ -109,7 +108,7 @@ export function registerAuthRoutes(
       payload.state !== query.data.state
     ) {
       reply.header('set-cookie', clearState)
-      return reply.code(400).send({ error: 'invalid_request' })
+      return sendError(reply, 400, 'invalid_request')
     }
 
     let profile
@@ -158,42 +157,42 @@ export function registerAuthRoutes(
 
   app.get('/me', async (request, reply) => {
     const token = readCookie(request.headers.cookie, SESSION_COOKIE)
-    if (!token) return reply.code(401).send({ error: 'unauthenticated' })
+    if (!token) return sendError(reply, 401, 'unauthenticated')
     const session = await authenticate(pool, token, now())
-    if (!session) return reply.code(401).send({ error: 'unauthenticated' })
+    if (!session) return sendError(reply, 401, 'unauthenticated')
     if (session.slid) reply.header('set-cookie', sessionCookie(token, secure))
     return meResponseSchema.parse(session.user)
   })
 
   app.patch('/me', async (request, reply) => {
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const token = readCookie(request.headers.cookie, SESSION_COOKIE)
-    if (!token) return reply.code(401).send({ error: 'unauthenticated' })
+    if (!token) return sendError(reply, 401, 'unauthenticated')
     const session = await authenticate(pool, token, now())
-    if (!session) return reply.code(401).send({ error: 'unauthenticated' })
+    if (!session) return sendError(reply, 401, 'unauthenticated')
     const body = patchMeBody.safeParse(request.body)
-    if (!body.success) return reply.code(400).send({ error: 'invalid_request' })
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
     const user = await updateLocale(
       pool,
       session.user.id,
       body.data.locale,
       now(),
     )
-    if (!user) return reply.code(404).send({ error: 'not_found' })
+    if (!user) return sendError(reply, 404, 'not_found')
     if (session.slid) reply.header('set-cookie', sessionCookie(token, secure))
     return meResponseSchema.parse(user)
   })
 
   app.post('/auth/logout', async (request, reply) => {
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
     const token = readCookie(request.headers.cookie, SESSION_COOKIE)
     if (!token || !(await deleteSession(pool, token))) {
       reply.header('set-cookie', clearCookie(SESSION_COOKIE, secure))
-      return reply.code(401).send({ error: 'unauthenticated' })
+      return sendError(reply, 401, 'unauthenticated')
     }
     if (token) app.tripHub.closeToken(token)
     reply.header('set-cookie', clearCookie(SESSION_COOKIE, secure))
@@ -207,11 +206,10 @@ export function registerAuthRoutes(
 
     app.post('/auth/dev/login', async (request, reply) => {
       if (!originAllowed(request, config)) {
-        return reply.code(403).send({ error: 'forbidden_origin' })
+        return sendError(reply, 403, 'forbidden_origin')
       }
       const body = testLoginBody.safeParse(request.body)
-      if (!body.success)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if (!body.success) return sendError(reply, 400, 'invalid_request')
       const result = await loginDevUser(
         pool,
         config,
@@ -220,13 +218,10 @@ export function registerAuthRoutes(
         userAgent(request),
       )
       if (result.kind === 'missing') {
-        return reply.code(404).send({ error: 'not_found' })
+        return sendError(reply, 404, 'not_found')
       }
       if (result.kind === 'suspended') {
-        return reply.code(403).send({
-          error: 'suspended',
-          reason: result.reason,
-        })
+        return sendError(reply, 403, 'suspended', { reason: result.reason })
       }
       reply.header('set-cookie', sessionCookie(result.token, secure))
       return meResponseSchema.parse(result.user)
@@ -236,11 +231,10 @@ export function registerAuthRoutes(
   if (config.NODE_ENV === 'test') {
     app.post('/test/login', async (request, reply) => {
       if (!originAllowed(request, config)) {
-        return reply.code(403).send({ error: 'forbidden_origin' })
+        return sendError(reply, 403, 'forbidden_origin')
       }
       const body = testLoginBody.safeParse(request.body)
-      if (!body.success)
-        return reply.code(400).send({ error: 'invalid_request' })
+      if (!body.success) return sendError(reply, 400, 'invalid_request')
       const result = await loginForTest(
         pool,
         body.data.discordId,
@@ -248,10 +242,7 @@ export function registerAuthRoutes(
         userAgent(request),
       )
       if (result.kind === 'suspended') {
-        return reply.code(403).send({
-          error: 'suspended',
-          reason: result.reason,
-        })
+        return sendError(reply, 403, 'suspended', { reason: result.reason })
       }
       reply.header('set-cookie', sessionCookie(result.token, secure))
       return meResponseSchema.parse(result.user)

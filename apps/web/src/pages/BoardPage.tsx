@@ -2,6 +2,7 @@ import {
   normalizeSpotLink,
   parseSpotListQuery,
   spotListSearchParams,
+  spotSchema,
   type Spot,
   type SpotDetail,
   type SpotListQuery,
@@ -13,7 +14,8 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useParams, useSearchParams } from 'react-router'
 import { Toast, type ToastMessage } from '../components/Toast'
-import { ErrorState } from '../components/states'
+import { ErrorState, PanelSkeleton } from '../components/states'
+import { useConfirm } from '../components/ui/confirm'
 import { Button } from '../components/ui/button'
 import { activeLocale } from '../i18n'
 import { useListFollowsMap } from '../list-follows-map'
@@ -24,13 +26,11 @@ import type { MapSpot } from '../map/clusters'
 import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
 import { useSession } from '../session'
 import {
-  ConflictError,
   createSpot,
   deleteSpot,
   getSpot,
   listSpots,
   reverseAddress,
-  SaveError,
   updateSpot,
 } from '../spots/client'
 import {
@@ -44,7 +44,8 @@ import {
 import { SpotList } from '../spots/SpotList'
 import { SpotPanel } from '../spots/SpotPanel'
 import { onCommentsChanged } from '../comments/bus'
-import { AuthError, getTrip } from '../trips/client'
+import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
+import { getTrip } from '../trips/client'
 import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
 const searchDebounceMs = 250
@@ -61,6 +62,7 @@ type Panel = {
 
 export function BoardPage() {
   const { t, i18n } = useTranslation()
+  const confirm = useConfirm()
   const { reload } = useSession()
   const { enabled: listFollowsMap } = useListFollowsMap()
   const { id } = useParams()
@@ -203,7 +205,7 @@ export function BoardPage() {
       .then(setEntries)
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) reload()
+        if (isAuth(error)) reload()
       })
     return () => controller.abort()
   }, [id, reload, setEntries])
@@ -224,7 +226,7 @@ export function BoardPage() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
+        if (isAuth(error)) {
           reload()
           return
         }
@@ -264,17 +266,26 @@ export function BoardPage() {
     [draftPin, flyTo, hoverId, importFocus, mapSpots, placing, selectedId],
   )
 
-  function requestClose() {
+  function confirmDiscard(): Promise<boolean> {
+    return confirm({
+      title: t('confirm.discardTitle'),
+      message: t('board.discard'),
+      confirmLabel: t('confirm.discardAction'),
+      danger: true,
+    })
+  }
+
+  async function requestClose() {
     if (!panel) return
     if (!draftsEqual(panel.draft, panel.baseline)) {
-      if (!window.confirm(t('board.discard'))) return
+      if (!(await confirmDiscard())) return
     }
     setPanel(null)
   }
 
   // Every way of leaving the open panel for another spot or a new one asks
   // here first: wait out a save, and confirm before dropping edits.
-  function mayLeavePanel(): boolean {
+  async function mayLeavePanel(): Promise<boolean> {
     if (!panel) return true
     const decision = switchDecision({
       draft: panel.draft,
@@ -282,7 +293,7 @@ export function BoardPage() {
       saving,
     })
     if (decision === 'ignore') return false
-    return decision === 'switch' || window.confirm(t('board.discard'))
+    return decision === 'switch' || (await confirmDiscard())
   }
 
   // A right-click on empty map: start a new spot there, or in a panel that
@@ -294,9 +305,13 @@ export function BoardPage() {
       void place(lng, lat)
       return true
     }
-    if (!mayLeavePanel()) return true
-    openAdd()
-    void place(lng, lat)
+    // The map only needs to know the click was handled; the answer may take
+    // a confirm dialog.
+    void mayLeavePanel().then((ok) => {
+      if (!ok) return
+      openAdd()
+      void place(lng, lat)
+    })
     return true
   }
 
@@ -317,21 +332,27 @@ export function BoardPage() {
     const spot = spots.find((item) => item.id === spotId)
     if (!spot) return
     if (panel?.spot?.id === spotId && !focusDiscussion) return
-    if (!mayLeavePanel()) return
-    const draft = draftFromSpot(spot)
-    setSelectedId(spotId)
-    setLinkError(null)
-    setFormError(null)
-    setFlyTo({ token: `${spotId}-${Date.now()}`, lng: spot.lng, lat: spot.lat })
-    setPanel({
-      mode: canEdit ? 'edit' : 'view',
-      draft,
-      baseline: draft,
-      spot,
-      plans: [],
-      focusDiscussion,
+    void mayLeavePanel().then((ok) => {
+      if (!ok) return
+      const draft = draftFromSpot(spot)
+      setSelectedId(spotId)
+      setLinkError(null)
+      setFormError(null)
+      setFlyTo({
+        token: `${spotId}-${Date.now()}`,
+        lng: spot.lng,
+        lat: spot.lat,
+      })
+      setPanel({
+        mode: canEdit ? 'edit' : 'view',
+        draft,
+        baseline: draft,
+        spot,
+        plans: [],
+        focusDiscussion,
+      })
+      void refreshDetail(spotId)
     })
-    void refreshDetail(spotId)
   }
 
   // A News entry links here as ?spot=<id> and opens that spot's discussion.
@@ -382,7 +403,7 @@ export function BoardPage() {
       if (epoch !== detailEpoch.current) return
       applyDetail(detail)
     } catch (error) {
-      if (error instanceof AuthError) reload()
+      if (isAuth(error)) reload()
     }
   }
 
@@ -502,21 +523,22 @@ export function BoardPage() {
       }
       setPanel(null)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         reload()
         return
       }
       updateSpots(() => fullSnapshot)
       setFiltered(remote ? { spots: snapshot, total: snapshot.length } : null)
-      if (error instanceof ConflictError && existing) {
+      if (isConflict(error) && existing) {
+        const { current, updatedBy } = conflictOf(error, spotSchema)
         setConflict({
-          current: error.current,
-          updatedByName: error.updatedBy?.name ?? '',
+          current,
+          updatedByName: updatedBy?.name ?? '',
           body,
         })
         return
       }
-      if (error instanceof SaveError && error.fields.link) {
+      if (isInvalid(error) && error.fields.link) {
         setLinkError(error.fields.link)
       }
       setFormError(t('board.saveError'))
@@ -528,7 +550,7 @@ export function BoardPage() {
     try {
       setTrip(await getTrip(tripId))
     } catch (error) {
-      if (error instanceof AuthError) reload()
+      if (isAuth(error)) reload()
     }
   }
 
@@ -544,7 +566,7 @@ export function BoardPage() {
     try {
       await deleteSpot(spotId)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         reload()
         return
       }
@@ -567,7 +589,7 @@ export function BoardPage() {
       setBanner(null)
       setPanel(null)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         reload()
         return
       }
@@ -696,7 +718,7 @@ export function BoardPage() {
           plans={panel.plans}
           entries={entries ?? []}
           onDraft={changeDraft}
-          onClose={requestClose}
+          onClose={() => void requestClose()}
           onSubmit={() => {
             void save()
           }}
@@ -714,7 +736,7 @@ export function BoardPage() {
               })
               await refreshDetail(spotId)
             } catch (error) {
-              if (error instanceof AuthError) {
+              if (isAuth(error)) {
                 reload()
                 return
               }
@@ -731,7 +753,7 @@ export function BoardPage() {
               await removePlanSpot(entryId, linkId)
               await refreshDetail(spotId)
             } catch (error) {
-              if (error instanceof AuthError) {
+              if (isAuth(error)) {
                 reload()
                 return
               }
@@ -806,20 +828,6 @@ function spotConflictRows(
   return pairs
     .filter(([, left, right]) => left !== right)
     .map(([label, left, right]) => ({ label, mine: left, theirs: right }))
-}
-
-function PanelSkeleton() {
-  return (
-    <div
-      data-testid="panel-skeleton"
-      className="flex w-full flex-col gap-3 p-4"
-      aria-hidden="true"
-    >
-      <div className="h-8 rounded bg-border" />
-      <div className="h-24 rounded bg-border" />
-      <div className="h-24 rounded bg-border" />
-    </div>
-  )
 }
 
 function onlyPlaced(draft: Draft, baseline: Draft): boolean {

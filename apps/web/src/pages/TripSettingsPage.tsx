@@ -1,4 +1,4 @@
-import type { Trip } from '@tripboard/shared'
+import { tripSchema, type Trip } from '@tripboard/shared'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +9,8 @@ import { cn } from '../lib/utils'
 import { activeLocale } from '../i18n'
 import { useSession } from '../session'
 import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
-import { ApiError, AuthError, ConflictError, updateTrip } from '../trips/client'
+import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
+import { updateTrip } from '../trips/client'
 import { DeleteTripDialog } from '../trips/DeleteTripDialog'
 import { fieldMessage } from '../trips/fields'
 import { dateRange, roleName } from '../trips/TripCard'
@@ -108,19 +109,20 @@ function SettingsForm({
       onUpdated(updated)
       setConflict(null)
     } catch (error) {
-      if (error instanceof ConflictError) {
+      if (isConflict(error)) {
+        const { current, updatedBy } = conflictOf(error, tripSchema)
         setConflict({
-          current: error.current,
-          updatedByName: error.updatedBy?.name ?? '',
+          current,
+          updatedByName: updatedBy?.name ?? '',
           body,
         })
         return
       }
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         onUnauthorized()
         return
       }
-      if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+      if (isInvalid(error)) {
         setFields(error.fields)
       } else {
         setFormError(t('trips.errors.save'))
@@ -138,7 +140,7 @@ function SettingsForm({
       onUpdated(updated)
       setConflict(null)
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         onUnauthorized()
         return
       }

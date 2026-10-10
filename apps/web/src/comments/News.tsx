@@ -10,7 +10,7 @@ import { activeLocale } from '../i18n'
 import { cn } from '../lib/utils'
 import { pinCategory } from '../spots/model'
 import { Dialog } from '../spots/Dialog'
-import { AuthError } from '../trips/client'
+import { isAuth } from '../api/http'
 import { useSession } from '../session'
 import { emitCommentsChanged, onCommentsChanged } from './bus'
 import { getNews, markTripRead } from './client'
@@ -85,7 +85,7 @@ function NewsPanel({
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) reload()
+        if (isAuth(error)) reload()
         else setFailed(true)
       })
     return () => controller.abort()
@@ -105,7 +105,7 @@ function NewsPanel({
       emitCommentsChanged(null)
       setReloadToken((value) => value + 1)
     } catch (error) {
-      if (error instanceof AuthError) reload()
+      if (isAuth(error)) reload()
       else setFailed(true)
     }
   }

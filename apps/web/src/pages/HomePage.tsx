@@ -1,6 +1,7 @@
 import { healthResponseSchema, type HealthResponse } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ApiError, request } from '../api/http'
 
 export function HomePage() {
   const { t } = useTranslation()
@@ -12,13 +13,18 @@ export function HomePage() {
       for (let attempt = 0; attempt < 20; attempt += 1) {
         if (controller.signal.aborted) return
         try {
-          const response = await fetch('/api/health', {
+          const response = await request('/api/health', {
             signal: controller.signal,
           })
           const parsed = healthResponseSchema.parse(await response.json())
           setHealth(parsed)
           return
-        } catch {
+        } catch (error) {
+          // the API answers 503 while the database is down
+          if (error instanceof ApiError && error.status === 503) {
+            setHealth({ status: 'ok', db: 'down' })
+            return
+          }
           await new Promise((resolve) => setTimeout(resolve, 300))
         }
       }

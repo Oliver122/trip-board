@@ -1,3 +1,4 @@
+import { answerConfirm } from './confirm'
 import { expect, test, type Page } from './fixtures'
 import { waitForMap } from './map'
 
@@ -67,11 +68,6 @@ test('T-25-02 a right-click on a pin starts nothing, and a visitor keeps the bro
 test('T-25-03 a clean panel switches spots at once', async ({ page }) => {
   const trip = await openTrip(page, aikoId, 'Clean switch')
   const [first, second] = await listSpots(page, trip)
-  const prompts: string[] = []
-  page.on('dialog', (dialog) => {
-    prompts.push(dialog.message())
-    void dialog.dismiss()
-  })
   await mapStill(page)
   await page.getByTestId(`pin-${first.id}`).click()
   await expect(titleField(page)).toHaveValue(first.title)
@@ -92,7 +88,7 @@ test('T-25-03 a clean panel switches spots at once', async ({ page }) => {
   await expect
     .poll(async () => (await pin.boundingBox())?.x ?? 0)
     .not.toBe(before?.x)
-  expect(prompts).toEqual([])
+  await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
 })
 
 for (const via of ['pin', 'card', 'right-click'] as const) {
@@ -105,12 +101,6 @@ for (const via of ['pin', 'card', 'right-click'] as const) {
     await page.getByTestId(`pin-${first.id}`).click()
     await titleField(page).fill('Edited title')
 
-    const messages: string[] = []
-    let accept = false
-    page.on('dialog', (dialog) => {
-      messages.push(dialog.message())
-      void (accept ? dialog.accept() : dialog.dismiss())
-    })
     const trigger = async () => {
       if (via === 'pin') {
         await mapStill(page)
@@ -124,12 +114,14 @@ for (const via of ['pin', 'card', 'right-click'] as const) {
     }
 
     await trigger()
-    expect(messages).toEqual(['Discard unsaved changes?'])
+    await expect(page.getByTestId('confirm-dialog')).toContainText(
+      'Discard unsaved changes?',
+    )
+    await answerConfirm(page, 'dismiss')
     await expect(titleField(page)).toHaveValue('Edited title')
 
-    accept = true
     await trigger()
-    expect(messages).toHaveLength(2)
+    await answerConfirm(page, 'accept')
     if (via === 'right-click') {
       await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
     } else {
@@ -145,11 +137,6 @@ test('T-25-05 left-click moves the pin, and a pending save blocks switching', as
 }) => {
   const trip = await openTrip(page, aikoId, 'Save lock')
   const [first, second] = await listSpots(page, trip)
-  const prompts: string[] = []
-  page.on('dialog', (dialog) => {
-    prompts.push(dialog.message())
-    void dialog.dismiss()
-  })
   await mapStill(page)
   await page.getByTestId(`pin-${first.id}`).click()
   const pin = page.getByTestId('draft-pin')
@@ -171,7 +158,7 @@ test('T-25-05 left-click moves the pin, and a pending save blocks switching', as
   await page.getByTestId(`pin-${second.id}`).click()
   await expect(titleField(page)).toHaveValue(first.title)
   await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 })
-  expect(prompts).toEqual([])
+  await expect(page.getByTestId('confirm-dialog')).toHaveCount(0)
 })
 
 // A spot opens with the map easing to it; pins are not clickable until it stops.

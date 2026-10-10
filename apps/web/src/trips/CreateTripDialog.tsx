@@ -11,8 +11,10 @@ import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Modal } from '../components/ui/modal'
 import { cn } from '../lib/utils'
-import { ApiError, AuthError, createTrip } from './client'
+import { isAuth, isInvalid } from '../api/http'
+import { createTrip } from './client'
 import { fieldMessage } from './fields'
 
 const inputClass =
@@ -30,7 +32,7 @@ export function CreateTripDialog({
   onUnauthorized: () => void
 }) {
   const { t } = useTranslation()
-  const titleId = useId()
+  const formId = useId()
   const listId = useId()
   const nameId = useId()
   const regionId = useId()
@@ -70,15 +72,6 @@ export function CreateTripDialog({
     setSaving(false)
     nameRef.current?.focus()
   }, [open, browserZone])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   if (!open) return null
 
@@ -132,11 +125,11 @@ export function CreateTripDialog({
       onCreated(trip)
     } catch (error) {
       if (!alive.current) return
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         onUnauthorized()
         return
       }
-      if (error instanceof ApiError && Object.keys(error.fields).length > 0) {
+      if (isInvalid(error)) {
         setFields(error.fields)
       } else {
         setFormError(t('trips.errors.save'))
@@ -146,21 +139,24 @@ export function CreateTripDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
-      onMouseDown={onClose}
+    <Modal
+      title={t('trips.createTitle')}
+      size="md"
+      onClose={onClose}
+      initialFocus={nameRef}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            {t('trips.cancel')}
+          </Button>
+          <Button type="submit" form={formId} disabled={saving}>
+            {t('trips.createSubmit')}
+          </Button>
+        </>
+      }
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id={titleId} className="mb-4 text-lg font-semibold">
-          {t('trips.createTitle')}
-        </h2>
-        <form onSubmit={(event) => void onSubmit(event)} noValidate>
+      <div className="p-4">
+        <form id={formId} onSubmit={(event) => void onSubmit(event)} noValidate>
           {formError ? (
             <ErrorNotice className="mb-3">{formError}</ErrorNotice>
           ) : null}
@@ -251,17 +247,9 @@ export function CreateTripDialog({
               className={inputClass}
             />
           </FieldError>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              {t('trips.cancel')}
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {t('trips.createSubmit')}
-            </Button>
-          </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -282,32 +270,9 @@ export function DialogFrame({
   onClose: () => void
   children: ReactNode
 }) {
-  const titleId = useId()
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   return (
-    <div
-      className="fixed inset-0 z-30 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
-      onMouseDown={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="max-h-[90vh] w-full max-w-md overflow-auto rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-h-none max-sm:max-w-none max-sm:rounded-none"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id={titleId} className="mb-4 text-lg font-semibold">
-          {title}
-        </h2>
-        {children}
-      </div>
-    </div>
+    <Modal title={title} size="md" onClose={onClose}>
+      <div className="p-4">{children}</div>
+    </Modal>
   )
 }

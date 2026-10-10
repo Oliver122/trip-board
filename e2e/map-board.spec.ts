@@ -1,5 +1,6 @@
 import { expectNoSeriousViolations } from './a11y'
 import { expect, test, type Page } from './fixtures'
+import { showLocale } from './locale'
 import { waitForJapan } from './map'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
@@ -40,7 +41,7 @@ test('T-05-02 T-05-03 T-05-06 the Japan board fits the region', async ({
 })
 
 test('T-05-05 German labels use name:de', async ({ page }) => {
-  await setLocale(page, 'de')
+  await showLocale(page, 'de')
   await page.goto(japanTrip)
   await waitForJapan(page, japan)
   await expect.poll(async () => labelField(page)).toContain('name:de')

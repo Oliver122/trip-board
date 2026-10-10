@@ -22,7 +22,7 @@ import {
   type QuotaRequest,
   type SettingsPatch,
 } from '@tripboard/shared'
-import { writeInit } from '../api/write'
+import { ApiError, request, requestJson } from '../api/http'
 
 const MB = 1024 * 1024
 
@@ -30,145 +30,151 @@ export function bytesFromMb(mb: number): number {
   return Math.round(mb * MB)
 }
 
+/** Maps selected statuses to the short codes the admin screens translate. */
+async function mapped<T>(
+  run: () => Promise<T>,
+  codes: Record<number, string>,
+): Promise<T> {
+  try {
+    return await run()
+  } catch (error) {
+    if (error instanceof ApiError && codes[error.status]) {
+      throw new Error(codes[error.status])
+    }
+    throw error
+  }
+}
+
 export async function listAdminUsers(search: string, signal?: AbortSignal) {
-  const response = await send(`/api/admin/users${search}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return adminUserListSchema.parse(await response.json())
+  return requestJson(`/api/admin/users${search}`, adminUserListSchema, {
+    signal,
+  })
 }
 
 export async function getAdminUser(
   id: string,
   signal?: AbortSignal,
 ): Promise<AdminUserDetail> {
-  const response = await send(`/api/admin/users/${id}`, { signal })
-  if (response.status === 404) throw new Error('missing')
-  if (!response.ok) throw new Error('load')
-  return adminUserDetailSchema.parse(await response.json())
+  return requestJson(`/api/admin/users/${id}`, adminUserDetailSchema, {
+    signal,
+  })
 }
 
 export async function patchQuota(id: string, body: QuotaPatch) {
-  const response = await send(`/api/admin/users/${id}/quota`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) throw new Error('save')
-  return adminUserDetailSchema.shape.user.parse(await response.json())
+  return requestJson(
+    `/api/admin/users/${id}/quota`,
+    adminUserDetailSchema.shape.user,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
 }
 
 export async function suspendUser(id: string, reason: string) {
-  const response = await send(`/api/admin/users/${id}/suspend`, {
-    method: 'POST',
-    body: JSON.stringify({ reason }),
-  })
-  if (response.status === 400) throw new Error('self')
-  if (response.status === 409) throw new Error('last_admin')
-  if (!response.ok) throw new Error('save')
+  await mapped(
+    () =>
+      request(`/api/admin/users/${id}/suspend`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    { 400: 'self', 409: 'last_admin' },
+  )
 }
 
 export async function unsuspendUser(id: string) {
-  const response = await send(`/api/admin/users/${id}/unsuspend`, {
+  await request(`/api/admin/users/${id}/unsuspend`, {
     method: 'POST',
     body: JSON.stringify({}),
   })
-  if (!response.ok) throw new Error('save')
 }
 
 export async function setAdminRole(id: string, appRole: 'user' | 'admin') {
-  const response = await send(`/api/admin/users/${id}/role`, {
-    method: 'PATCH',
-    body: JSON.stringify({ appRole }),
-  })
-  if (response.status === 409) throw new Error('last_admin')
-  if (!response.ok) throw new Error('save')
+  await mapped(
+    () =>
+      request(`/api/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ appRole }),
+      }),
+    { 409: 'last_admin' },
+  )
 }
 
 export async function logoutEverywhere(id: string) {
-  const response = await send(`/api/admin/users/${id}/logout-all`, {
+  await request(`/api/admin/users/${id}/logout-all`, {
     method: 'POST',
     body: JSON.stringify({}),
   })
-  if (!response.ok) throw new Error('save')
 }
 
 export async function listAdminTrips(search: string, signal?: AbortSignal) {
-  const response = await send(`/api/admin/trips${search}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return adminTripListSchema.parse(await response.json())
+  return requestJson(`/api/admin/trips${search}`, adminTripListSchema, {
+    signal,
+  })
 }
 
 export async function getAdminTrip(
   id: string,
   signal?: AbortSignal,
 ): Promise<AdminTripDetail> {
-  const response = await send(`/api/admin/trips/${id}`, { signal })
-  if (response.status === 404) throw new Error('missing')
-  if (!response.ok) throw new Error('load')
-  return adminTripDetailSchema.parse(await response.json())
+  return requestJson(`/api/admin/trips/${id}`, adminTripDetailSchema, {
+    signal,
+  })
 }
 
 export async function listQuotaRequests(signal?: AbortSignal) {
-  const response = await send('/api/admin/quota-requests', { signal })
-  if (!response.ok) throw new Error('load')
-  return quotaRequestListSchema.parse(await response.json())
+  return requestJson('/api/admin/quota-requests', quotaRequestListSchema, {
+    signal,
+  })
 }
 
 export async function pendingRequestCount(
   signal?: AbortSignal,
 ): Promise<number> {
-  const response = await send('/api/admin/quota-requests?status=pending', {
-    signal,
-  })
-  if (!response.ok) throw new Error('load')
-  return quotaRequestListSchema.parse(await response.json()).pendingCount
+  const list = await requestJson(
+    '/api/admin/quota-requests?status=pending',
+    quotaRequestListSchema,
+    { signal },
+  )
+  return list.pendingCount
 }
 
 export async function approveRequest(
   id: string,
   body: { images?: number; bytes?: number; note?: string },
 ) {
-  const response = await send(`/api/admin/quota-requests/${id}/approve`, {
+  await request(`/api/admin/quota-requests/${id}/approve`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw new Error('save')
 }
 
 export async function rejectRequest(id: string, note: string) {
-  const response = await send(`/api/admin/quota-requests/${id}/reject`, {
+  await request(`/api/admin/quota-requests/${id}/reject`, {
     method: 'POST',
     body: JSON.stringify({ note }),
   })
-  if (!response.ok) throw new Error('save')
 }
 
 export async function getSettings(signal?: AbortSignal): Promise<AppSettings> {
-  const response = await send('/api/admin/settings', { signal })
-  if (!response.ok) throw new Error('load')
-  return appSettingsSchema.parse(await response.json())
+  return requestJson('/api/admin/settings', appSettingsSchema, { signal })
 }
 
 export async function saveSettings(body: SettingsPatch): Promise<AppSettings> {
-  const response = await send('/api/admin/settings', {
+  return requestJson('/api/admin/settings', appSettingsSchema, {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw new Error('save')
-  return appSettingsSchema.parse(await response.json())
 }
 
 export async function listAudit(
   search: string,
   signal?: AbortSignal,
 ): Promise<{ entries: AuditEntry[]; nextCursor: string | null }> {
-  const response = await send(`/api/admin/audit${search}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return auditListSchema.parse(await response.json())
+  return requestJson(`/api/admin/audit${search}`, auditListSchema, { signal })
 }
 
 export async function listMyQuotaRequests(signal?: AbortSignal) {
-  const response = await send('/api/me/quota-requests', { signal })
-  if (!response.ok) throw new Error('load')
-  return quotaRequestListSchema.parse(await response.json())
+  return requestJson('/api/me/quota-requests', quotaRequestListSchema, {
+    signal,
+  })
 }
 
 export async function createQuotaRequest(body: {
@@ -176,23 +182,23 @@ export async function createQuotaRequest(body: {
   bytes?: number
   message?: string
 }): Promise<QuotaRequest> {
-  const response = await send('/api/me/quota-requests', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-  if (response.status === 400) throw new Error('invalid')
-  if (response.status === 409) throw new Error('pending')
-  if (!response.ok) throw new Error('save')
-  return quotaRequestSchema.parse(await response.json())
+  return mapped(
+    () =>
+      requestJson('/api/me/quota-requests', quotaRequestSchema, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    { 400: 'invalid', 409: 'pending' },
+  )
 }
 
 export async function getStats(
   range: string,
   signal?: AbortSignal,
 ): Promise<AdminStats> {
-  const response = await send(`/api/admin/stats?range=${range}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return adminStatsSchema.parse(await response.json())
+  return requestJson(`/api/admin/stats?range=${range}`, adminStatsSchema, {
+    signal,
+  })
 }
 
 export async function getMetrics(
@@ -200,17 +206,17 @@ export async function getMetrics(
   to: string,
   signal?: AbortSignal,
 ): Promise<AdminMetrics> {
-  const response = await send(`/api/admin/metrics?from=${from}&to=${to}`, {
-    signal,
-  })
-  if (!response.ok) throw new Error('load')
-  return adminMetricsSchema.parse(await response.json())
+  return requestJson(
+    `/api/admin/metrics?from=${from}&to=${to}`,
+    adminMetricsSchema,
+    { signal },
+  )
 }
 
 export async function listActivity(search: string, signal?: AbortSignal) {
-  const response = await send(`/api/admin/activity${search}`, { signal })
-  if (!response.ok) throw new Error('load')
-  return activityListSchema.parse(await response.json())
+  return requestJson(`/api/admin/activity${search}`, activityListSchema, {
+    signal,
+  })
 }
 
 export function activityExportPath(search: string): string {
@@ -218,23 +224,11 @@ export function activityExportPath(search: string): string {
 }
 
 export async function getOpenStreams(signal?: AbortSignal): Promise<number> {
-  const response = await send('/api/admin/streams', { signal })
-  if (!response.ok) throw new Error('load')
+  const response = await request('/api/admin/streams', { signal })
   const body = (await response.json()) as { openStreams?: unknown }
   return typeof body.openStreams === 'number' ? body.openStreams : 0
 }
 
 export async function getStorage(signal?: AbortSignal): Promise<AdminStorage> {
-  const response = await send('/api/admin/storage', { signal })
-  if (!response.ok) throw new Error('load')
-  return adminStorageSchema.parse(await response.json())
-}
-
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const next = writeInit(init)
-  const headers = new Headers(next.headers)
-  if (next.body && !headers.has('content-type')) {
-    headers.set('content-type', 'application/json')
-  }
-  return fetch(path, { ...next, headers, credentials: 'include' })
+  return requestJson('/api/admin/storage', adminStorageSchema, { signal })
 }

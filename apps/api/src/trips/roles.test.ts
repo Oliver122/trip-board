@@ -1,6 +1,28 @@
 import type { TripRole } from '@tripboard/shared'
 import { describe, expect, it } from 'vitest'
-import { decideTripAccess } from './roles.js'
+import { decideTripAccess, parseTripRole, roleOrVisitor } from './roles.js'
+
+describe('trip role parsing', () => {
+  it('T-26-11 parseTripRole accepts known roles and rejects the rest', () => {
+    expect(parseTripRole('owner')).toBe('owner')
+    expect(parseTripRole('planner')).toBe('planner')
+    expect(parseTripRole('visitor')).toBe('visitor')
+    expect(parseTripRole('admin')).toBeNull()
+    expect(parseTripRole('')).toBeNull()
+    expect(parseTripRole(null)).toBeNull()
+    expect(parseTripRole(undefined)).toBeNull()
+  })
+
+  it('T-26-11 roleOrVisitor falls back to visitor and warns on unknown values', () => {
+    const warnings: string[] = []
+    const log = { warn: (message: string) => warnings.push(message) }
+    expect(roleOrVisitor('planner', log)).toBe('planner')
+    expect(warnings).toEqual([])
+    expect(roleOrVisitor('superuser', log)).toBe('visitor')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('superuser')
+  })
+})
 
 const roles = [
   'visitor',

@@ -25,6 +25,8 @@ import {
   uploadsEnabled,
 } from './store.js'
 import type { ObjectStorage } from './storage.js'
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
 
 export type ImageRouteOptions = {
   pool: Pool
@@ -34,10 +36,6 @@ export type ImageRouteOptions = {
   limiter: UploadLimiter
   beforeImageInsert?: () => Promise<void>
 }
-
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
 
 const fileQuerySchema = z.object({
   exp: z.coerce.number().int(),
@@ -66,7 +64,7 @@ export async function registerImageRoutes(
   app.get('/spots/:id/images', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await listImages(
       pool,
@@ -82,7 +80,7 @@ export async function registerImageRoutes(
   app.get('/images/:id', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await getImage(
       pool,
@@ -96,12 +94,11 @@ export async function registerImageRoutes(
   })
 
   app.get('/images/:id/file', async (request, reply) => {
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const query = fileQuerySchema.safeParse(request.query)
     if (!query.success) {
-      return reply.code(400).send({
-        error: 'invalid_request',
+      return sendError(reply, 400, 'invalid_request', {
         fields: { sig: 'invalid' },
       })
     }
@@ -114,7 +111,7 @@ export async function registerImageRoutes(
         now(),
       )
     ) {
-      return reply.code(403).send({ error: 'forbidden' })
+      return sendError(reply, 403, 'forbidden')
     }
     const bytes = await readImageBytes(pool, storage, params.id)
     if (!bytes) return deny(reply, 404)
@@ -128,13 +125,12 @@ export async function registerImageRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     if (!(await uploadsEnabled(pool))) {
-      return reply.code(503).send({
-        error: 'uploads_paused',
+      return sendError(reply, 503, 'uploads_paused', {
         message: 'Uploads are paused',
       })
     }
@@ -142,20 +138,20 @@ export async function registerImageRoutes(
     const file = await readUpload(request, reply)
     if (!file) return
     if (file.length > maxUploadBytes) {
-      return reply.code(413).send({ error: 'too_large' })
+      return sendError(reply, 413, 'too_large')
     }
     if (!sniffImage(file)) {
-      return reply.code(415).send({ error: 'unsupported_media' })
+      return sendError(reply, 415, 'unsupported_media')
     }
     if (!limiter.allow(user.id, now())) {
-      return reply.code(429).send({ error: 'rate_limited' })
+      return sendError(reply, 429, 'rate_limited')
     }
 
     let processed
     try {
       processed = await processImage(file)
     } catch {
-      return reply.code(415).send({ error: 'unsupported_media' })
+      return sendError(reply, 415, 'unsupported_media')
     }
 
     const result = await storeImage(pool, storage, {
@@ -168,10 +164,7 @@ export async function registerImageRoutes(
     })
     if (!result.ok) {
       if (result.status === 413 && result.quota) {
-        return reply.code(413).send({
-          error: 'quota_exceeded',
-          ...result.quota,
-        })
+        return sendError(reply, 413, 'quota_exceeded', { ...result.quota })
       }
       return deny(reply, result.status === 413 ? 404 : result.status)
     }
@@ -182,29 +175,14 @@ export async function registerImageRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const result = await removeImage(pool, params.id, user.id)
     if (!result.ok) return deny(reply, result.status)
     return reply.code(204).send()
   })
-}
-
-function parseParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string } | null {
-  const parsed = idSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
 }
 
 async function readUpload(
@@ -215,23 +193,17 @@ async function readUpload(
   try {
     file = await request.file()
   } catch {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { file: 'invalid' },
-    })
+    sendError(reply, 400, 'invalid_request', { fields: { file: 'invalid' } })
     return null
   }
   if (!file) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { file: 'empty' },
-    })
+    sendError(reply, 400, 'invalid_request', { fields: { file: 'empty' } })
     return null
   }
   const chunks: Buffer[] = []
   for await (const chunk of file.file) chunks.push(Buffer.from(chunk))
   if (file.file.truncated) {
-    reply.code(413).send({ error: 'too_large' })
+    sendError(reply, 413, 'too_large')
     return null
   }
   return Buffer.concat(chunks)

@@ -4,14 +4,14 @@ import type {
   SpotImportBaseCategory,
   SpotImportSource,
 } from '@tripboard/shared'
-import { X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Modal } from '../components/ui/modal'
 import { cn } from '../lib/utils'
 import { searchAddress } from '../spots/client'
-import { AuthError } from '../trips/client'
+import { isAuth } from '../api/http'
 import { importSpots } from './client'
 import { pinCategory } from '../spots/model'
 import { markDuplicates, type DuplicateCandidate } from './duplicates'
@@ -50,7 +50,6 @@ export function ImportDialog({
   onAuthError: () => void
 }) {
   const { t } = useTranslation()
-  const titleId = useId()
   const inputId = useId()
   const [stage, setStage] = useState<Stage>({ name: 'pick' })
   const [source, setSource] = useState<SpotImportSource | null>(null)
@@ -58,14 +57,6 @@ export function ImportDialog({
   const [category, setCategory] = useState<SpotImportBaseCategory>('maybe')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   function close() {
     abortRef.current?.abort()
@@ -161,7 +152,7 @@ export function ImportDialog({
       onImported(result.spots)
       onClose()
     } catch (error) {
-      if (error instanceof AuthError) {
+      if (isAuth(error)) {
         onAuthError()
         return
       }
@@ -170,34 +161,41 @@ export function ImportDialog({
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-40 grid place-items-center bg-foreground/40 p-4 max-sm:p-0"
-      onMouseDown={close}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-card bg-card p-6 text-foreground shadow-panel max-sm:h-dvh max-sm:max-w-none max-sm:rounded-none"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <h2 id={titleId} className="pr-10 text-lg font-semibold">
-          {t('board.importTitle')}
-        </h2>
-        <button
-          type="button"
-          className={cn(
-            hoverClass.ghost,
-            'absolute right-4 top-4 inline-flex size-11 items-center justify-center rounded-[8px]',
-          )}
-          aria-label={t('board.close')}
-          onClick={close}
+  const footer =
+    stage.name === 'preview' || stage.name === 'importing' ? (
+      <div className="flex w-full items-center justify-between gap-3">
+        {submitError ? (
+          <p role="alert" className="text-sm text-danger">
+            {submitError}
+          </p>
+        ) : (
+          <button
+            type="button"
+            className={cn(hoverClass.link, 'text-sm underline')}
+            onClick={pickAnother}
+          >
+            {t('board.importTryAgain')}
+          </button>
+        )}
+        <Button
+          disabled={ticked.length === 0 || stage.name === 'importing'}
+          onClick={() => void submit()}
         >
-          <X aria-hidden="true" className="size-4" />
-        </button>
+          {t('board.importCount', { count: ticked.length })}
+        </Button>
+      </div>
+    ) : undefined
 
-        <div className="mt-4 min-h-0 flex-1 overflow-auto">
+  return (
+    <Modal
+      title={t('board.importTitle')}
+      closeLabel={t('board.close')}
+      size="lg"
+      onClose={close}
+      footer={footer}
+    >
+      <div className="p-4">
+        <div>
           {stage.name === 'pick' || stage.name === 'error' ? (
             <>
               <ul className="m-0 list-disc space-y-1 pl-5 text-sm text-muted">
@@ -327,32 +325,8 @@ export function ImportDialog({
             </>
           ) : null}
         </div>
-
-        {stage.name === 'preview' || stage.name === 'importing' ? (
-          <div className="mt-4 flex items-center justify-between gap-3">
-            {submitError ? (
-              <p role="alert" className="text-sm text-danger">
-                {submitError}
-              </p>
-            ) : (
-              <button
-                type="button"
-                className={cn(hoverClass.link, 'text-sm underline')}
-                onClick={pickAnother}
-              >
-                {t('board.importTryAgain')}
-              </button>
-            )}
-            <Button
-              disabled={ticked.length === 0 || stage.name === 'importing'}
-              onClick={() => void submit()}
-            >
-              {t('board.importCount', { count: ticked.length })}
-            </Button>
-          </div>
-        ) : null}
       </div>
-    </div>
+    </Modal>
   )
 }
 

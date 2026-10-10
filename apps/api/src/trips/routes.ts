@@ -5,7 +5,6 @@ import {
 } from '@tripboard/shared'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Pool } from 'pg'
-import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
 import { readExpected } from '../live/conflict.js'
@@ -18,6 +17,9 @@ import {
   listTrips,
   updateTrip,
 } from './store.js'
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
+import { deny, parseBody } from '../http/validate.js'
 
 export type TripRouteOptions = {
   pool: Pool
@@ -33,10 +35,6 @@ const knownMessages = new Set([
   'before_start',
   'min_greater_than_max',
 ])
-
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
 
 export function registerTripRoutes(
   app: FastifyInstance,
@@ -56,9 +54,14 @@ export function registerTripRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const input = parseBody(createTripSchema, request.body, reply)
+    const input = parseBody(
+      createTripSchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
     if (!input) return
     const trip = await createTrip(pool, user.id, {
       name: input.name,
@@ -73,7 +76,7 @@ export function registerTripRoutes(
   app.get('/trips/:id', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const access = await requireTripRole(pool, params.id, user.id, 'visitor')
     if (!access.ok) return deny(reply, access.status)
@@ -86,11 +89,11 @@ export function registerTripRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
-    const input = parseBody(patchTripSchema, request.body, reply)
+    const input = parseBody(patchTripSchema, request.body, reply, knownMessages)
     if (!input) return
     const expected = readExpected(request)
     if (!expected.ok) return invalidExpected(reply)
@@ -109,9 +112,9 @@ export function registerTripRoutes(
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
     if (!originAllowed(request, config)) {
-      return reply.code(403).send({ error: 'forbidden_origin' })
+      return sendError(reply, 403, 'forbidden_origin')
     }
-    const params = parseParams(request.params, reply)
+    const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const expected = readExpected(request)
     if (!expected.ok) return invalidExpected(reply)
@@ -131,63 +134,13 @@ function tripFailure(
   },
 ) {
   if (result.status === 400) {
-    return reply.code(400).send({
-      error: 'invalid_request',
-      fields: result.fields,
-    })
+    return sendError(reply, 400, 'invalid_request', { fields: result.fields })
   }
   if (result.status === 409) {
-    return reply.code(409).send({
-      error: 'conflict',
+    return sendError(reply, 409, 'conflict', {
       updatedBy: result.updatedBy ?? null,
       current: result.current,
     })
   }
   return deny(reply, result.status)
-}
-
-function parseBody<T>(
-  schema: z.ZodType<T>,
-  body: unknown,
-  reply: FastifyReply,
-): T | null {
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: fieldErrors(parsed.error),
-    })
-    return null
-  }
-  return parsed.data
-}
-
-function parseParams(
-  params: unknown,
-  reply: FastifyReply,
-): { id: string } | null {
-  const parsed = idSchema.safeParse(params)
-  if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
-      fields: { id: 'invalid' },
-    })
-    return null
-  }
-  return parsed.data
-}
-
-function fieldErrors(error: z.ZodError): Record<string, string> {
-  const fields: Record<string, string> = {}
-  for (const issue of error.issues) {
-    const key = issue.path.map(String).join('.') || 'body'
-    if (key in fields) continue
-    fields[key] = knownMessages.has(issue.message) ? issue.message : 'invalid'
-  }
-  return fields
-}
-
-function deny(reply: FastifyReply, status: 403 | 404) {
-  const error = status === 403 ? 'forbidden' : 'not_found'
-  return reply.code(status).send({ error })
 }

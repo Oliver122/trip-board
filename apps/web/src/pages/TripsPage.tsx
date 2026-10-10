@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { EmptyState, ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { useSession } from '../session'
-import { AuthError, listTrips } from '../trips/client'
+import { isAuth } from '../api/http'
+import { listTrips } from '../trips/client'
 import { CreateTripDialog } from '../trips/CreateTripDialog'
 import { TripCard } from '../trips/TripCard'
 import type { Trip } from '@tripboard/shared'
@@ -27,7 +28,7 @@ export function TripsPage() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
+        if (isAuth(error)) {
           reload()
           return
         }

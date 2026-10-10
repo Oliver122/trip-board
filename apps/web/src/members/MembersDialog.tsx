@@ -11,9 +11,10 @@ import { useNavigate } from 'react-router'
 import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { Select } from '../components/ui/select'
 import { onMembersRefresh } from '../live/bus'
 import { useSession } from '../session'
-import { AuthError } from '../trips/client'
+import { isAuth, request } from '../api/http'
 import { DialogFrame } from '../trips/CreateTripDialog'
 import { roleName } from '../trips/TripCard'
 import {
@@ -28,9 +29,6 @@ import {
   transferOwnership,
   updateMemberRole,
 } from './client'
-
-const fieldClass =
-  'min-h-11 rounded-[8px] border border-border bg-card px-3 text-foreground'
 
 export function MembersDialog({
   tripId,
@@ -65,12 +63,9 @@ export function MembersDialog({
     setError('')
     void (async () => {
       try {
-        const tripResponse = await fetch(`/api/trips/${tripId}`, {
-          credentials: 'include',
+        const tripResponse = await request(`/api/trips/${tripId}`, {
           signal: controller.signal,
         })
-        if (tripResponse.status === 401) throw new AuthError()
-        if (!tripResponse.ok) throw new Error('load')
         const trip = (await tripResponse.json()) as { role?: TripRole }
         const nextRole = trip.role ?? 'visitor'
         const nextMembers = await listMembers(tripId, controller.signal)
@@ -85,7 +80,7 @@ export function MembersDialog({
         setStatus('ready')
       } catch (caught) {
         if (controller.signal.aborted) return
-        if (caught instanceof AuthError) {
+        if (isAuth(caught)) {
           reload()
           onCloseRef.current()
           return
@@ -104,7 +99,7 @@ export function MembersDialog({
     try {
       await action()
     } catch (caught) {
-      if (caught instanceof AuthError) {
+      if (isAuth(caught)) {
         reload()
         onClose()
         return
@@ -181,14 +176,14 @@ export function MembersDialog({
                 <span className="min-w-0 flex-1 truncate">{member.name}</span>
                 {role === 'owner' && member.role !== 'owner' ? (
                   <>
-                    <select
+                    <Select
                       id={`role-${member.userId}`}
-                      className={fieldClass}
-                      value={member.role}
-                      disabled={busy}
-                      aria-label={t('members.changeRole', {
+                      label={t('members.changeRole', {
                         name: member.name,
                       })}
+                      hideLabel
+                      value={member.role}
+                      disabled={busy}
                       onChange={(event) => {
                         const next = event.target.value
                         if (next !== 'planner' && next !== 'visitor') return
@@ -212,7 +207,7 @@ export function MembersDialog({
                       <option value="visitor">
                         {t('trips.roles.visitor')}
                       </option>
-                    </select>
+                    </Select>
                     <Button
                       variant="danger"
                       aria-label={t('members.remove', { name: member.name })}
@@ -241,10 +236,10 @@ export function MembersDialog({
             <section className="space-y-3 border-t border-border pt-4">
               <h3 className="font-semibold">{t('invite.section')}</h3>
               <div className="flex flex-wrap items-center gap-2">
-                <select
+                <Select
                   id="invite-role"
-                  className={fieldClass}
-                  aria-label={t('invite.role')}
+                  label={t('invite.role')}
+                  hideLabel
                   value={inviteRole}
                   disabled={busy}
                   onChange={(event) => {
@@ -255,7 +250,7 @@ export function MembersDialog({
                 >
                   <option value="visitor">{t('trips.roles.visitor')}</option>
                   <option value="planner">{t('trips.roles.planner')}</option>
-                </select>
+                </Select>
                 <Button
                   disabled={busy}
                   onClick={() => {
@@ -377,10 +372,10 @@ function TransferForm({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select
+      <Select
         id={selectId}
-        className={fieldClass}
-        aria-label={t('members.transfer')}
+        label={t('members.transfer')}
+        hideLabel
         value={userId}
         disabled={busy}
         onChange={(event) => setUserId(event.target.value)}
@@ -390,7 +385,7 @@ function TransferForm({
             {member.name}
           </option>
         ))}
-      </select>
+      </Select>
       <Button
         variant="outline"
         disabled={busy || !userId}

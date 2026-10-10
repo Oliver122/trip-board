@@ -5,6 +5,7 @@ import { Link } from 'react-router'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Select } from '../components/ui/select'
 import { cn } from '../lib/utils'
 import { megabytes } from '../images/format'
 import { formatDate } from '../lib/format'
@@ -75,18 +76,18 @@ export function UsersPage() {
           placeholder={t('admin.users.search')}
           className="min-h-11 min-w-48 flex-1 rounded-[8px] border border-border bg-card px-3"
         />
-        <select
-          aria-label={t('admin.users.filters')}
+        <Select
+          label={t('admin.users.filters')}
+          hideLabel
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          className="min-h-11 rounded-[8px] border border-border bg-card px-3"
         >
           <option value="">{t('admin.users.filterAll')}</option>
           <option value="admins">{t('admin.users.filterAdmins')}</option>
           <option value="suspended">{t('admin.users.filterSuspended')}</option>
           <option value="quota">{t('admin.users.filterQuota')}</option>
           <option value="inactive">{t('admin.users.filterInactive')}</option>
-        </select>
+        </Select>
       </div>
       {loading && !users ? <LoadingState /> : null}
       {error ? <ErrorState /> : null}

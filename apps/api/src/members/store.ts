@@ -3,13 +3,16 @@ import {
   type JoinPreview,
   type Member,
   type TripInvite,
-  type TripRole,
 } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
 import { activity } from '../activity/record.js'
 import { withTransaction } from '../db/transaction.js'
 import { invitePrefix, inviteSuffix, inviteTtlMs } from './code.js'
-import { requireTripRole } from '../trips/roles.js'
+import {
+  parseTripRole,
+  requireTripRole,
+  roleOrVisitor,
+} from '../trips/roles.js'
 
 type Queryable = Pool | PoolClient
 
@@ -355,7 +358,9 @@ export async function previewInvite(
   if (row.expires_at.getTime() <= now.getTime()) {
     return { ok: false, status: 410, reason: 'expired' }
   }
-  const role = row.role === 'planner' ? 'planner' : 'visitor'
+  // invites only ever grant planner or visitor
+  const parsed = parseTripRole(row.role)
+  const role = parsed === 'planner' ? 'planner' : 'visitor'
   return {
     ok: true,
     preview: {
@@ -444,18 +449,14 @@ async function readMembers(db: Queryable, tripId: string): Promise<Member[]> {
     userId: row.user_id,
     name: row.name,
     avatarUrl: row.avatar_url,
-    role: parseRole(row.role),
+    role: roleOrVisitor(row.role),
   }))
 }
 
-function parseRole(value: string): TripRole {
-  if (value === 'owner' || value === 'planner' || value === 'visitor')
-    return value
-  return 'visitor'
-}
-
 function mapInvite(row: InviteRow): TripInvite {
-  const role = row.role === 'planner' ? 'planner' : 'visitor'
+  // invites only ever grant planner or visitor
+  const parsed = parseTripRole(row.role)
+  const role = parsed === 'planner' ? 'planner' : 'visitor'
   return {
     id: row.id,
     code: row.code,

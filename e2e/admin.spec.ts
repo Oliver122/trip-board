@@ -15,8 +15,7 @@ test.describe('Aiko quota', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     try {
       await login(page, sven)
-      await page.goto('/admin/users')
-      await page.getByRole('link', { name: 'Aiko' }).click()
+      await openAiko(page)
       await expect(page.getByRole('heading', { name: 'Aiko' })).toBeVisible()
       await page.getByRole('button', { name: 'Extend storage' }).click()
       const dialog = page.getByRole('dialog', { name: 'Extend storage' })
@@ -149,13 +148,22 @@ test('T-16-16 admin pages pass axe in English', async ({ page }) => {
       await expect(headers.first()).toBeVisible()
     }
   }
-  await page.goto('/admin/users')
-  await page.getByRole('link', { name: 'Aiko' }).click()
+  await openAiko(page)
   await expectNoSeriousViolations(page)
   await page.goto('/admin/trips/10000000-0000-0000-0000-000000000001')
   await expect(page.getByRole('heading', { name: 'Japan 2026' })).toBeVisible()
   await expectNoSeriousViolations(page)
 })
+
+// Every e2e run adds fresh test users, so Aiko is not always on the first
+// page of the user list; find her by name.
+async function openAiko(page: Page) {
+  await page.goto('/admin/users')
+  await page
+    .getByRole('textbox', { name: 'Search by name or Discord id' })
+    .fill('Aiko')
+  await page.getByRole('link', { name: 'Aiko', exact: true }).click()
+}
 
 async function restoreAiko(page: Page) {
   await login(page, sven)

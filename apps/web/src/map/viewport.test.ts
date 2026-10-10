@@ -81,4 +81,27 @@ describe('map viewport', () => {
       })?.hash.startsWith('#s/'),
     ).toBe(true)
   })
+
+  it('writes no hash once the URL has left the scope page', () => {
+    for (const pathname of ['/trips/1/settings', '/trips', '/account']) {
+      expect(
+        rememberViewport({
+          eventScope: 'board',
+          activeScope: 'board',
+          view: tokyo,
+          pathname,
+          search: '',
+        }),
+      ).toBeNull()
+    }
+    expect(
+      rememberViewport({
+        eventScope: 'schedule',
+        activeScope: 'schedule',
+        view: tokyo,
+        pathname: '/trips',
+        search: '',
+      }),
+    ).toBeNull()
+  })
 })

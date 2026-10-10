@@ -1,5 +1,6 @@
 import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
+import { sendError } from './errors.js'
 
 export function parseBody<Output, Input = unknown>(
   schema: z.ZodType<Output, z.ZodTypeDef, Input>,
@@ -9,8 +10,7 @@ export function parseBody<Output, Input = unknown>(
 ): Output | null {
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
-    reply.code(400).send({
-      error: 'invalid_request',
+    sendError(reply, 400, 'invalid_request', {
       fields: fieldErrors(parsed.error, knownMessages),
     })
     return null
@@ -33,7 +33,7 @@ export function fieldErrors(
 
 export function deny(reply: FastifyReply, status: 403 | 404) {
   const error = status === 403 ? 'forbidden' : 'not_found'
-  return reply.code(status).send({ error })
+  return sendError(reply, status, error)
 }
 
 export function isCheckViolation(error: unknown): boolean {

@@ -10,7 +10,8 @@ import { viewportStorageKey, type ViewportScope } from '../map/viewport'
 import { useSession } from '../session'
 import { useDark } from '../theme'
 import { listSpots } from '../spots/client'
-import { AuthError, getTrip, NotFoundError } from '../trips/client'
+import { isAuth, isNotFound } from '../api/http'
+import { getTrip } from '../trips/client'
 import { TripProvider, useTripData } from '../trips/trip-context'
 
 export function TripLayout() {
@@ -44,11 +45,11 @@ export function TripLayout() {
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        if (error instanceof AuthError) {
+        if (isAuth(error)) {
           reload()
           return
         }
-        if (error instanceof NotFoundError) {
+        if (isNotFound(error)) {
           setStatus('missing')
           return
         }

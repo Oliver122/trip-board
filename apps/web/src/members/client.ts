@@ -10,26 +10,18 @@ import {
   type Member,
   type TripInvite,
 } from '@tripboard/shared'
-import { writeInit } from '../api/write'
-import { AuthError } from '../trips/client'
-
-export class MembersError extends Error {
-  status: number
-
-  constructor(status: number) {
-    super('members')
-    this.name = 'MembersError'
-    this.status = status
-  }
-}
+import { request, requestJson } from '../api/http'
 
 export async function listMembers(
   tripId: string,
   signal?: AbortSignal,
 ): Promise<Member[]> {
-  const response = await send(`/api/trips/${tripId}/members`, { signal })
-  if (!response.ok) throw new MembersError(response.status)
-  return memberListSchema.parse(await response.json()).members
+  const list = await requestJson(
+    `/api/trips/${tripId}/members`,
+    memberListSchema,
+    { signal },
+  )
+  return list.members
 }
 
 export async function updateMemberRole(
@@ -37,91 +29,79 @@ export async function updateMemberRole(
   userId: string,
   role: InviteRole,
 ): Promise<Member> {
-  const response = await send(`/api/trips/${tripId}/members/${userId}`, {
+  return requestJson(`/api/trips/${tripId}/members/${userId}`, memberSchema, {
     method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ role }),
   })
-  if (!response.ok) throw new MembersError(response.status)
-  return memberSchema.parse(await response.json())
 }
 
 export async function removeMember(
   tripId: string,
   userId: string,
 ): Promise<void> {
-  const response = await send(`/api/trips/${tripId}/members/${userId}`, {
-    method: 'DELETE',
-  })
-  if (!response.ok) throw new MembersError(response.status)
+  await request(`/api/trips/${tripId}/members/${userId}`, { method: 'DELETE' })
 }
 
 export async function leaveTrip(tripId: string): Promise<void> {
-  const response = await send(`/api/trips/${tripId}/leave`, { method: 'POST' })
-  if (!response.ok) throw new MembersError(response.status)
+  await request(`/api/trips/${tripId}/leave`, { method: 'POST' })
 }
 
 export async function transferOwnership(
   tripId: string,
   userId: string,
 ): Promise<Member[]> {
-  const response = await send(`/api/trips/${tripId}/transfer`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ userId }),
-  })
-  if (!response.ok) throw new MembersError(response.status)
-  return memberListSchema.parse(await response.json()).members
+  const list = await requestJson(
+    `/api/trips/${tripId}/transfer`,
+    memberListSchema,
+    { method: 'POST', body: JSON.stringify({ userId }) },
+  )
+  return list.members
 }
 
 export async function listInvites(
   tripId: string,
   signal?: AbortSignal,
 ): Promise<TripInvite[]> {
-  const response = await send(`/api/trips/${tripId}/invites`, { signal })
-  if (!response.ok) throw new MembersError(response.status)
-  return inviteListSchema.parse(await response.json()).invites
+  const list = await requestJson(
+    `/api/trips/${tripId}/invites`,
+    inviteListSchema,
+    { signal },
+  )
+  return list.invites
 }
 
 export async function createInvite(
   tripId: string,
   role: InviteRole,
 ): Promise<TripInvite> {
-  const response = await send(`/api/trips/${tripId}/invites`, {
+  return requestJson(`/api/trips/${tripId}/invites`, inviteSchema, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ role }),
   })
-  if (!response.ok) throw new MembersError(response.status)
-  return inviteSchema.parse(await response.json())
 }
 
 export async function revokeInvite(inviteId: string): Promise<void> {
-  const response = await send(`/api/invites/${inviteId}`, { method: 'DELETE' })
-  if (!response.ok) throw new MembersError(response.status)
+  await request(`/api/invites/${inviteId}`, { method: 'DELETE' })
 }
 
 export async function previewJoin(
   code: string,
   signal?: AbortSignal,
 ): Promise<JoinPreview> {
-  const response = await fetch(`/api/join/${encodeURIComponent(code)}`, {
-    signal,
-  })
-  if (response.status === 410) throw new MembersError(410)
-  if (response.status === 404 || response.status === 400) {
-    throw new MembersError(response.status)
-  }
-  if (!response.ok) throw new MembersError(response.status)
-  return joinPreviewSchema.parse(await response.json())
+  return requestJson(
+    `/api/join/${encodeURIComponent(code)}`,
+    joinPreviewSchema,
+    { signal },
+  )
 }
 
 export async function acceptJoin(code: string): Promise<string> {
-  const response = await send(`/api/join/${encodeURIComponent(code)}`, {
-    method: 'POST',
-  })
-  if (!response.ok) throw new MembersError(response.status)
-  return joinResultSchema.parse(await response.json()).tripId
+  const result = await requestJson(
+    `/api/join/${encodeURIComponent(code)}`,
+    joinResultSchema,
+    { method: 'POST' },
+  )
+  return result.tripId
 }
 
 export function inviteUrl(code: string): string {
@@ -131,13 +111,4 @@ export function inviteUrl(code: string): string {
 export function daysUntil(expiresAt: string, now = Date.now()): number {
   const remaining = new Date(expiresAt).getTime() - now
   return Math.max(1, Math.ceil(remaining / 86_400_000))
-}
-
-async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(path, {
-    ...writeInit(init),
-    credentials: 'include',
-  })
-  if (response.status === 401) throw new AuthError()
-  return response
 }

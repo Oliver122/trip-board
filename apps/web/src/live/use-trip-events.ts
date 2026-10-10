@@ -8,7 +8,8 @@ import { clientId } from '../api/write'
 import { emitCommentsChanged } from '../comments/bus'
 import { listPlan } from '../plan/client'
 import { listSpots } from '../spots/client'
-import { getTrip, NotFoundError } from '../trips/client'
+import { isNotFound } from '../api/http'
+import { getTrip } from '../trips/client'
 import { emitMembersRefresh } from './bus'
 import {
   createEventBatcher,
@@ -100,7 +101,7 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
         }
         refreshRef.current.onNotices(folded.changes)
       } catch (error) {
-        if (error instanceof NotFoundError) refreshRef.current.onLostAccess()
+        if (isNotFound(error)) refreshRef.current.onLostAccess()
         else if (polling) refreshRef.current.onPollError()
       }
     }
@@ -118,7 +119,7 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
       source = null
       const tick = () => {
         void loadAll().catch((error: unknown) => {
-          if (error instanceof NotFoundError) refreshRef.current.onLostAccess()
+          if (isNotFound(error)) refreshRef.current.onLostAccess()
           else refreshRef.current.onPollError()
         })
       }
@@ -140,7 +141,7 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
       })
       next.addEventListener('resync', () => {
         void loadAll().catch((error: unknown) => {
-          if (error instanceof NotFoundError) refreshRef.current.onLostAccess()
+          if (isNotFound(error)) refreshRef.current.onLostAccess()
         })
       })
       next.onerror = () => {
@@ -172,7 +173,7 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
       failures = 0
       void loadAll()
         .catch((error: unknown) => {
-          if (error instanceof NotFoundError) refreshRef.current.onLostAccess()
+          if (isNotFound(error)) refreshRef.current.onLostAccess()
         })
         .finally(() => {
           if (!closed) open()

@@ -46,3 +46,20 @@ export function ErrorState({
     </div>
   )
 }
+
+export function PanelSkeleton() {
+  const { t } = useTranslation()
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      data-testid="panel-skeleton"
+      className="flex w-full flex-col gap-3 p-4"
+    >
+      <span className="sr-only">{t('state.loading')}</span>
+      <div aria-hidden="true" className="h-8 rounded bg-border" />
+      <div aria-hidden="true" className="h-24 rounded bg-border" />
+      <div aria-hidden="true" className="h-24 rounded bg-border" />
+    </div>
+  )
+}

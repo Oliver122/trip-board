@@ -1,16 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import type { Pool } from 'pg'
-import { z } from 'zod'
 import { readCookie, SESSION_COOKIE } from '../auth/cookies.js'
 import { requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
 import { deny } from '../http/validate.js'
 import { requireTripRole } from '../trips/roles.js'
 import type { TripHub } from './hub.js'
-
-const idSchema = z.object({
-  id: z.string().uuid({ message: 'invalid' }),
-})
+import { sendError } from '../http/errors.js'
+import { idParams, parseParams } from '../http/params.js'
 
 export function registerLiveRoutes(
   app: FastifyInstance,
@@ -27,29 +24,19 @@ export function registerLiveRoutes(
   app.get('/trips/:id/events', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
     if (!user) return
-    const params = idSchema.safeParse(request.params)
-    if (!params.success) {
-      return reply.code(400).send({
-        error: 'invalid_request',
-        fields: { id: 'invalid' },
-      })
-    }
-    const access = await requireTripRole(
-      pool,
-      params.data.id,
-      user.id,
-      'visitor',
-    )
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const access = await requireTripRole(pool, params.id, user.id, 'visitor')
     if (!access.ok) return deny(reply, access.status)
     const token = readCookie(request.headers.cookie, SESSION_COOKIE)
-    if (!token) return reply.code(401).send({ error: 'unauthenticated' })
+    if (!token) return sendError(reply, 401, 'unauthenticated')
     const lastHeader = request.headers['last-event-id']
     const lastEventId =
       typeof lastHeader === 'string' && lastHeader.length > 0
         ? lastHeader
         : null
     const opened = hub.reserve({
-      tripId: params.data.id,
+      tripId: params.id,
       userId: user.id,
       token,
       pool,
@@ -62,7 +49,7 @@ export function registerLiveRoutes(
       },
     })
     if (!opened.ok) {
-      return reply.code(429).send({ error: 'too_many_streams' })
+      return sendError(reply, 429, 'too_many_streams')
     }
 
     reply.hijack()
@@ -85,8 +72,7 @@ export function isLiveEvents(url: string): boolean {
 }
 
 export function invalidExpected(reply: FastifyReply) {
-  return reply.code(400).send({
-    error: 'invalid_request',
+  return sendError(reply, 400, 'invalid_request', {
     fields: { expectedUpdatedAt: 'invalid' },
   })
 }
