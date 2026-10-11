@@ -104,7 +104,7 @@ describe('spots import', () => {
     }[]
     expect(spots).toHaveLength(3)
     for (const spot of spots) {
-      expect(spot.displayCategory).toBe('maybe')
+      expect(spot.displayCategory).toBe('kind')
       expect(spot.createdBy?.id).toBe(owner.user.id)
     }
 
@@ -187,12 +187,12 @@ describe('spots import', () => {
 
     const homeCategory = await postImport(owner.cookie, tripId, {
       source: 'google_csv',
-      baseCategory: 'home',
+      baseCategory: 'planned',
       spots: [kyotoRow],
     })
     expect(homeCategory.statusCode).toBe(400)
     expect(homeCategory.json().fields).toMatchObject({
-      baseCategory: 'invalid',
+      category: 'planned_automatic',
     })
 
     const badLat = await postImport(owner.cookie, tripId, {

@@ -5,6 +5,7 @@ import {
   spotSchema,
   type Spot,
   type SpotDetail,
+  type SpotKind,
   type SpotListQuery,
   type SpotPlan,
 } from '@tripboard/shared'
@@ -36,8 +37,9 @@ import {
 import {
   draftFromSpot,
   draftsEqual,
-  emptyDraft,
-  pinCategory,
+  categoryBody,
+  draftKinds,
+  newDraft,
   switchDecision,
   type Draft,
 } from '../spots/model'
@@ -46,6 +48,9 @@ import { SpotPanel } from '../spots/SpotPanel'
 import { onCommentsChanged } from '../comments/bus'
 import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
 import { getTrip } from '../trips/client'
+import { useTripKinds } from '../kinds/store'
+import { kindNamesText } from '../components/category'
+import type { TFunction } from 'i18next'
 import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
 const searchDebounceMs = 250
@@ -79,6 +84,7 @@ export function BoardPage() {
     liveError,
   } = useTripData()
   const [params, setParams] = useSearchParams()
+  const { kinds } = useTripKinds(id)
   const location = useLocation()
   const linkedSpotId = params.get('spot')
   const paramKey = params.toString()
@@ -177,6 +183,26 @@ export function BoardPage() {
     setQuery(urlQuery)
   }, [urlQuery])
 
+  // Old links say cat=must_go or cat=maybe: swap in the preset kind's id, or
+  // drop it when that kind is gone. Other tokens stay as they are: the kinds
+  // may be a moment behind a kind another client just added, and the API
+  // ignores ids it does not know.
+  useEffect(() => {
+    if (!kinds) return
+    const cat: string[] = []
+    for (const token of urlQuery.cat) {
+      const mapped =
+        token === 'must_go' || token === 'maybe'
+          ? kinds.find((kind) => kind.preset === token)?.id
+          : token
+      if (mapped && !cat.includes(mapped)) cat.push(mapped)
+    }
+    if (cat.join(',') === urlQuery.cat.join(',')) return
+    const next = { ...urlQuery, cat }
+    setQuery(next)
+    setParams(spotListSearchParams(next, listFollowsMap), { replace: true })
+  }, [kinds, listFollowsMap, setParams, urlQuery])
+
   useEffect(() => {
     setSearchDraft(query.q)
   }, [query.q])
@@ -197,6 +223,9 @@ export function BoardPage() {
 
   const filterKey = `${query.q}\n${query.cat.join(',')}\n${query.status}\n${query.by ?? ''}\n${query.entry ?? ''}\n${query.sort}`
   const remote = needsRemoteList(query)
+  const kindsKey = (kinds ?? [])
+    .map((kind) => `${kind.id}:${kind.name}:${kind.color}:${kind.symbol}`)
+    .join('|')
 
   useEffect(() => {
     if (!id) return
@@ -234,7 +263,7 @@ export function BoardPage() {
         setToast(tRef.current('board.loadError'))
       })
     return () => controller.abort()
-  }, [filterKey, id, reload, remote])
+  }, [filterKey, id, kindsKey, reload, remote])
 
   const spots = remote ? (filtered?.spots ?? noSpots) : allSpots
   const total = remote ? (filtered?.total ?? 0) : allTotal
@@ -247,10 +276,11 @@ export function BoardPage() {
     return {
       lng: panel.draft.lng,
       lat: panel.draft.lat,
-      category: pinCategory(panel.draft.baseCategory),
+      category: panel.draft.baseCategory,
+      kinds: draftKinds(panel.draft, kinds ?? []),
       filled: panel.draft.baseCategory === 'home' && panel.draft.primary,
     }
-  }, [panel])
+  }, [kinds, panel])
   const placing = panel != null && panel.mode !== 'view'
   const scene = useMemo<MapScene>(
     () => ({
@@ -316,13 +346,14 @@ export function BoardPage() {
   }
 
   function openAdd() {
+    const fresh = newDraft(kinds)
     setSelectedId(null)
     setLinkError(null)
     setFormError(null)
     setPanel({
       mode: 'add',
-      draft: emptyDraft,
-      baseline: emptyDraft,
+      draft: fresh,
+      baseline: fresh,
       spot: null,
       plans: [],
     })
@@ -483,7 +514,7 @@ export function BoardPage() {
       title: draft.title.trim(),
       lat,
       lng,
-      baseCategory: draft.baseCategory,
+      ...categoryBody(draft, kinds ?? []),
       address: blank(draft.address),
       info: blank(draft.info),
       link: normalized.link,
@@ -503,7 +534,14 @@ export function BoardPage() {
         const tempId = temporaryId()
         changeSpots((current) => [
           ...current,
-          optimistic(tripId, tempId, draft, existing, normalized.link),
+          optimistic(
+            tripId,
+            tempId,
+            draft,
+            kinds ?? [],
+            existing,
+            normalized.link,
+          ),
         ])
         const saved = await createSpot(tripId, body)
         changeSpots((current) => placeSaved(current, saved, tempId))
@@ -513,7 +551,7 @@ export function BoardPage() {
         changeSpots((current) =>
           current.map((spot) => {
             if (spot.id === spotId)
-              return { ...spot, ...body, title: body.title }
+              return optimisticEdit(spot, draft, kinds ?? [], body)
             if (body.primary && spot.primary) return { ...spot, primary: false }
             return spot
           }),
@@ -689,6 +727,7 @@ export function BoardPage() {
           spots={spots}
           existingSpots={allSpots}
           canImport={canEdit}
+          role={trip.role}
           total={total}
           bounds={bounds}
           query={query}
@@ -795,7 +834,12 @@ export function BoardPage() {
       {conflict ? (
         <ConflictDialog
           name={conflict.updatedByName}
-          rows={spotConflictRows(t, conflict.body, conflict.current)}
+          rows={spotConflictRows(
+            t,
+            conflict.body,
+            conflict.current,
+            kinds ?? [],
+          )}
           onMine={() => {
             void useMine()
           }}
@@ -808,22 +852,35 @@ export function BoardPage() {
 }
 
 function spotConflictRows(
-  t: (key: string) => string,
+  t: TFunction,
   mine: {
     title?: string
     address?: string | null
     info?: string | null
     link?: string | null
-    baseCategory?: string
+    kindIds?: string[]
+    category?: string
   },
   theirs: Spot,
+  kinds: SpotKind[],
 ): ConflictRow[] {
+  const mineKinds =
+    mine.category === 'home'
+      ? t('category.home')
+      : kindNamesText(
+          t,
+          kinds.filter((kind) => mine.kindIds?.includes(kind.id)),
+        )
+  const theirKinds =
+    theirs.baseCategory === 'home'
+      ? t('category.home')
+      : kindNamesText(t, theirs.kinds)
   const pairs: Array<[string, string, string]> = [
     [t('board.spotTitle'), mine.title ?? '', theirs.title],
     [t('board.address'), mine.address ?? '', theirs.address ?? ''],
     [t('board.info'), mine.info ?? '', theirs.info ?? ''],
     [t('board.link'), mine.link ?? '', theirs.link ?? ''],
-    [t('board.category'), mine.baseCategory ?? '', theirs.baseCategory],
+    [t('board.category'), mineKinds, theirKinds],
   ]
   return pairs
     .filter(([, left, right]) => left !== right)
@@ -860,7 +917,8 @@ function toMapSpots(spots: Spot[]): MapSpot[] {
     id: spot.id,
     title: spot.title,
     subtitle: spot.address ?? '',
-    category: pinCategory(spot.displayCategory),
+    category: spot.displayCategory,
+    kinds: spot.kinds,
     lng: spot.lng,
     lat: spot.lat,
     primary: spot.primary,
@@ -889,10 +947,47 @@ function blank(value: string): string | null {
   return trimmed.length === 0 ? null : trimmed
 }
 
+/** What a saved draft changes about a spot's category fields. */
+function categoryFields(
+  draft: Draft,
+  kinds: SpotKind[],
+  planCount: number,
+): Pick<Spot, 'baseCategory' | 'displayCategory' | 'kinds'> {
+  const home = draft.baseCategory === 'home'
+  return {
+    baseCategory: draft.baseCategory,
+    displayCategory: home ? 'home' : planCount > 0 ? 'planned' : 'kind',
+    kinds: draftKinds(draft, kinds),
+  }
+}
+
+function optimisticEdit(
+  spot: Spot,
+  draft: Draft,
+  kinds: SpotKind[],
+  body: { title: string; link: string | null },
+): Spot {
+  const home = draft.baseCategory === 'home'
+  return {
+    ...spot,
+    title: body.title,
+    lat: draft.lat ?? spot.lat,
+    lng: draft.lng ?? spot.lng,
+    address: blank(draft.address),
+    info: blank(draft.info),
+    link: body.link,
+    ...categoryFields(draft, kinds, spot.planCount),
+    stayFrom: home ? blank(draft.stayFrom) : null,
+    stayTo: home ? blank(draft.stayTo) : null,
+    primary: home && draft.primary,
+  }
+}
+
 function optimistic(
   tripId: string,
   id: string,
   draft: Draft,
+  kinds: SpotKind[],
   previous: Spot | null,
   link: string | null,
 ): Spot {
@@ -904,8 +999,7 @@ function optimistic(
     address: blank(draft.address),
     lat: draft.lat ?? 0,
     lng: draft.lng ?? 0,
-    baseCategory: draft.baseCategory,
-    displayCategory: draft.baseCategory,
+    ...categoryFields(draft, kinds, previous?.planCount ?? 0),
     planCount: previous?.planCount ?? 0,
     firstScheduledAt: previous?.firstScheduledAt ?? null,
     stayFrom: draft.baseCategory === 'home' ? blank(draft.stayFrom) : null,

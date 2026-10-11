@@ -15,6 +15,10 @@ export const seedIds = {
     hotel: '20000000-0000-0000-0000-000000000005',
     ryokan: '20000000-0000-0000-0000-000000000006',
   },
+  kinds: {
+    mustGo: '40000000-0000-0000-0000-000000000001',
+    maybe: '40000000-0000-0000-0000-000000000002',
+  },
   entries: {
     tokyo: '30000000-0000-0000-0000-000000000001',
     kyoto: '30000000-0000-0000-0000-000000000002',
@@ -75,6 +79,15 @@ export async function seedDatabase(pool: Pool): Promise<void> {
     )
     await client.query(
       `
+      INSERT INTO spot_kinds (id, trip_id, preset, color, symbol, sort_order) VALUES
+        ($2, $1, 'must_go', '#E5484D', 'exclamation', 0),
+        ($3, $1, 'maybe', '#30A46C', 'question', 1)
+      ON CONFLICT DO NOTHING
+      `,
+      [seedIds.trip, seedIds.kinds.mustGo, seedIds.kinds.maybe],
+    )
+    await client.query(
+      `
       INSERT INTO trip_invites (
         trip_id, code, role, created_by, created_at, expires_at
       ) VALUES (
@@ -95,10 +108,10 @@ export async function seedDatabase(pool: Pool): Promise<void> {
     await client.query(
       `
       INSERT INTO spots (id, trip_id, title, address, lat, lng, base_category, created_by) VALUES
-        ($2, $1, 'Shibuya Sky', '2-24-12 Shibuya, Tokyo', 35.658, 139.702, 'must_go', $3),
-        ($4, $1, 'teamLab Borderless', '1-3-8 Azumabashi, Tokyo', 35.626, 139.783, 'must_go', $3),
-        ($5, $1, 'Fushimi Inari', '68 Fukakusa Yabunouchicho, Kyoto', 34.967, 135.772, 'must_go', $3),
-        ($6, $1, 'Nara Park', 'Nara Park, Nara', 34.685, 135.843, 'maybe', $7)
+        ($2, $1, 'Shibuya Sky', '2-24-12 Shibuya, Tokyo', 35.658, 139.702, 'kind', $3),
+        ($4, $1, 'teamLab Borderless', '1-3-8 Azumabashi, Tokyo', 35.626, 139.783, 'kind', $3),
+        ($5, $1, 'Fushimi Inari', '68 Fukakusa Yabunouchicho, Kyoto', 34.967, 135.772, 'kind', $3),
+        ($6, $1, 'Nara Park', 'Nara Park, Nara', 34.685, 135.843, 'kind', $7)
       ON CONFLICT (id) DO NOTHING
       `,
       [
@@ -109,6 +122,27 @@ export async function seedDatabase(pool: Pool): Promise<void> {
         seedIds.spots.fushimi,
         seedIds.spots.nara,
         seedIds.users.aiko,
+      ],
+    )
+    await client.query(
+      `
+      INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+      SELECT $1, v.spot_id, k.id
+      FROM (VALUES
+        ($2::uuid, 'must_go'),
+        ($3::uuid, 'must_go'),
+        ($4::uuid, 'must_go'),
+        ($5::uuid, 'maybe')
+      ) AS v (spot_id, preset)
+      JOIN spot_kinds k ON k.trip_id = $1 AND k.preset = v.preset
+      WHERE NOT EXISTS (SELECT 1 FROM spot_kind_links l WHERE l.spot_id = v.spot_id)
+      `,
+      [
+        seedIds.trip,
+        seedIds.spots.shibuya,
+        seedIds.spots.teamLab,
+        seedIds.spots.fushimi,
+        seedIds.spots.nara,
       ],
     )
     await client.query(

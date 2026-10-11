@@ -18,7 +18,7 @@ export const memberSchema = z.object({
   userId: z.string().uuid(),
   name: z.string(),
   avatarUrl: z.string().nullable(),
-  role: z.enum(['visitor', 'planner', 'owner']),
+  role: z.enum(['visitor', 'planner', 'admin', 'owner']),
 })
 
 export type Member = z.infer<typeof memberSchema>
@@ -32,7 +32,6 @@ export const inviteSchema = z.object({
   code: z.string().regex(inviteCodePattern),
   role: inviteRoleSchema,
   expiresAt: z.string().datetime(),
-  uses: z.number().int().nonnegative(),
 })
 
 export type TripInvite = z.infer<typeof inviteSchema>
@@ -63,9 +62,18 @@ export const transferOwnershipSchema = z
 
 export type TransferOwnershipBody = z.infer<typeof transferOwnershipSchema>
 
+/** Roles the owner can give a member. Invites still grant only planner or visitor. */
+export const memberRoles = ['admin', 'planner', 'visitor'] as const
+export const memberRoleSchema = z.enum(memberRoles)
+export type MemberRole = z.infer<typeof memberRoleSchema>
+
+/** Why `GET`/`POST /join/:code` answers 410. A code is used up by one join (step 28). */
+export const inviteGoneReasons = ['expired', 'revoked', 'used'] as const
+export type InviteGoneReason = (typeof inviteGoneReasons)[number]
+
 export const patchMemberSchema = z
   .object({
-    role: inviteRoleSchema,
+    role: memberRoleSchema,
   })
   .strict()
 

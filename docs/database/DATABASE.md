@@ -5,7 +5,7 @@ PostgreSQL 16. The reference DDL is [`schema.sql`](./schema.sql); [`checks.sql`]
 ```bash
 createdb tripboard_check
 psql -v ON_ERROR_STOP=1 -d tripboard_check -f schema.sql -f checks.sql
-# prints 49 lines "NOTICE:  ok   …", exits 0
+# prints 62 lines "NOTICE:  ok   …", exits 0
 ```
 
 The Drizzle schema in `apps/api/src/db/schema.ts` must produce the same tables, constraints and indexes. Triggers and views are added in a hand-written SQL migration, since Drizzle does not model them.
@@ -23,6 +23,9 @@ erDiagram
     TRIPS ||--o{ TRIP_INVITES : "has"
     TRIP_INVITES |o--o{ TRIP_MEMBERS : "used by"
     TRIPS ||--o{ SPOTS : "contains"
+    TRIPS ||--o{ SPOT_KINDS : "defines (1 to 12)"
+    SPOTS ||--o{ SPOT_KIND_LINKS : "has 1 or 2 (not home)"
+    SPOT_KINDS ||--o{ SPOT_KIND_LINKS : "used by"
     TRIPS |o--o| SPOTS : "primary home base"
     TRIPS ||--o{ PLAN_ENTRIES : "contains"
     PLAN_ENTRIES ||--o{ PLAN_ENTRY_SPOTS : "includes"
@@ -72,7 +75,7 @@ erDiagram
     TRIP_MEMBERS {
         uuid trip_id PK
         uuid user_id PK
-        trip_role role "owner | planner | visitor"
+        trip_role role "owner | admin | planner | visitor"
         uuid invited_via FK
         timestamptz joined_at
     }
@@ -84,7 +87,8 @@ erDiagram
         uuid created_by FK
         timestamptz expires_at "max created + 7 days"
         timestamptz revoked_at
-        int uses
+        timestamptz used_at "single use"
+        uuid used_by FK "user who joined"
     }
     SPOTS {
         uuid id PK
@@ -93,12 +97,26 @@ erDiagram
         text address
         float8 lat
         float8 lng
-        spot_category base_category "must_go | maybe | home"
+        spot_category base_category "kind | home"
         text info
         text link
         date stay_from "home only"
         date stay_to "home only"
         uuid created_by FK
+    }
+    SPOT_KINDS {
+        uuid id PK
+        uuid trip_id FK
+        text name "null while an unrenamed preset"
+        text preset "must_go | maybe | null"
+        text color "#RRGGBB upper case"
+        text symbol "one of 12 keys"
+        int sort_order
+    }
+    SPOT_KIND_LINKS {
+        uuid trip_id FK
+        uuid spot_id PK
+        uuid kind_id PK
     }
     PLAN_ENTRIES {
         uuid id PK
@@ -205,9 +223,9 @@ All tables also have `created_at` (and `updated_at` where rows are edited), main
 
 | Enum | Values | Notes |
 | --- | --- | --- |
-| `trip_role` | `owner`, `planner`, `visitor` | Invites may only grant `planner` or `visitor` |
-| `spot_category` | `must_go`, `maybe`, `home` | Stored category. `planned` is never stored |
-| `display_category` | `must_go`, `maybe`, `planned`, `home` | Output of `spots_view` |
+| `trip_role` | `owner`, `admin`, `planner`, `visitor` | Rank visitor < planner < admin < owner lives in the API. `admin` is the board admin who manages spot kinds. Invites may only grant `planner` or `visitor` |
+| `spot_category` | `kind`, `home` | Stored category: a spot with kinds, or a home spot. `planned` is never stored; the fixed `must_go` / `maybe` values became preset rows in `spot_kinds` |
+| `display_category` | `kind`, `planned`, `home` | Output of `spots_view` |
 | `plan_entry_type` | `bucket`, `single` | |
 | `app_locale` | `en`, `de` | |
 | `app_role` | `user`, `admin` | Platform role, independent of trip roles |
@@ -240,16 +258,29 @@ One row per Discord account. `discord_id` is the stable identity; `username`, `d
 
 ### trip_invites
 - `code` format `^[A-Z0-9]{3}-[A-Z0-9]{4}$`, e.g. `JPN-7K3Q`. The prefix comes from the trip name, the suffix is random (Crockford alphabet, no `0/O/1/I`).
-- Default `role = visitor`; `owner` is rejected.
+- Default `role = visitor`; `owner` and `admin` are rejected.
 - `expires_at` defaults to and may not exceed `created_at + 7 days`.
-- A code is valid when `revoked_at IS NULL AND expires_at > now()`. Rows are kept after expiry for audit and cleaned up after 90 days.
+- One code = one new member. `used_at` and `used_by` (FK to `users`, `ON DELETE SET NULL`) are set in the same transaction as the membership row; `CHECK (used_by IS NULL OR used_at IS NOT NULL)` keeps a code used when its user is deleted. The old `uses` counter is gone.
+- A code is valid when `revoked_at IS NULL AND expires_at > now() AND used_at IS NULL`. Rows are kept after expiry for audit and cleaned up after 90 days.
 
 ### spots
-- `base_category` is what the user picked: must go, maybe or home.
+- `base_category` is `home` or `kind`. A `kind` spot gets its kinds from `spot_kind_links`.
 - `stay_from` / `stay_to` are only allowed on home spots.
 - `link` must be `http(s)://` (prevents `javascript:` links).
 - `UNIQUE (trip_id, id)` exists so child tables can use composite foreign keys that guarantee they stay in the same trip.
 - When a home spot is recategorised, a trigger clears it as primary home base.
+
+### spot_kinds
+Per-trip spot kinds (step 28), 1 to 12 per trip (the limits are enforced by the API).
+- `name` is 1 to 30 characters after trimming and unique per trip, ignoring case (`UNIQUE (trip_id, lower(btrim(name)))`). It is null only for a preset kind that was never renamed; the UI then shows the translated preset label (`CHECK (name IS NOT NULL OR preset IS NOT NULL)`).
+- `preset` is `must_go`, `maybe` or null; a trip has each preset at most once. Every new trip starts with *Must go* (`#E5484D`, `exclamation`) and *Maybe* (`#30A46C`, `question`) in that order.
+- `color` is upper-case `#RRGGBB`; `symbol` is one of 12 keys. The contrast and reserved-color rules are enforced by the API.
+- `UNIQUE (trip_id, id)` lets `spot_kind_links` use a composite FK.
+
+### spot_kind_links
+Which kinds a spot has. Primary key `(spot_id, kind_id)`; composite FKs `(trip_id, spot_id)` and `(trip_id, kind_id)` keep a link inside its trip, both `ON DELETE CASCADE`.
+- A deferred constraint trigger (`spots_kind_links_valid` on `spots`, `spot_kind_links_valid` on the links) enforces at commit: a `home` spot has 0 links, any other spot has 1 or 2. A spot and its links must therefore be written in one transaction.
+- A spot's kinds are listed in trip kind order (`sort_order`); the first is its **primary kind**.
 
 ### spot_comments
 Discussion thread per spot (step 24). Plain text, 1 to 2000 characters after trimming (`CHECK`, same limit as the shared schema).
@@ -309,8 +340,9 @@ What users do (“who is doing what”). The API writes one row per change **in 
 | `export` | `download` |
 | `quota` | `request` |
 | `comment` | `create`, `update`, `delete` |
+| `kind` | `create`, `update`, `reorder`, `delete` |
 
-`metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
+For `kind` events the metadata holds the kind's `name`; `kind.delete` also records `movedTo` (the target kind's name) and `moved` (the number of spots moved). `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
 
 ### admin_audit_log
 Every admin write (quota change, suspend, role change, settings change, request decision) with `before` / `after` JSON and an optional reason. Kept permanently; cannot be edited through the app.
@@ -330,7 +362,7 @@ One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it
 
 | View | Purpose |
 | --- | --- |
-| `spots_view` | Every spot plus `display_category` (`home` stays home; otherwise `planned` if in ≥ 1 plan entry, else the base category), `plan_count`, and `first_scheduled_at` (earliest visit, falling back to the entry's date/time) for the “scheduled first” sort |
+| `spots_view` | Every spot plus `display_category` (`home` stays home; otherwise `planned` if in ≥ 1 plan entry, else `kind`), `kinds` (jsonb array of `{id, name, preset, color, symbol}` in trip kind order, first = primary kind; `[]` for home), `primary_kind_order` (the primary kind's `sort_order`, null for home), `plan_count`, and `first_scheduled_at` (earliest visit, falling back to the entry's date/time) for the “scheduled first” sort |
 | `user_quota_usage` | `used_images`, `used_bytes` vs. effective `max_images`, `max_bytes` (override or default), `has_override` |
 | `plan_entry_home` | Home spot per plan entry: the home spot whose stay overlaps the entry, falling back to the trip's primary home base |
 | `admin_user_overview` | Admin users table: role, status, quota usage, trips owned/joined, spots created, events in 30 days, last activity |
@@ -345,9 +377,12 @@ One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it
 | Rule | Database | API |
 | --- | :-: | :-: |
 | Exactly one owner per trip | ✅ unique index + deferred trigger | ✅ transfer endpoint |
-| Role permissions (owner / planner / visitor) | — | ✅ role guard on every route |
+| Role permissions (owner / admin / planner / visitor) | — | ✅ role guard on every route |
+| A spot has 1 or 2 kinds of its own trip, a home spot none | ✅ composite FKs + deferred trigger | ✅ validated before the write |
+| Kind names unique per trip, 1–30 characters | ✅ unique index + checks | ✅ `kind_name_taken` |
+| Kind limit (12), last kind, contrast and reserved colors | — | ✅ |
 | Invite only planner/visitor, ≤ 7 days | ✅ checks | ✅ |
-| Invite valid (not expired / revoked) | — | ✅ on join |
+| Invite valid (not expired / revoked / used) | ✅ `used_at` check | ✅ on join, under the row lock |
 | Auto *Planned* category | ✅ `spots_view` | — |
 | Child rows stay in the same trip | ✅ composite FKs | — |
 | Primary home is a home spot of the trip | ✅ FK + trigger | — |
@@ -383,7 +418,8 @@ WHERE s.trip_id = $1
 ORDER BY
   (s.first_scheduled_at IS NULL),            -- scheduled first
   s.first_scheduled_at,
-  array_position(ARRAY['must_go','maybe','home']::display_category[], s.display_category),
+  (s.base_category = 'home'),                -- kinds before home
+  s.primary_kind_order,                      -- primary kind's order
   lower(s.title);
 ```
 
@@ -398,12 +434,14 @@ FROM user_quota_usage WHERE user_id = $1;
 **Join with invite:**
 
 ```sql
+SELECT * FROM trip_invites WHERE code = $1 FOR UPDATE;   -- two joins cannot both win
 INSERT INTO trip_members (trip_id, user_id, role, invited_via)
 SELECT trip_id, $2, role, id FROM trip_invites
-WHERE code = $1 AND revoked_at IS NULL AND expires_at > now()
+WHERE code = $1 AND revoked_at IS NULL AND expires_at > now() AND used_at IS NULL
 ON CONFLICT (trip_id, user_id) DO NOTHING   -- existing members keep their role
 RETURNING trip_id;
-UPDATE trip_invites SET uses = uses + 1 WHERE code = $1;
+-- only when a row was inserted:
+UPDATE trip_invites SET used_at = now(), used_by = $2 WHERE code = $1;
 ```
 
 ---
@@ -416,6 +454,8 @@ UPDATE trip_invites SET uses = uses + 1 WHERE code = $1;
 | `trip_members (trip_id) WHERE role='owner'` unique | One owner |
 | `trip_invites (code)` unique | Join lookup |
 | `spots (trip_id, base_category)` | Category filter |
+| `spot_kinds (trip_id, sort_order)`, unique `(trip_id, lower(btrim(name)))`, unique `(trip_id, preset)` | Kind list, unique names, one preset each |
+| `spot_kind_links (kind_id)`, `(trip_id)` | Spots of a kind, trip cleanup |
 | `spots (trip_id, lat, lng)` | Viewport filter |
 | `spots` GIN trigram on title+address+info | Search |
 | `plan_entries (trip_id, start_date, start_time)` | Schedule view |

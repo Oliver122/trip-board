@@ -1,5 +1,17 @@
 import { z } from 'zod'
-import { displayCategories, type DisplayCategory } from './spots.js'
+
+/**
+ * One category filter token: a kind id, `planned`, `home`, or a legacy preset
+ * name (`must_go`, `maybe`) that the API maps to the preset kind while it exists.
+ */
+export type SpotCategoryFilter = string
+
+const categoryFilterPattern =
+  /^(planned|home|must_go|maybe|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+
+export function isCategoryFilter(value: string): boolean {
+  return categoryFilterPattern.test(value)
+}
 
 export const spotSorts = [
   'scheduled',
@@ -18,7 +30,7 @@ export type SpotListStatus = z.infer<typeof spotListStatusSchema>
 /** Filters the board sends to `GET /trips/:id/spots`. `visible` stays on the client. */
 export type SpotListFilters = {
   q: string
-  cat: DisplayCategory[]
+  cat: SpotCategoryFilter[]
   status: SpotListStatus
   by: string | null
   entry: string | null
@@ -38,8 +50,6 @@ export const defaultSpotListQuery: SpotListQuery = {
   sort: 'scheduled',
   visible: false,
 }
-
-const displayCategorySet = new Set<string>(displayCategories)
 
 export function spotFiltersActive(
   query: Pick<SpotListQuery, 'q' | 'cat' | 'status' | 'by' | 'entry'>,
@@ -80,11 +90,11 @@ export function parseSpotListQuery(
 ): SpotListQuery {
   const params =
     typeof search === 'string' ? new URLSearchParams(search) : search
-  const cat: DisplayCategory[] = []
+  const cat: SpotCategoryFilter[] = []
   for (const part of (params.get('cat') ?? '').split(',')) {
     const value = part.trim()
-    if (!displayCategorySet.has(value)) continue
-    const category = value as DisplayCategory
+    if (!isCategoryFilter(value)) continue
+    const category = value as SpotCategoryFilter
     if (!cat.includes(category)) cat.push(category)
   }
   const status = spotListStatusSchema.safeParse(params.get('status'))
@@ -134,7 +144,7 @@ export function strictSpotListQuery(
       : {}
   const fields: Record<string, string> = {}
   let q = ''
-  let cat: DisplayCategory[] = []
+  let cat: SpotCategoryFilter[] = []
   let status: SpotListStatus = 'all'
   let by: string | null = null
   let entry: string | null = null
@@ -174,14 +184,14 @@ export function strictSpotListQuery(
   return { ok: true, filters: { q, cat, status, by, entry, sort } }
 }
 
-function categoryList(value: unknown): DisplayCategory[] | null {
+function categoryList(value: unknown): SpotCategoryFilter[] | null {
   if (typeof value !== 'string') return null
-  const cats: DisplayCategory[] = []
+  const cats: SpotCategoryFilter[] = []
   for (const part of value.split(',')) {
     const token = part.trim()
     if (token.length === 0) continue
-    if (!displayCategorySet.has(token)) return null
-    const category = token as DisplayCategory
+    if (!isCategoryFilter(token)) return null
+    const category = token as SpotCategoryFilter
     if (!cats.includes(category)) cats.push(category)
   }
   return cats

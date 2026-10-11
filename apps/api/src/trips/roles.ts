@@ -4,7 +4,8 @@ import type { Pool, PoolClient } from 'pg'
 const rank: Record<TripRole, number> = {
   visitor: 0,
   planner: 1,
-  owner: 2,
+  admin: 2,
+  owner: 3,
 }
 
 export function roleSatisfies(actual: TripRole, min: TripRole): boolean {
@@ -48,7 +49,12 @@ export async function requireTripRole(
 export function parseTripRole(
   value: string | null | undefined,
 ): TripRole | null {
-  if (value === 'visitor' || value === 'planner' || value === 'owner')
+  if (
+    value === 'visitor' ||
+    value === 'planner' ||
+    value === 'admin' ||
+    value === 'owner'
+  )
     return value
   return null
 }

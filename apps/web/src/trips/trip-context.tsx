@@ -1,9 +1,17 @@
-import type { PlanEntry, Spot, Trip } from '@tripboard/shared'
+import {
+  defaultSpotListQuery,
+  type PlanEntry,
+  type Spot,
+  type Trip,
+} from '@tripboard/shared'
 import type { LiveChange } from '../live/events'
 import { useTripEvents } from '../live/use-trip-events'
+import { useTripKinds } from '../kinds/store'
+import { listSpots } from '../spots/client'
 import {
   createContext,
   useCallback,
+  useEffect,
   useContext,
   useLayoutEffect,
   useMemo,
@@ -11,7 +19,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { Category } from '../components/category'
+import type { Category, KindMark } from '../components/category'
 import type { LngLatBounds } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
 
@@ -19,6 +27,7 @@ export type MapDraft = {
   lng: number
   lat: number
   category: Category
+  kinds?: KindMark[]
   filled?: boolean
 }
 
@@ -128,6 +137,30 @@ export function TripProvider({
   const dismissNotice = useCallback((token: number) => {
     setNotices((current) => current.filter((notice) => notice.token !== token))
   }, [])
+
+  // The writer of a kind change gets no live event for it (own client id), so
+  // re-list the spots whenever the trip's kinds change after the first load.
+  const { kinds } = useTripKinds(trip.id)
+  const kindsKey = kinds
+    ? kinds
+        .map((k) => `${k.id}:${k.name}:${k.color}:${k.symbol}:${k.sortOrder}`)
+        .join('|')
+    : null
+  const seenKinds = useRef<string | null>(null)
+  useEffect(() => {
+    const previous = seenKinds.current
+    seenKinds.current = kindsKey
+    if (previous === null || kindsKey === null || previous === kindsKey) return
+    let stale = false
+    void listSpots(trip.id, defaultSpotListQuery)
+      .then((result) => {
+        if (!stale) replaceSpots(result.spots, result.total)
+      })
+      .catch(() => undefined)
+    return () => {
+      stale = true
+    }
+  }, [kindsKey, replaceSpots, trip.id])
 
   useTripEvents(trip.id, {
     replaceSpots,

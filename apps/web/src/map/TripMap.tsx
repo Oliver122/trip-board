@@ -8,7 +8,11 @@ import { useTranslation } from 'react-i18next'
 import Map, { Marker, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Button } from '../components/ui/button'
-import type { Category } from '../components/category'
+import {
+  kindNamesText,
+  type Category,
+  type KindMark,
+} from '../components/category'
 import { activeLocale } from '../i18n'
 import { useDark } from '../theme'
 import { maxBoundsFor, toMaxBoundsTuple, type LngLatBounds } from './bounds'
@@ -60,6 +64,7 @@ export function TripMap({
     lng: number
     lat: number
     category: Category
+    kinds?: KindMark[]
     filled?: boolean
   } | null
   onPlace?: (lng: number, lat: number) => void
@@ -386,9 +391,17 @@ export function TripMap({
             >
               <Pin
                 category={item.spot.category}
+                kinds={item.spot.kinds}
                 filled={item.spot.category === 'home' && item.spot.primary}
                 unread={item.spot.unread}
-                label={item.spot.title}
+                label={
+                  item.spot.kinds.length > 0
+                    ? t('kinds.pinLabel', {
+                        title: item.spot.title,
+                        kinds: kindNamesText(t, item.spot.kinds),
+                      })
+                    : item.spot.title
+                }
                 selected={
                   item.spot.id === selectedId ||
                   highlightIds.includes(item.spot.id)
@@ -414,6 +427,7 @@ export function TripMap({
           >
             <Pin
               category={draft.category}
+              kinds={draft.kinds}
               filled={draft.filled}
               label={t('board.draftPin')}
               selected

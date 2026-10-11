@@ -90,7 +90,8 @@
     "roles": {
       "owner": "Owner",
       "planner": "Planner",
-      "visitor": "Visitor"
+      "visitor": "Visitor",
+      "admin": "Board admin"
     },
     "errors": {
       "load": "Could not load trips.",
@@ -330,7 +331,9 @@
     "empty": "No active invites.",
     "expiresIn_one": "expires in {{count}} day",
     "expiresIn_other": "expires in {{count}} days",
-    "expired": "This invite has expired. Ask the trip owner for a new link."
+    "expired": "This invite has expired. Ask the trip owner for a new link.",
+    "singleUse": "Each link works for one person",
+    "used": "This invite was already used. Ask the trip owner for a new link."
   },
   "join": {
     "title": "Join a trip",
@@ -606,6 +609,13 @@
           "create": "{{actor}} commented on {{spot}} in {{trip}}",
           "update": "{{actor}} edited a comment on {{spot}} in {{trip}}",
           "delete": "{{actor}} deleted a comment on {{spot}} in {{trip}}"
+        },
+        "kind": {
+          "create": "{{actor}} added the kind {{name}} to {{trip}}",
+          "update": "{{actor}} changed the kind {{name}} in {{trip}}",
+          "reorder": "{{actor}} reordered the kinds of {{trip}}",
+          "delete": "{{actor}} deleted the kind {{name}} from {{trip}}",
+          "deleteMoved": "{{actor}} deleted the kind {{name}} from {{trip}} and moved {{moved}} spots to {{movedTo}}"
         }
       }
     },
@@ -662,7 +672,6 @@
     "planned": "Planned",
     "home": "Home"
   },
-
   "comments": {
     "section": "Discussion",
     "empty": "No comments yet. Ask the others whether they want to go there.",
@@ -701,5 +710,65 @@
     "tripNew_other": "{{count}} new comments",
     "tabTitle": "({{count}}) {{trip}} · {{app}}",
     "loadError": "News could not be loaded."
+  },
+  "kinds": {
+    "title": "Spot kinds",
+    "field": "Kinds",
+    "atMostTwo": "At most 2 kinds",
+    "both": "{{first}} and {{second}}",
+    "pinLabel": "{{title}}, {{kinds}}",
+    "boardMenu": "Board menu",
+    "loadError": "Spot kinds could not be loaded.",
+    "list": "Spot kinds of this trip",
+    "spotCount_one": "{{count}} spot",
+    "spotCount_other": "{{count}} spots",
+    "addTitle": "New kind",
+    "name": "Name",
+    "add": "Add kind",
+    "color": "Color",
+    "colorOf": "Color of {{name}}",
+    "hex": "Hex color",
+    "symbol": "Symbol",
+    "symbolOf": "Symbol of {{name}}",
+    "style": "Color and symbol of {{name}}",
+    "rename": "Name of {{name}}",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "delete": "Delete {{name}}",
+    "limit": "A trip can have up to {{max}} kinds.",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteUsed_one": "{{count}} spot uses {{name}}.",
+    "deleteUsed_other": "{{count}} spots use {{name}}.",
+    "deleteUnused": "No spot uses {{name}}.",
+    "moveTo": "Move them to",
+    "movePick": "Choose a kind",
+    "errors": {
+      "kind_name_taken": "A kind with this name already exists.",
+      "kind_limit": "A trip can have at most 12 kinds.",
+      "kind_last": "The last kind can’t be deleted.",
+      "kind_symbol_unknown": "Choose one of the listed symbols.",
+      "kind_color_contrast": "This color is too light for a white symbol. Choose a darker one.",
+      "kind_color_reserved": "This color is used for Planned or Home. Choose another one.",
+      "kind_not_found": "This kind no longer exists.",
+      "kind_move_required": "Choose a kind to move the spots to.",
+      "kind_move_same": "Choose a different kind to move the spots to.",
+      "invalid_color": "Enter a color as #RRGGBB.",
+      "invalid_name": "Enter a name of 1 to 30 characters.",
+      "generic": "The change could not be saved. Try again."
+    },
+    "symbols": {
+      "exclamation": "Exclamation mark",
+      "question": "Question mark",
+      "dot": "Dot",
+      "star": "Star",
+      "heart": "Heart",
+      "food": "Food",
+      "coffee": "Coffee",
+      "camera": "Camera",
+      "shopping": "Shopping",
+      "nature": "Nature",
+      "temple": "Temple",
+      "cat": "Cat"
+    }
   }
 }

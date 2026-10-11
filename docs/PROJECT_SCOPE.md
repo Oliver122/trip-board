@@ -160,23 +160,24 @@ Two plan entry types; a spot can be in **many** entries (decision #3):
 Filters and sort are kept in the URL query (`?q=ramen&cat=must_go&sort=scheduled`) so a filtered view can be shared.
 
 ### 5.6 Members, roles & invites
-| Action | owner | planner | visitor |
-| --- | :-: | :-: | :-: |
-| View board, schedule, export | ✅ | ✅ | ✅ |
-| Add / edit / delete spots | ✅ | ✅ | — |
-| Create / edit plan entries | ✅ | ✅ | — |
-| Upload images | ✅ | ✅ | — |
-| Edit trip name, dates, map scope, home base | ✅ | ✅ | — |
-| Create / revoke invite codes | ✅ | — | — |
-| Change roles, remove members | ✅ | — | — |
-| Delete trip, transfer ownership | ✅ | — | — |
-| Comment on spots (edit and delete your own; owner deletes any) | ✅ | ✅ | ✅ |
+| Action | owner | board admin | planner | visitor |
+| --- | :-: | :-: | :-: | :-: |
+| View board, schedule, export | ✅ | ✅ | ✅ | ✅ |
+| Add / edit / delete spots | ✅ | ✅ | ✅ | — |
+| Create / edit plan entries | ✅ | ✅ | ✅ | — |
+| Upload images | ✅ | ✅ | ✅ | — |
+| Edit trip name, dates, map scope, home base | ✅ | ✅ | ✅ | — |
+| Create / revoke invite codes | ✅ | — | — | — |
+| Change roles, remove members | ✅ | — | — | — |
+| Delete trip, transfer ownership | ✅ | — | — | — |
+| Create / edit / delete / reorder spot kinds | ✅ | ✅ | — | — |
+| Comment on spots (edit and delete your own; owner deletes any) | ✅ | ✅ | ✅ | ✅ |
 
-- Invite code format `JPN-7K3Q`, link `/join/JPN-7K3Q`, **expires 7 days** after creation.
-- Each invite carries the role it grants: the owner picks **planner** or **visitor**, default **visitor**.
+- Invite code format `JPN-7K3Q`, link `/join/JPN-7K3Q`, **expires 7 days** after creation and works for **one person**: the first new member who joins uses it up (an existing member opening it changes nothing).
+- Each invite carries the role it grants: the owner picks **planner** or **visitor**, default **visitor**. The owner can later make a member **board admin** (planner rights plus managing spot kinds; no members, invites or ownership). Invites never grant board admin.
 - Exactly one owner per trip. Ownership can be transferred; the old owner becomes planner.
 - Joining: Discord login → membership created with the invite's role → redirect to board.
-- Expired/revoked codes show a friendly “ask the owner for a new link” page.
+- Expired/revoked/used codes show a friendly “ask the owner for a new link” page.
 
 ### 5.7 Image uploads & quotas
 - Images are sent to the API, checked (type, size), resized to max 2048 px, converted to WebP, then stored in blob storage. Only the object key + metadata go into Postgres.

@@ -1,16 +1,21 @@
 import { z } from 'zod'
+import { kindLimits, spotKindRefSchema } from './kinds.js'
 import type { BBox } from './trips.js'
 
-export const spotCategories = ['must_go', 'maybe', 'home'] as const
+/** Stored base of a spot: it has kinds, or it is a home spot (step 28). */
+export const spotCategories = ['kind', 'home'] as const
 export const spotCategorySchema = z.enum(spotCategories)
 export type SpotCategory = z.infer<typeof spotCategorySchema>
 
-export const displayCategories = [
-  'must_go',
-  'maybe',
-  'planned',
-  'home',
-] as const
+/**
+ * Values a write may send as `category` (or the legacy `baseCategory`):
+ * `home`, or a preset name that maps to the trip's kind with that preset.
+ */
+export const spotCategoryInputs = ['home', 'must_go', 'maybe'] as const
+export type SpotCategoryInput = (typeof spotCategoryInputs)[number]
+
+/** Priority home > planned > kind. */
+export const displayCategories = ['kind', 'planned', 'home'] as const
 export const displayCategorySchema = z.enum(displayCategories)
 export type DisplayCategory = z.infer<typeof displayCategorySchema>
 
@@ -36,6 +41,8 @@ export const spotSchema = z.object({
   lng: z.number(),
   baseCategory: spotCategorySchema,
   displayCategory: displayCategorySchema,
+  /** The spot's kinds in trip kind order; the first is the primary kind. Empty for home. */
+  kinds: z.array(spotKindRefSchema),
   planCount: z.number().int().nonnegative(),
   firstScheduledAt: z.string().nullable(),
   stayFrom: z.string().nullable(),
@@ -124,21 +131,74 @@ function checkTitle(title: string, ctx: z.RefinementCtx) {
   }
 }
 
-function checkBaseCategory(value: string, ctx: z.RefinementCtx) {
-  if (value === 'planned') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['baseCategory'],
-      message: 'planned_automatic',
-    })
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type CategoryFields = {
+  kindIds?: string[]
+  category?: string
+  baseCategory?: string
+}
+
+/** `category`, falling back to the legacy `baseCategory` field. */
+export function requestedCategory(data: CategoryFields): string | undefined {
+  return data.category ?? data.baseCategory
+}
+
+/** True when the write makes the spot a home spot. */
+export function requestsHome(data: CategoryFields): boolean {
+  return data.kindIds === undefined && requestedCategory(data) === 'home'
+}
+
+function categoryIssue(ctx: z.RefinementCtx, path: string, message: string) {
+  ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message })
+}
+
+/**
+ * `kindIds` (1 or 2 different ids) or `category`, never both. Messages:
+ * `conflict`, `count`, `invalid`, `duplicate`, `required`, `planned_automatic`.
+ */
+function checkCategory(
+  data: CategoryFields,
+  ctx: z.RefinementCtx,
+  required: boolean,
+) {
+  const category = requestedCategory(data)
+  if (data.kindIds !== undefined) {
+    const ids = data.kindIds
+    if (category !== undefined) {
+      categoryIssue(ctx, 'kindIds', 'conflict')
+    } else if (ids.length < 1 || ids.length > kindLimits.perSpot) {
+      categoryIssue(ctx, 'kindIds', 'count')
+    } else if (ids.some((id) => !uuidPattern.test(id))) {
+      categoryIssue(ctx, 'kindIds', 'invalid')
+    } else if (new Set(ids.map((id) => id.toLowerCase())).size !== ids.length) {
+      categoryIssue(ctx, 'kindIds', 'duplicate')
+    }
     return
   }
-  if (value !== 'must_go' && value !== 'maybe' && value !== 'home') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['baseCategory'],
-      message: 'invalid',
-    })
+  if (category === undefined) {
+    if (required) categoryIssue(ctx, 'kindIds', 'required')
+    return
+  }
+  if (category === 'planned') {
+    categoryIssue(ctx, 'category', 'planned_automatic')
+  } else if (!(spotCategoryInputs as readonly string[]).includes(category)) {
+    categoryIssue(ctx, 'category', 'invalid')
+  }
+}
+
+/** Folds the legacy `baseCategory` into `category`. */
+function withCategory<T extends CategoryFields>(
+  data: T,
+): Omit<T, 'baseCategory' | 'category'> & { category?: SpotCategoryInput } {
+  const rest = { ...data } as CategoryFields
+  delete rest.baseCategory
+  delete rest.category
+  const category = requestedCategory(data) as SpotCategoryInput | undefined
+  const folded = category === undefined ? rest : { ...rest, category }
+  return folded as Omit<T, 'baseCategory' | 'category'> & {
+    category?: SpotCategoryInput
   }
 }
 
@@ -287,7 +347,10 @@ export const createSpotSchema = z
     title: z.string(),
     lat: z.number(),
     lng: z.number(),
-    baseCategory: z.string(),
+    kindIds: z.array(z.string()).optional(),
+    category: z.string().optional(),
+    /** Legacy name of `category`. */
+    baseCategory: z.string().optional(),
     address: z.string().nullable().optional(),
     info: z.string().nullable().optional(),
     link: z.string().nullable().optional(),
@@ -299,19 +362,17 @@ export const createSpotSchema = z
     checkTitle(data.title, ctx)
     checkCoord(data.lat, -90, 90, 'lat', ctx)
     checkCoord(data.lng, -180, 180, 'lng', ctx)
-    checkBaseCategory(data.baseCategory, ctx)
+    checkCategory(data, ctx, true)
     checkOptionalText(data.address, spotLimits.address, 'address', ctx)
     checkOptionalText(data.info, spotLimits.info, 'info', ctx)
     checkLink(data.link, ctx)
-    if (
-      data.baseCategory === 'must_go' ||
-      data.baseCategory === 'maybe' ||
-      data.baseCategory === 'home'
-    ) {
-      checkStay(data, ctx, true)
-    }
+    checkStay(
+      { ...data, baseCategory: requestsHome(data) ? 'home' : 'kind' },
+      ctx,
+      true,
+    )
   })
-  .transform(withNormalizedLink)
+  .transform((data) => withCategory(withNormalizedLink(data)))
 
 export type CreateSpotBody = z.infer<typeof createSpotSchema>
 
@@ -320,6 +381,9 @@ export const patchSpotSchema = z
     title: z.string().optional(),
     lat: z.number().optional(),
     lng: z.number().optional(),
+    kindIds: z.array(z.string()).optional(),
+    category: z.string().optional(),
+    /** Legacy name of `category`. */
     baseCategory: z.string().optional(),
     address: z.string().nullable().optional(),
     info: z.string().nullable().optional(),
@@ -332,18 +396,16 @@ export const patchSpotSchema = z
     if (data.title !== undefined) checkTitle(data.title, ctx)
     if (data.lat !== undefined) checkCoord(data.lat, -90, 90, 'lat', ctx)
     if (data.lng !== undefined) checkCoord(data.lng, -180, 180, 'lng', ctx)
-    if (data.baseCategory !== undefined) {
-      checkBaseCategory(data.baseCategory, ctx)
-    }
+    checkCategory(data, ctx, false)
     checkOptionalText(data.address, spotLimits.address, 'address', ctx)
     checkOptionalText(data.info, spotLimits.info, 'info', ctx)
     checkLink(data.link, ctx)
-    if (
-      data.baseCategory === 'must_go' ||
-      data.baseCategory === 'maybe' ||
-      data.baseCategory === 'home'
-    ) {
-      checkStay(data, ctx, true)
+    if (data.kindIds !== undefined || requestedCategory(data) !== undefined) {
+      checkStay(
+        { ...data, baseCategory: requestsHome(data) ? 'home' : 'kind' },
+        ctx,
+        true,
+      )
     } else if (data.stayFrom !== undefined || data.stayTo !== undefined) {
       checkStay(data, ctx, false)
     }
@@ -351,7 +413,8 @@ export const patchSpotSchema = z
       data.title === undefined &&
       data.lat === undefined &&
       data.lng === undefined &&
-      data.baseCategory === undefined &&
+      data.kindIds === undefined &&
+      requestedCategory(data) === undefined &&
       data.address === undefined &&
       data.info === undefined &&
       data.link === undefined &&
@@ -366,7 +429,7 @@ export const patchSpotSchema = z
       })
     }
   })
-  .transform(withNormalizedLink)
+  .transform((data) => withCategory(withNormalizedLink(data)))
 
 export type PatchSpotBody = z.infer<typeof patchSpotSchema>
 
@@ -378,7 +441,8 @@ export const spotImportSources = [
 export const spotImportSourceSchema = z.enum(spotImportSources)
 export type SpotImportSource = z.infer<typeof spotImportSourceSchema>
 
-export const spotImportBaseCategories = ['must_go', 'maybe'] as const
+/** Import target when no `kindIds` are sent: a preset kind, or home. */
+export const spotImportBaseCategories = ['must_go', 'maybe', 'home'] as const
 export const spotImportBaseCategorySchema = z.enum(spotImportBaseCategories)
 export type SpotImportBaseCategory = z.infer<
   typeof spotImportBaseCategorySchema
@@ -407,11 +471,18 @@ const spotImportRowSchema = z
 
 export type SpotImportRow = z.infer<typeof spotImportRowSchema>
 
-export const spotImportSchema = z.object({
-  source: spotImportSourceSchema,
-  baseCategory: spotImportBaseCategorySchema,
-  spots: z.array(spotImportRowSchema).min(1).max(spotImportLimit),
-})
+/** Every imported spot gets the same `kindIds`, or the same `category`. */
+export const spotImportSchema = z
+  .object({
+    source: spotImportSourceSchema,
+    kindIds: z.array(z.string()).optional(),
+    category: z.string().optional(),
+    /** Legacy name of `category`. */
+    baseCategory: z.string().optional(),
+    spots: z.array(spotImportRowSchema).min(1).max(spotImportLimit),
+  })
+  .superRefine((data, ctx) => checkCategory(data, ctx, true))
+  .transform((data) => withCategory(data))
 
 export type SpotImportBody = z.infer<typeof spotImportSchema>
 

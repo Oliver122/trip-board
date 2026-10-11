@@ -37,6 +37,10 @@ INSERT INTO trip_members (trip_id, user_id, role) VALUES
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'owner'),
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'planner');
 
+INSERT INTO spot_kinds (id, trip_id, preset, color, symbol, sort_order) VALUES
+  ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'must_go', '#E5484D', 'exclamation', 0),
+  ('50000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'maybe',   '#30A46C', 'question',    1);
+
 SET CONSTRAINTS ALL IMMEDIATE;
 
 -- Ownership ---------------------------------------------------------------
@@ -81,24 +85,43 @@ SELECT pg_temp.expect_error($$
   INSERT INTO trip_invites (trip_id, code) VALUES
   ('10000000-0000-0000-0000-000000000001', 'jpn-7k3q')$$, 'bad invite code format rejected');
 
+INSERT INTO users (id, discord_id, username) VALUES
+  ('00000000-0000-0000-0000-000000000006', '100000000000000006', 'rin');
+SELECT pg_temp.expect_error($$
+  UPDATE trip_invites SET used_by = '00000000-0000-0000-0000-000000000006' WHERE code = 'JPN-7K3Q'$$,
+  'invite cannot name a user without a use time');
+UPDATE trip_invites SET used_at = now(), used_by = '00000000-0000-0000-0000-000000000006'
+ WHERE code = 'JPN-7K3Q';
+DELETE FROM users WHERE id = '00000000-0000-0000-0000-000000000006';
+SELECT pg_temp.expect(
+  (SELECT used_at IS NOT NULL AND used_by IS NULL FROM trip_invites WHERE code = 'JPN-7K3Q'),
+  'deleting the joining user keeps the invite used');
+
 -- Spots -------------------------------------------------------------------
+-- A spot and its kind links are written together; the link rule is checked
+-- when the constraint triggers fire (deferred here, as at commit).
+SET CONSTRAINTS ALL DEFERRED;
 INSERT INTO spots (id, trip_id, title, lat, lng, base_category) VALUES
-  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Shibuya Sky', 35.658, 139.702, 'must_go'),
-  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Nara Park',   34.685, 135.843, 'maybe');
+  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Shibuya Sky', 35.658, 139.702, 'kind'),
+  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Nara Park',   34.685, 135.843, 'kind');
+INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001'),
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000002');
 INSERT INTO spots (id, trip_id, title, lat, lng, base_category, stay_from, stay_to) VALUES
   ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Hotel Gracery', 35.694, 139.701, 'home', '2026-04-12', '2026-04-16'),
   ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', 'Kyoto Ryokan',  35.003, 135.778, 'home', '2026-04-17', '2026-04-19');
+SET CONSTRAINTS ALL IMMEDIATE;
 
 SELECT pg_temp.expect_error($$
   INSERT INTO spots (trip_id, title, lat, lng, base_category, stay_from)
-  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 0, 0, 'must_go', '2026-01-01')$$,
+  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 0, 0, 'kind', '2026-01-01')$$,
   'stay dates only on home spots');
 SELECT pg_temp.expect_error($$
   INSERT INTO spots (trip_id, title, lat, lng, base_category)
-  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 91, 0, 'maybe')$$, 'latitude range enforced');
+  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 91, 0, 'kind')$$, 'latitude range enforced');
 SELECT pg_temp.expect_error($$
   INSERT INTO spots (trip_id, title, lat, lng, base_category, link)
-  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 0, 0, 'maybe', 'javascript:alert(1)')$$,
+  VALUES ('10000000-0000-0000-0000-000000000001', 'x', 0, 0, 'kind', 'javascript:alert(1)')$$,
   'non-http link rejected');
 
 -- Primary home base -------------------------------------------------------
@@ -106,12 +129,19 @@ SELECT pg_temp.expect_error($$
   UPDATE trips SET primary_home_spot_id = '20000000-0000-0000-0000-000000000001'$$,
   'non-home spot cannot be primary home');
 UPDATE trips SET primary_home_spot_id = '20000000-0000-0000-0000-000000000003';
-UPDATE spots SET base_category = 'maybe', stay_from = NULL, stay_to = NULL
+SET CONSTRAINTS ALL DEFERRED;
+UPDATE spots SET base_category = 'kind', stay_from = NULL, stay_to = NULL
  WHERE id = '20000000-0000-0000-0000-000000000003';
+INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000002');
+SET CONSTRAINTS ALL IMMEDIATE;
 SELECT pg_temp.expect((SELECT primary_home_spot_id IS NULL FROM trips),
   'recategorising home spot clears primary home');
+SET CONSTRAINTS ALL DEFERRED;
+DELETE FROM spot_kind_links WHERE spot_id = '20000000-0000-0000-0000-000000000003';
 UPDATE spots SET base_category = 'home', stay_from = '2026-04-12', stay_to = '2026-04-16'
  WHERE id = '20000000-0000-0000-0000-000000000003';
+SET CONSTRAINTS ALL IMMEDIATE;
 
 -- Planning ----------------------------------------------------------------
 INSERT INTO plan_entries (id, trip_id, type, title, start_date, end_date) VALUES
@@ -128,8 +158,9 @@ SELECT pg_temp.expect_error($$
   'single entry cannot span days');
 
 SELECT pg_temp.expect(
-  (SELECT display_category = 'must_go' FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000001'),
-  'unplanned spot shows base category');
+  (SELECT display_category = 'kind' AND kinds -> 0 ->> 'preset' = 'must_go' AND primary_kind_order = 0
+     FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000001'),
+  'unplanned spot shows its kind');
 
 INSERT INTO plan_entry_spots (trip_id, plan_entry_id, spot_id, visit_date, visit_time) VALUES
   ('10000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', '2026-04-13', '18:00'),
@@ -159,8 +190,8 @@ SELECT pg_temp.expect(
 
 DELETE FROM plan_entry_spots WHERE spot_id = '20000000-0000-0000-0000-000000000002';
 SELECT pg_temp.expect(
-  (SELECT display_category = 'maybe' FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000002'),
-  'removing last plan restores base category');
+  (SELECT display_category = 'kind' FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000002'),
+  'removing last plan restores the kind display');
 
 -- Home spot per bucket ----------------------------------------------------
 SELECT pg_temp.expect(
@@ -179,6 +210,8 @@ INSERT INTO trips (id, name, bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_
 VALUES ('10000000-0000-0000-0000-000000000002', 'Korea 2027', 124, 33, 131, 39);
 INSERT INTO trip_members VALUES ('10000000-0000-0000-0000-000000000002',
   '00000000-0000-0000-0000-000000000003', 'owner');
+INSERT INTO spot_kinds (id, trip_id, preset, color, symbol, sort_order) VALUES
+  ('50000000-0000-0000-0000-000000000012', '10000000-0000-0000-0000-000000000002', 'must_go', '#E5484D', 'exclamation', 0);
 SET CONSTRAINTS ALL IMMEDIATE;
 SELECT pg_temp.expect_error($$
   INSERT INTO plan_entry_spots (trip_id, plan_entry_id, spot_id) VALUES
@@ -187,6 +220,66 @@ SELECT pg_temp.expect_error($$
 SELECT pg_temp.expect_error($$
   UPDATE trips SET primary_home_spot_id = '20000000-0000-0000-0000-000000000003'
    WHERE id = '10000000-0000-0000-0000-000000000002'$$, 'primary home must belong to trip');
+
+-- Spot kinds --------------------------------------------------------------
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002',
+   '50000000-0000-0000-0000-000000000012')$$, 'kind link cannot cross trips');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003',
+   '50000000-0000-0000-0000-000000000001')$$, 'home spot with a kind rejected');
+SELECT pg_temp.expect_error($$
+  SET CONSTRAINTS ALL DEFERRED;
+  INSERT INTO spots (trip_id, title, lat, lng, base_category)
+  VALUES ('10000000-0000-0000-0000-000000000001', 'No kind', 0, 0, 'kind');
+  SET CONSTRAINTS ALL IMMEDIATE$$, 'non-home spot without a kind rejected at commit');
+SELECT pg_temp.expect_error($$
+  SET CONSTRAINTS ALL DEFERRED;
+  INSERT INTO spots (id, trip_id, title, lat, lng, base_category)
+  VALUES ('20000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001', 'Three', 0, 0, 'kind');
+  INSERT INTO spot_kinds (id, trip_id, name, color, symbol, sort_order) VALUES
+    ('50000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Food', '#D9480F', 'food', 2);
+  INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+    ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', '50000000-0000-0000-0000-000000000001'),
+    ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', '50000000-0000-0000-0000-000000000002'),
+    ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', '50000000-0000-0000-0000-000000000003');
+  SET CONSTRAINTS ALL IMMEDIATE$$, 'spot with three kinds rejected at commit');
+INSERT INTO spot_kinds (id, trip_id, name, color, symbol, sort_order) VALUES
+  ('50000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001', 'Food', '#D9480F', 'food', 2);
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', ' food ', '#0F766E', 'dot', 3)$$, 'kind names are unique per trip, ignoring case');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', '   ', '#0F766E', 'dot', 3)$$, 'blank kind name rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'maybe', '#0F766E', 'dot', 3)$$, 'a preset kind exists once per trip');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'Pizza', '#0F766E', 'pizza', 3)$$, 'unknown kind symbol rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'Pizza', 'red', 'dot', 3)$$, 'kind color must be upper-case hex');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, color, symbol, sort_order) VALUES
+  ('10000000-0000-0000-0000-000000000001', '#0F766E', 'dot', 3)$$, 'kind needs a name unless it is a preset');
+SET CONSTRAINTS ALL DEFERRED;
+INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000003');
+SET CONSTRAINTS ALL IMMEDIATE;
+SELECT pg_temp.expect(
+  (SELECT jsonb_array_length(kinds) = 2
+          AND kinds -> 0 ->> 'preset' = 'must_go' AND kinds -> 1 ->> 'name' = 'Food'
+          AND primary_kind_order = 0
+     FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000001')
+  AND (SELECT kinds = '[]'::jsonb AND primary_kind_order IS NULL
+     FROM spots_view WHERE id = '20000000-0000-0000-0000-000000000003'),
+  'spots_view lists kinds in trip order; home spots have none');
+DELETE FROM spot_kind_links
+ WHERE spot_id = '20000000-0000-0000-0000-000000000001' AND kind_id = '50000000-0000-0000-0000-000000000003';
 
 -- Images & quota ----------------------------------------------------------
 INSERT INTO images (trip_id, spot_id, uploaded_by, storage_key, bytes, width, height) VALUES
@@ -280,7 +373,11 @@ VALUES ('10000000-0000-0000-0000-000000000009', 'Other trip',
 INSERT INTO trip_members (trip_id, user_id, role) VALUES
   ('10000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000001', 'owner');
 INSERT INTO spots (id, trip_id, title, lat, lng, base_category) VALUES
-  ('20000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Elsewhere', 0, 0, 'must_go');
+  ('20000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Elsewhere', 0, 0, 'kind');
+INSERT INTO spot_kinds (id, trip_id, preset, color, symbol, sort_order) VALUES
+  ('50000000-0000-0000-0000-000000000019', '10000000-0000-0000-0000-000000000009', 'must_go', '#E5484D', 'exclamation', 0);
+INSERT INTO spot_kind_links (trip_id, spot_id, kind_id) VALUES
+  ('10000000-0000-0000-0000-000000000009', '20000000-0000-0000-0000-000000000009', '50000000-0000-0000-0000-000000000019');
 SET CONSTRAINTS ALL IMMEDIATE;
 
 SELECT pg_temp.expect_error($$

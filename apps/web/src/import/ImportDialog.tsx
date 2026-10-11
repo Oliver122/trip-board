@@ -1,8 +1,9 @@
-import type {
-  GeocodeLang,
-  Spot,
-  SpotImportBaseCategory,
-  SpotImportSource,
+import {
+  kindLimits,
+  type GeocodeLang,
+  type Spot,
+  type SpotImportSource,
+  type SpotKind,
 } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +14,9 @@ import { cn } from '../lib/utils'
 import { searchAddress } from '../spots/client'
 import { isAuth } from '../api/http'
 import { importSpots } from './client'
-import { pinCategory } from '../spots/model'
+import { kindLabel } from '../kinds/label'
+import { useTripKinds } from '../kinds/store'
+import { categoryBody } from '../spots/model'
 import { markDuplicates, type DuplicateCandidate } from './duplicates'
 import { locateRows, type Located } from './locate'
 import type { ParseError, ParsedRow } from './model'
@@ -54,7 +57,16 @@ export function ImportDialog({
   const [stage, setStage] = useState<Stage>({ name: 'pick' })
   const [source, setSource] = useState<SpotImportSource | null>(null)
   const [rows, setRows] = useState<PreviewRow[]>([])
-  const [category, setCategory] = useState<SpotImportBaseCategory>('maybe')
+  const { kinds } = useTripKinds(tripId)
+  const [pick, setPick] = useState<KindPick>({
+    home: false,
+    kindIds: [],
+  })
+  // Nothing picked yet means the trip's first kind, the default.
+  const effective =
+    pick.kindIds.length > 0
+      ? pick.kindIds
+      : (kinds ?? []).slice(0, 1).map((k) => k.id)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -139,7 +151,13 @@ export function ImportDialog({
     try {
       const result = await importSpots(tripId, {
         source,
-        baseCategory: category,
+        ...categoryBody(
+          {
+            baseCategory: pick.home ? 'home' : 'kind',
+            kindIds: effective,
+          },
+          kinds ?? [],
+        ),
         spots: ticked.map((row) => ({
           title: row.title,
           lat: row.lat as number,
@@ -267,20 +285,42 @@ export function ImportDialog({
                 <legend className="mb-2 text-sm font-semibold">
                   {t('board.category')}
                 </legend>
-                {(['must_go', 'maybe'] as const).map((value) => (
-                  <label
-                    key={value}
-                    className="flex min-h-11 items-center gap-2"
-                  >
-                    <input
-                      type="radio"
-                      name="import-category"
-                      checked={category === value}
-                      onChange={() => setCategory(value)}
-                    />
-                    {t(`category.${pinCategory(value)}`)}
-                  </label>
-                ))}
+                {(kinds ?? []).map((kind) => {
+                  const picked = !pick.home && effective.includes(kind.id)
+                  return (
+                    <label
+                      key={kind.id}
+                      className="flex min-h-11 items-center gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={picked}
+                        disabled={
+                          !pick.home &&
+                          !picked &&
+                          effective.length >= kindLimits.perSpot
+                        }
+                        onChange={() =>
+                          setPick(
+                            togglePick(pick, effective, kinds ?? [], kind.id),
+                          )
+                        }
+                      />
+                      {kindLabel(t, kind)}
+                    </label>
+                  )
+                })}
+                <label className="flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={pick.home}
+                    onChange={() => setPick({ home: true, kindIds: [] })}
+                  />
+                  {t('category.home')}
+                </label>
+                {!pick.home && effective.length >= kindLimits.perSpot ? (
+                  <p className="text-sm text-muted">{t('kinds.atMostTwo')}</p>
+                ) : null}
               </fieldset>
               <ul className="m-0 mt-3 list-none space-y-2 p-0">
                 {rows.map((row) => (
@@ -420,4 +460,24 @@ function NotFoundSearch({
       ) : null}
     </div>
   )
+}
+
+type KindPick = { home: boolean; kindIds: string[] }
+
+/** Home replaces the kinds; otherwise 1 or 2 kinds, kept in trip kind order. */
+function togglePick(
+  pick: KindPick,
+  effective: string[],
+  kinds: SpotKind[],
+  id: string,
+): KindPick {
+  if (pick.home) return { home: false, kindIds: [id] }
+  const wanted = effective.includes(id)
+    ? effective.filter((item) => item !== id)
+    : [...effective, id]
+  if (wanted.length === 0) return { home: false, kindIds: effective }
+  return {
+    home: false,
+    kindIds: kinds.filter((kind) => wanted.includes(kind.id)).map((k) => k.id),
+  }
 }

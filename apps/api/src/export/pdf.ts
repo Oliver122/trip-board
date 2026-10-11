@@ -1,14 +1,7 @@
-import {
-  spotFiltersActive,
-  type DisplayCategory,
-  type PlanEntry,
-  type Spot,
-} from '@tripboard/shared'
+import { spotFiltersActive, type PlanEntry, type Spot } from '@tripboard/shared'
 import PDFDocumentFactory from 'pdfkit'
 import { exportLabels, formatExportDate, type ExportLocale } from './labels.js'
 import type { ExportData } from './store.js'
-
-const categoryOrder: DisplayCategory[] = ['must_go', 'maybe', 'planned', 'home']
 
 type DaySpot = { spot: Spot; time: string | null }
 
@@ -71,14 +64,29 @@ function writePdf(doc: PdfDoc, data: ExportData): void {
   if (unscheduled.length === 0) return
   doc.moveDown(0.8)
   doc.font('Helvetica-Bold').fontSize(14).text(labels.unscheduled)
-  for (const category of categoryOrder) {
-    const group = unscheduled.filter(
-      (spot) => spot.displayCategory === category,
-    )
-    if (group.length === 0) continue
+  // A spot with two kinds is listed once, under its primary kind (the first).
+  const groups: { title: string; spots: Spot[] }[] = data.kinds.map((kind) => ({
+    title: labels.kind(kind),
+    spots: unscheduled.filter(
+      (spot) =>
+        spot.displayCategory === 'kind' && spot.kinds[0]?.id === kind.id,
+    ),
+  }))
+  groups.push(
+    {
+      title: labels.category.planned,
+      spots: unscheduled.filter((spot) => spot.displayCategory === 'planned'),
+    },
+    {
+      title: labels.category.home,
+      spots: unscheduled.filter((spot) => spot.displayCategory === 'home'),
+    },
+  )
+  for (const group of groups) {
+    if (group.spots.length === 0) continue
     doc.moveDown(0.4)
-    doc.font('Helvetica-Bold').fontSize(12).text(labels.category[category])
-    for (const spot of group) writeSpot(doc, spot, null)
+    doc.font('Helvetica-Bold').fontSize(12).text(pdfSafe(group.title))
+    for (const spot of group.spots) writeSpot(doc, spot, null)
   }
 }
 

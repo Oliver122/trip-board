@@ -30,7 +30,7 @@ function spotLine(
 ): string {
   return [
     spot.title,
-    labels.category[spot.displayCategory],
+    categoryCell(spot, labels),
     spot.address ?? '',
     coordinate(spot.lat),
     coordinate(spot.lng),
@@ -44,6 +44,16 @@ function spotLine(
   ]
     .map(csvField)
     .join(',')
+}
+
+/** Planned and home show their fixed label; otherwise the kinds joined with " / ". */
+function categoryCell(
+  spot: Spot,
+  labels: ReturnType<typeof exportLabels>,
+): string {
+  if (spot.displayCategory !== 'kind')
+    return labels.category[spot.displayCategory]
+  return spot.kinds.map(labels.kind).join(' / ')
 }
 
 function coordinate(value: number): string {

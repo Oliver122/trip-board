@@ -4,6 +4,7 @@ import {
   type GeocodeLang,
   type Spot,
   type SpotListQuery,
+  type TripRole,
 } from '@tripboard/shared'
 import { Calendar, House, MessageSquare } from 'lucide-react'
 import {
@@ -13,7 +14,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CategoryStrip, type Category } from '../components/category'
+import {
+  categoryColor,
+  CategoryStrip,
+  type Category,
+} from '../components/category'
+import { KindSymbolIcon } from '../kinds/symbols'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
@@ -24,16 +30,10 @@ import type { LngLatBounds } from '../map/bounds'
 import {
   listEmptyKind,
   orderPrimaryHomes,
-  pinCategory,
   spotsInView,
   spotSubtitle,
 } from './model'
 import { SpotToolbar } from './SpotToolbar'
-
-const glyph: Record<'must-go' | 'maybe', string> = {
-  'must-go': '!',
-  maybe: '?',
-}
 
 type Snap = 'peek' | 'half' | 'full'
 
@@ -64,6 +64,7 @@ export function SpotList({
   spots,
   existingSpots,
   canImport,
+  role,
   total,
   bounds,
   query,
@@ -85,6 +86,7 @@ export function SpotList({
   spots: Spot[]
   existingSpots: Spot[]
   canImport: boolean
+  role?: TripRole
   total: number
   bounds: LngLatBounds | null
   query: SpotListQuery
@@ -199,6 +201,7 @@ export function SpotList({
         entries={entries}
         existingSpots={existingSpots}
         canImport={canImport}
+        role={role}
         searchDraft={searchDraft}
         onSearchDraft={onSearchDraft}
         onQuery={onQuery}
@@ -236,7 +239,7 @@ export function SpotList({
           </li>
         ) : null}
         {shown.map((spot, index) => {
-          const category = pinCategory(spot.displayCategory)
+          const category = spot.displayCategory
           return (
             <Fragment key={spot.id}>
               {dividerAt > 0 && index === dividerAt ? (
@@ -263,7 +266,7 @@ export function SpotList({
                   onMouseEnter={() => onHover(spot.id)}
                   onMouseLeave={() => onHover(null)}
                 >
-                  <CategoryStrip category={category} />
+                  <CategoryStrip category={category} kinds={spot.kinds} />
                   <span className="min-w-0 flex-1 py-3">
                     <span className="block font-semibold">{spot.title}</span>
                     <span className="block text-muted">
@@ -274,7 +277,11 @@ export function SpotList({
                     count={spot.commentCount}
                     unread={spot.unreadComments}
                   />
-                  <CategoryMark category={category} filled={spot.primary} />
+                  <CategoryMark
+                    category={category}
+                    kinds={spot.kinds}
+                    filled={spot.primary}
+                  />
                 </button>
               </li>
             </Fragment>
@@ -324,15 +331,19 @@ function CommentMark({ count, unread }: { count: number; unread: number }) {
 
 function CategoryMark({
   category,
+  kinds,
   filled,
 }: {
   category: Category
+  kinds: Spot['kinds']
   filled: boolean
 }) {
   return (
     <span
-      className="inline-flex items-center pr-3 text-sm"
-      style={{ color: `var(--cat-${category})` }}
+      className="inline-flex items-center gap-1 pr-3 text-sm"
+      style={
+        category === 'kind' ? undefined : { color: categoryColor(category) }
+      }
     >
       {category === 'planned' ? (
         <Calendar aria-hidden="true" data-icon={category} className="size-4" />
@@ -345,11 +356,13 @@ function CategoryMark({
           className="size-4"
         />
       ) : null}
-      {category === 'must-go' || category === 'maybe' ? (
-        <span aria-hidden="true" data-icon={category}>
-          {glyph[category]}
-        </span>
-      ) : null}
+      {category === 'kind'
+        ? kinds.map((kind) => (
+            <span key={kind.id} style={{ color: kind.color }}>
+              <KindSymbolIcon symbol={kind.symbol} className="size-4" />
+            </span>
+          ))
+        : null}
     </span>
   )
 }

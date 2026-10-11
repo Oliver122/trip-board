@@ -279,6 +279,86 @@ describe('trips', () => {
     expect(gone.statusCode).toBe(404)
   })
 
+  it('T-28-05 a new trip gets Must go and Maybe, and none without the trip', async () => {
+    const owner = await login('100000000000002805')
+    const created = await postTrip(owner.cookie, japan)
+    expect(created.statusCode).toBe(201)
+    const kinds = await db.pool.query(
+      `
+      SELECT name, preset, color, symbol, sort_order
+      FROM spot_kinds WHERE trip_id = $1 ORDER BY sort_order
+      `,
+      [created.json().id],
+    )
+    expect(kinds.rows).toEqual([
+      {
+        name: null,
+        preset: 'must_go',
+        color: '#E5484D',
+        symbol: 'exclamation',
+        sort_order: 0,
+      },
+      {
+        name: null,
+        preset: 'maybe',
+        color: '#30A46C',
+        symbol: 'question',
+        sort_order: 1,
+      },
+    ])
+
+    // A failing trip insert leaves no kind rows behind.
+    const before = await db.pool.query(
+      'SELECT count(*)::int AS n FROM spot_kinds',
+    )
+    const failed = await postTrip(owner.cookie, {
+      ...japan,
+      name: 'x'.repeat(5000),
+    })
+    expect(failed.statusCode).toBe(400)
+    await db.pool.query(
+      `CREATE FUNCTION fail_trip_member() RETURNS trigger LANGUAGE plpgsql AS
+         $$ BEGIN RAISE EXCEPTION 'boom'; END $$;
+       CREATE TRIGGER fail_trip_member BEFORE INSERT ON trip_members
+         FOR EACH ROW EXECUTE FUNCTION fail_trip_member();`,
+    )
+    try {
+      const broken = await postTrip(owner.cookie, japan)
+      expect(broken.statusCode).toBe(500)
+    } finally {
+      await db.pool.query(
+        'DROP TRIGGER fail_trip_member ON trip_members; DROP FUNCTION fail_trip_member()',
+      )
+    }
+    const after = await db.pool.query(
+      'SELECT count(*)::int AS n FROM spot_kinds',
+    )
+    expect(after.rows[0]?.n).toBe(before.rows[0]?.n)
+  })
+
+  it('T-28-05 shows the admin role in the trip list and detail', async () => {
+    const owner = await login('100000000000002806')
+    const admin = await login('100000000000002807')
+    const created = await postTrip(owner.cookie, japan)
+    const tripId = created.json().id as string
+    await db.pool.query(
+      `INSERT INTO trip_members (trip_id, user_id, role) VALUES ($1, $2, 'admin')`,
+      [tripId, admin.user.id],
+    )
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/trips/${tripId}`,
+      headers: { cookie: admin.cookie },
+    })
+    expect(detail.json().role).toBe('admin')
+    const listed = await app.inject({
+      method: 'GET',
+      url: '/trips',
+      headers: { cookie: admin.cookie },
+    })
+    expect(listed.json().trips[0].role).toBe('admin')
+  })
+
   it('T-04-06 cascades spots, plans, and members and queues image blobs', async () => {
     const owner = await login('100000000000000411')
     const created = await postTrip(owner.cookie, japan)
@@ -286,7 +366,7 @@ describe('trips', () => {
     const spot = await db.pool.query<{ id: string }>(
       `
       INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
-      VALUES ($1, 'Shibuya', 35.66, 139.7, 'must_go', $2)
+      VALUES ($1, 'Shibuya', 35.66, 139.7, 'home', $2)
       RETURNING id
       `,
       [tripId, owner.user.id],

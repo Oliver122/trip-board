@@ -16,6 +16,9 @@ const sample = {
     locale: 'de',
     from: 'visitor',
     to: 'planner',
+    name: 'Food',
+    moved: 3,
+    movedTo: 'Maybe',
   },
 }
 
@@ -90,5 +93,48 @@ describe('comment activity sentences', () => {
       expect(de).toContain('Fushimi Inari')
       expect(de).toContain('Japan 2026')
     }
+  })
+})
+
+describe('kind activity sentences', () => {
+  it('T-28-20 names the actor, kind and trip for every kind action in en and de', () => {
+    const metadata = { trip: 'Japan 2026', name: 'Food' }
+    expect(
+      activitySentence(
+        { action: 'kind.create', actorName: 'aiko', metadata },
+        'en',
+      ),
+    ).toBe('aiko added the kind Food to Japan 2026')
+    for (const action of ['create', 'update', 'delete']) {
+      const de = activitySentence(
+        { action: `kind.${action}`, actorName: 'aiko', metadata },
+        'de',
+      )
+      expect(de).toContain('aiko')
+      expect(de).toContain('Food')
+    }
+    expect(
+      activitySentence(
+        { action: 'kind.reorder', actorName: 'aiko', metadata },
+        'en',
+      ),
+    ).toBe('aiko reordered the kinds of Japan 2026')
+  })
+
+  it('names where the spots went when a deleted kind had spots', () => {
+    const input = {
+      action: 'kind.delete',
+      actorName: 'aiko',
+      metadata: {
+        trip: 'Japan 2026',
+        name: 'Food',
+        moved: 3,
+        movedTo: 'Maybe',
+      },
+    }
+    expect(activitySentence(input, 'en')).toBe(
+      'aiko deleted the kind Food from Japan 2026 and moved 3 spots to Maybe',
+    )
+    expect(activitySentence(input, 'de')).toContain('Maybe')
   })
 })

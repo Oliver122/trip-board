@@ -158,6 +158,7 @@ function AvatarFace({
 
 export function roleName(t: (key: string) => string, role: TripRole): string {
   if (role === 'owner') return t('trips.roles.owner')
+  if (role === 'admin') return t('trips.roles.admin')
   if (role === 'planner') return t('trips.roles.planner')
   return t('trips.roles.visitor')
 }

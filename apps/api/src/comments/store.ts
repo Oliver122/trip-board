@@ -267,6 +267,7 @@ export async function listNews(
     id: string
     title: string
     display_category: NewsEntry['displayCategory']
+    kinds: NewsEntry['kinds']
     unread_count: number
     body: string
     created_at: Date
@@ -285,6 +286,7 @@ export async function listNews(
       s.id,
       s.title,
       s.display_category::text AS display_category,
+      s.kinds,
       p.unread_count,
       n.body,
       n.created_at,
@@ -314,6 +316,7 @@ export async function listNews(
         id: row.id,
         title: row.title,
         displayCategory: row.display_category,
+        kinds: row.kinds,
         unreadComments: Number(row.unread_count),
         author: row.author_id
           ? {

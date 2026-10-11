@@ -12,7 +12,7 @@ import { acceptJoin, previewJoin } from '../members/client'
 import { useSession } from '../session'
 import { roleName } from '../trips/TripCard'
 
-type JoinState = 'loading' | 'ready' | 'expired' | 'unknown' | 'error'
+type JoinState = 'loading' | 'ready' | 'expired' | 'used' | 'unknown' | 'error'
 
 export function JoinPage() {
   const { t } = useTranslation()
@@ -39,7 +39,7 @@ export function JoinPage() {
         if (controller.signal.aborted) return
         if (error instanceof Error && error.name === 'AbortError') return
         if (error instanceof ApiError && error.status === 410) {
-          setState('expired')
+          setState(error.code === 'used' ? 'used' : 'expired')
           return
         }
         if (error instanceof ApiError && [400, 404].includes(error.status)) {
@@ -86,6 +86,12 @@ export function JoinPage() {
           <>
             <h1 className="mb-2 text-xl font-semibold">{t('join.title')}</h1>
             <p>{t('invite.expired')}</p>
+          </>
+        ) : null}
+        {state === 'used' ? (
+          <>
+            <h1 className="mb-2 text-xl font-semibold">{t('join.title')}</h1>
+            <p>{t('invite.used')}</p>
           </>
         ) : null}
         {state === 'unknown' ? (

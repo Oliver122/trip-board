@@ -213,7 +213,8 @@ describe('export', () => {
     expect(titles).toEqual(
       listed.json().spots.map((item: { title: string }) => item.title),
     )
-    expect(titles).toEqual(['Alpha', 'Zulu'])
+    // The planned spot keeps its Must go kind, so the kind filter still lists it.
+    expect(titles).toEqual(['Planned Cafe', 'Alpha', 'Zulu'])
   })
 
   it('T-14-05 ICS keeps Fuji at 04:30 local time and stable UIDs', async () => {
@@ -281,13 +282,19 @@ describe('export', () => {
   it('T-14-08 exports 500 spots in under 3 seconds', async () => {
     const owner = await login('100000000000000148')
     const tripId = await createTrip(owner.cookie)
+    const maybe = await presetKind(tripId, 'maybe')
     await db.pool.query(
       `
-      INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
-      SELECT $1, 'Spot ' || i, 35.5, 139.5, 'maybe', $2
-      FROM generate_series(1, 500) AS i
+      WITH s AS (
+        INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
+        SELECT $1, 'Spot ' || i, 35.5, 139.5, 'kind', $2
+        FROM generate_series(1, 500) AS i
+        RETURNING id, trip_id
+      )
+      INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+      SELECT trip_id, id, $3 FROM s
       `,
-      [tripId, owner.user.id],
+      [tripId, owner.user.id, maybe],
     )
     const started = performance.now()
     const response = await exportFile(owner.cookie, tripId, 'csv')
@@ -295,6 +302,75 @@ describe('export', () => {
     expect(response.statusCode).toBe(200)
     expect(parseCsv(response)).toHaveLength(500)
     expect(elapsed).toBeLessThan(3000)
+  })
+
+  it('T-28-17 CSV shows kind names, joined for two, and the preset label in the language', async () => {
+    const owner = await login('100000000000000171')
+    const tripId = await createTrip(owner.cookie)
+    const { food, mustGo } = await foodFirst(tripId)
+    await kindSpot(tripId, owner.user.id, 'Ramen', [food])
+    await kindSpot(tripId, owner.user.id, 'Both', [food, mustGo])
+    await kindSpot(tripId, owner.user.id, 'Plain', [mustGo])
+    await homeSpot(tripId, owner.user.id, 'Hotel')
+
+    const en = parseCsv(await exportFile(owner.cookie, tripId, 'csv'))
+    const category = (rows: Record<string, string>[], title: string) =>
+      rows.find((row) => row.Title === title)?.Category ??
+      rows.find((row) => row.Titel === title)?.Kategorie
+    expect(category(en, 'Ramen')).toBe('Food')
+    expect(category(en, 'Both')).toBe('Food / Must go')
+    expect(category(en, 'Plain')).toBe('Must go')
+    expect(category(en, 'Hotel')).toBe('Home')
+
+    const patched = await app.inject({
+      method: 'PATCH',
+      url: '/me',
+      headers: jsonHeaders(owner.cookie),
+      payload: { locale: 'de' },
+    })
+    expect(patched.statusCode).toBe(200)
+    const de = parseCsv(await exportFile(owner.cookie, tripId, 'csv'))
+    expect(category(de, 'Ramen')).toBe('Food')
+    expect(category(de, 'Both')).toBe('Food / Muss hin')
+    expect(category(de, 'Plain')).toBe('Muss hin')
+    expect(category(de, 'Hotel')).toBe('Unterkunft')
+  })
+
+  it('T-28-17 PDF groups unscheduled spots by primary kind in kind order, then home', async () => {
+    const owner = await login('100000000000000172')
+    const tripId = await createTrip(owner.cookie)
+    const { food, mustGo } = await foodFirst(tripId)
+    const maybe = await presetKind(tripId, 'maybe')
+    await kindSpot(tripId, owner.user.id, 'Spot Maybe', [maybe])
+    await kindSpot(tripId, owner.user.id, 'Spot Must', [mustGo])
+    await kindSpot(tripId, owner.user.id, 'Spot Both', [mustGo, food])
+    await kindSpot(tripId, owner.user.id, 'Spot Food', [food])
+    await homeSpot(tripId, owner.user.id, 'Spot Hotel')
+    const response = await exportFile(owner.cookie, tripId, 'pdf')
+    expect(response.statusCode).toBe(200)
+    const pdf = await getDocumentProxy(new Uint8Array(response.rawPayload))
+    const { text } = await extractText(pdf, { mergePages: true })
+    const at = (needle: string) => text.indexOf(needle)
+    const order = [
+      'Food',
+      'Spot Both',
+      'Spot Food',
+      'Must go',
+      'Maybe',
+      'Spot Maybe',
+      'Home',
+      'Spot Hotel',
+    ].map(at)
+    expect(order.every((index) => index >= 0)).toBe(true)
+    // Food heading holds the spot whose primary kind is Food; "Spot Both" has
+    // Food first in kind order, so it is listed there and not under Must go.
+    expect(at('Spot Food')).toBeLessThan(at('Must go'))
+    expect(at('Spot Both')).toBeLessThan(at('Must go'))
+    expect(at('Spot Must')).toBeGreaterThan(at('Must go'))
+    expect(at('Must go')).toBeLessThan(at('Maybe'))
+    expect(at('Maybe')).toBeLessThan(at('Spot Maybe'))
+    expect(at('Spot Maybe')).toBeLessThan(at('Home'))
+    expect(at('Home')).toBeLessThan(at('Spot Hotel'))
   })
 
   it('rejects anonymous callers and invalid export queries', async () => {
@@ -325,6 +401,77 @@ describe('export', () => {
     })
     expect(id.statusCode).toBe(400)
   })
+
+  async function presetKind(
+    tripId: string,
+    preset: 'must_go' | 'maybe',
+  ): Promise<string> {
+    const color = preset === 'must_go' ? '#E5484D' : '#30A46C'
+    const symbol = preset === 'must_go' ? 'exclamation' : 'question'
+    const order = preset === 'must_go' ? 1 : 2
+    await db.pool.query(
+      `
+      INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT DO NOTHING
+      `,
+      [tripId, preset, color, symbol, order],
+    )
+    const result = await db.pool.query<{ id: string }>(
+      'SELECT id FROM spot_kinds WHERE trip_id = $1 AND preset = $2',
+      [tripId, preset],
+    )
+    return result.rows[0]!.id
+  }
+
+  /** Adds Food as the first kind, ahead of the two presets. */
+  async function foodFirst(tripId: string) {
+    const mustGo = await presetKind(tripId, 'must_go')
+    const maybe = await presetKind(tripId, 'maybe')
+    await db.pool.query(
+      'UPDATE spot_kinds SET sort_order = CASE id WHEN $1 THEN 1 ELSE 2 END WHERE id IN ($1, $2)',
+      [mustGo, maybe],
+    )
+    const food = await db.pool.query<{ id: string }>(
+      `
+      INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order)
+      VALUES ($1, 'Food', '#D9480F', 'food', 0)
+      RETURNING id
+      `,
+      [tripId],
+    )
+    return { food: food.rows[0]!.id, mustGo, maybe }
+  }
+
+  async function kindSpot(
+    tripId: string,
+    userId: string,
+    title: string,
+    kindIds: string[],
+  ) {
+    await db.pool.query(
+      `
+      WITH s AS (
+        INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
+        VALUES ($1, $3, 35.68, 139.76, 'kind', $2)
+        RETURNING id, trip_id
+      )
+      INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+      SELECT s.trip_id, s.id, k FROM s, unnest($4::uuid[]) AS k
+      `,
+      [tripId, userId, title, kindIds],
+    )
+  }
+
+  async function homeSpot(tripId: string, userId: string, title: string) {
+    await db.pool.query(
+      `
+      INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
+      VALUES ($1, $3, 35.68, 139.76, 'home', $2)
+      `,
+      [tripId, userId, title],
+    )
+  }
 
   async function login(discordId: string) {
     const response = await app.inject({

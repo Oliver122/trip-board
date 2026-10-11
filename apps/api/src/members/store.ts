@@ -2,6 +2,7 @@ import {
   type InviteRole,
   type JoinPreview,
   type Member,
+  type MemberRole,
   type TripInvite,
 } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
@@ -28,7 +29,6 @@ type InviteRow = {
   code: string
   role: string
   expires_at: Date
-  uses: number
 }
 
 export type MemberFailure =
@@ -51,7 +51,7 @@ export async function updateMemberRole(
   actorId: string,
   tripId: string,
   userId: string,
-  role: InviteRole,
+  role: MemberRole,
 ): Promise<{ ok: true; member: Member } | MemberFailure> {
   return withTransaction(pool, async (tx) => {
     const access = await requireTripRole(tx, tripId, actorId, 'owner')
@@ -226,7 +226,7 @@ export async function createInvite(
             trip_id, code, role, created_by, created_at, expires_at
           )
           VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING id, code, role, expires_at, uses
+          RETURNING id, code, role, expires_at
           `,
           [tripId, code, role, userId, createdAt, expiresAt],
         )
@@ -260,9 +260,10 @@ export async function listInvites(
   if (!access.ok) return access
   const result = await db.query<InviteRow>(
     `
-    SELECT id, code, role, expires_at, uses
+    SELECT id, code, role, expires_at
     FROM trip_invites
-    WHERE trip_id = $1 AND revoked_at IS NULL AND expires_at > $2
+    WHERE trip_id = $1 AND revoked_at IS NULL AND used_at IS NULL
+      AND expires_at > $2
     ORDER BY created_at DESC, id
     `,
     [tripId, now],
@@ -311,7 +312,7 @@ export async function revokeInvite(
 }
 
 export type InviteFailure =
-  | { ok: false; status: 410; reason: 'expired' | 'revoked' }
+  | { ok: false; status: 410; reason: 'expired' | 'revoked' | 'used' }
   | { ok: false; status: 404; reason: 'not_found' }
 
 export type InviteLookup = { ok: true; preview: JoinPreview } | InviteFailure
@@ -326,6 +327,7 @@ export async function previewInvite(
     trip_name: string
     role: string
     revoked_at: Date | null
+    used_at: Date | null
     expires_at: Date
     owner_name: string | null
     member_count: number
@@ -336,6 +338,7 @@ export async function previewInvite(
       t.name AS trip_name,
       i.role,
       i.revoked_at,
+      i.used_at,
       i.expires_at,
       (
         SELECT COALESCE(u.display_name, u.username)
@@ -358,6 +361,7 @@ export async function previewInvite(
   if (row.expires_at.getTime() <= now.getTime()) {
     return { ok: false, status: 410, reason: 'expired' }
   }
+  if (row.used_at) return { ok: false, status: 410, reason: 'used' }
   // invites only ever grant planner or visitor
   const parsed = parseTripRole(row.role)
   const role = parsed === 'planner' ? 'planner' : 'visitor'
@@ -385,11 +389,13 @@ export async function joinTrip(
       trip_id: string
       role: string
       revoked_at: Date | null
+      used_at: Date | null
       expires_at: Date
       trip_name: string
     }>(
       `
-      SELECT i.id, i.trip_id, i.role, i.revoked_at, i.expires_at, t.name AS trip_name
+      SELECT i.id, i.trip_id, i.role, i.revoked_at, i.used_at, i.expires_at,
+        t.name AS trip_name
       FROM trip_invites i
       JOIN trips t ON t.id = i.trip_id
       WHERE i.code = $1
@@ -403,26 +409,33 @@ export async function joinTrip(
     if (invite.expires_at.getTime() <= now.getTime()) {
       return { ok: false, status: 410, reason: 'expired' }
     }
-    const inserted = await tx.query(
+    const existing = await tx.query(
+      `SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2`,
+      [invite.trip_id, userId],
+    )
+    // an existing member opening a code does not use it up
+    if ((existing.rowCount ?? 0) > 0) {
+      return { ok: true, tripId: invite.trip_id }
+    }
+    if (invite.used_at) return { ok: false, status: 410, reason: 'used' }
+    await tx.query(
       `
       INSERT INTO trip_members (trip_id, user_id, role, invited_via)
       VALUES ($1, $2, $3, $4)
-      ON CONFLICT (trip_id, user_id) DO NOTHING
       `,
       [invite.trip_id, userId, invite.role, invite.id],
     )
-    await tx.query(`UPDATE trip_invites SET uses = uses + 1 WHERE id = $1`, [
-      invite.id,
-    ])
-    if ((inserted.rowCount ?? 0) > 0) {
-      await activity.record(tx, {
-        actor: userId,
-        trip: invite.trip_id,
-        action: 'member.join',
-        entityId: userId,
-        metadata: { role: invite.role, code, trip: invite.trip_name },
-      })
-    }
+    await tx.query(
+      `UPDATE trip_invites SET used_at = $2, used_by = $3 WHERE id = $1`,
+      [invite.id, now, userId],
+    )
+    await activity.record(tx, {
+      actor: userId,
+      trip: invite.trip_id,
+      action: 'member.join',
+      entityId: userId,
+      metadata: { role: invite.role, code, trip: invite.trip_name },
+    })
     return { ok: true, tripId: invite.trip_id }
   })
 }
@@ -439,7 +452,9 @@ async function readMembers(db: Queryable, tripId: string): Promise<Member[]> {
     JOIN users u ON u.id = tm.user_id
     WHERE tm.trip_id = $1
     ORDER BY
-      CASE tm.role WHEN 'owner' THEN 0 WHEN 'planner' THEN 1 ELSE 2 END,
+      CASE tm.role
+        WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'planner' THEN 2 ELSE 3
+      END,
       tm.joined_at,
       tm.user_id
     `,
@@ -462,7 +477,6 @@ function mapInvite(row: InviteRow): TripInvite {
     code: row.code,
     role,
     expiresAt: row.expires_at.toISOString(),
-    uses: row.uses,
   }
 }
 

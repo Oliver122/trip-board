@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   CategoryBadge,
   CategoryDot,
@@ -61,11 +61,28 @@ describe('category components', () => {
     await i18n.changeLanguage('en')
   })
 
-  it('T-03-08 uses the category color variable and a translated label', async () => {
-    render(<CategoryDot category="must-go" />)
+  afterEach(cleanup)
+
+  const food = {
+    id: '30000000-0000-0000-0000-000000000001',
+    name: 'Food',
+    preset: null,
+    color: '#D9480F',
+    symbol: 'food' as const,
+  }
+  const mustGo = {
+    id: '30000000-0000-0000-0000-000000000002',
+    name: null,
+    preset: 'must_go' as const,
+    color: '#E5484D',
+    symbol: 'exclamation' as const,
+  }
+
+  it('T-03-08 uses the kind color or the system color variable and a translated label', async () => {
+    render(<CategoryDot kind={mustGo} />)
     expect(screen.getByTestId('category-dot')).toHaveAttribute(
       'style',
-      expect.stringContaining('var(--cat-must-go)'),
+      expect.stringContaining('background-color: rgb(229, 72, 77)'),
     )
 
     render(<CategoryStrip category="home" />)
@@ -82,7 +99,45 @@ describe('category components', () => {
     )
 
     await i18n.changeLanguage('de')
-    render(<CategoryBadge category="maybe" />)
+    render(
+      <CategoryBadge
+        category="kind"
+        kinds={[{ ...mustGo, preset: 'maybe', name: null }]}
+      />,
+    )
     expect(screen.getByText('Vielleicht')).toBeInTheDocument()
+  })
+
+  it('T-28-26 the strip splits top and bottom for two kinds', () => {
+    render(<CategoryStrip category="kind" kinds={[food, mustGo]} />)
+    const strip = screen.getByTestId('category-strip')
+    expect(strip).toHaveAttribute('data-kind-colors', '#D9480F,#E5484D')
+    const halves = strip.querySelectorAll('[data-half]')
+    expect([...halves].map((half) => half.getAttribute('data-half'))).toEqual([
+      'top',
+      'bottom',
+    ])
+    expect((halves[0] as HTMLElement).style.backgroundColor).toBe(
+      'rgb(217, 72, 15)',
+    )
+    expect((halves[1] as HTMLElement).style.backgroundColor).toBe(
+      'rgb(229, 72, 77)',
+    )
+  })
+
+  it('T-28-26 the strip uses one color for one kind', () => {
+    render(<CategoryStrip category="kind" kinds={[food]} />)
+    const strip = screen.getByTestId('category-strip')
+    expect(strip.querySelectorAll('[data-half]')).toHaveLength(0)
+    expect(strip.style.backgroundColor).toBe('rgb(217, 72, 15)')
+    expect(strip).toHaveAttribute('data-kind-colors', '#D9480F')
+  })
+
+  it('T-28-26 the badge lists both kind names, each with its own dot', () => {
+    render(<CategoryBadge category="kind" kinds={[food, mustGo]} />)
+    expect(screen.getAllByTestId('category-badge-kind')).toHaveLength(2)
+    expect(screen.getByText('Food')).toBeInTheDocument()
+    expect(screen.getByText('Must go')).toBeInTheDocument()
+    expect(screen.getAllByTestId('category-dot')).toHaveLength(2)
   })
 })

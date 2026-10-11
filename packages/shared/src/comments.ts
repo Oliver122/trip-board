@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { spotKindRefSchema } from './kinds.js'
+import { displayCategorySchema } from './spots.js'
 
 export const commentLimits = {
   body: 2000,
@@ -66,7 +68,8 @@ export type CommentList = z.infer<typeof commentListSchema>
 export const newsEntrySchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  displayCategory: z.enum(['must_go', 'maybe', 'planned', 'home']),
+  displayCategory: displayCategorySchema,
+  kinds: z.array(spotKindRefSchema),
   unreadComments: z.number().int().positive(),
   author: authorSchema.nullable(),
   createdAt: z.string(),

@@ -1,11 +1,11 @@
 import {
+  kindLimits,
   normalizeSpotLink,
   staysOverlap,
   type GeocodeLang,
   type GeocodePlace,
   type PlanEntry,
   type Spot,
-  type SpotCategory,
   type SpotPlan,
 } from '@tripboard/shared'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
@@ -14,7 +14,9 @@ import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
-import { Select } from '../components/ui/select'
+import { CategoryBadge } from '../components/category'
+import { kindLabel } from '../kinds/label'
+import { useTripKinds } from '../kinds/store'
 import { activeLocale } from '../i18n'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
@@ -26,9 +28,7 @@ import { Gallery } from '../images/Gallery'
 import { SpotDiscussion } from '../comments/SpotDiscussion'
 import { useTripData } from '../trips/trip-context'
 import { InPlans } from './InPlans'
-import { pinCategory, type Draft } from './model'
-
-const categories = ['must_go', 'maybe', 'home'] as const
+import { draftKinds, type Draft } from './model'
 
 const inputClass =
   'w-full min-h-11 rounded-[8px] border border-border bg-card px-3 text-foreground'
@@ -85,7 +85,8 @@ export function SpotPanel({
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const titleId = useId()
   const addressId = useId()
-  const categoryId = useId()
+  const hintId = useId()
+  const { kinds } = useTripKinds(tripId)
   const stayFromId = useId()
   const stayToId = useId()
   const primaryId = useId()
@@ -146,6 +147,9 @@ export function SpotPanel({
     })
   }
 
+  const atLimit =
+    draft.baseCategory !== 'home' && draft.kindIds.length >= kindLimits.perSpot
+
   const overlaps =
     draft.baseCategory === 'home'
       ? spots.filter(
@@ -161,27 +165,49 @@ export function SpotPanel({
         )
       : []
 
-  async function changeCategory(value: string) {
-    const next = value as SpotCategory
-    const leavingHome =
-      draft.baseCategory === 'home' &&
-      next !== 'home' &&
-      (draft.stayFrom !== '' || draft.stayTo !== '' || draft.primary)
-    if (
-      leavingHome &&
-      !(await confirm({
-        title: t('confirm.clearStayTitle'),
-        message: t('board.clearStay'),
-        confirmLabel: t('confirm.clearStayAction'),
-        danger: true,
-      }))
-    )
+  async function leaveHome(): Promise<boolean> {
+    const hasStay =
+      draft.stayFrom !== '' || draft.stayTo !== '' || draft.primary
+    if (!hasStay) return true
+    return confirm({
+      title: t('confirm.clearStayTitle'),
+      message: t('board.clearStay'),
+      confirmLabel: t('confirm.clearStayAction'),
+      danger: true,
+    })
+  }
+
+  async function toggleKind(kindId: string) {
+    if (!kinds) return
+    if (draft.baseCategory === 'home') {
+      if (!(await leaveHome())) return
+      onDraft({
+        ...draft,
+        baseCategory: 'kind',
+        kindIds: [kindId],
+        stayFrom: '',
+        stayTo: '',
+        primary: false,
+      })
       return
+    }
+    const picked = draft.kindIds.includes(kindId)
+    if (picked && draft.kindIds.length === 1) return
+    if (!picked && draft.kindIds.length >= kindLimits.perSpot) return
+    const wanted = picked
+      ? draft.kindIds.filter((id) => id !== kindId)
+      : [...draft.kindIds, kindId]
     onDraft({
       ...draft,
-      baseCategory: next,
-      ...(next === 'home' ? {} : { stayFrom: '', stayTo: '', primary: false }),
+      kindIds: kinds
+        .filter((kind) => wanted.includes(kind.id))
+        .map((k) => k.id),
     })
+  }
+
+  function pickHome() {
+    if (draft.baseCategory === 'home') return
+    onDraft({ ...draft, baseCategory: 'home', kindIds: [] })
   }
 
   function submit(event: FormEvent) {
@@ -260,21 +286,53 @@ export function SpotPanel({
           )}
 
           <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-40 flex-1">
-              <Select
-                id={categoryId}
-                label={t('board.category')}
-                value={draft.baseCategory}
-                disabled={readOnly}
-                onChange={(event) => void changeCategory(event.target.value)}
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {t(`category.${pinCategory(category)}`)}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <fieldset
+              className="min-w-40 flex-1 border-0 p-0"
+              aria-describedby={atLimit ? hintId : undefined}
+            >
+              <legend className="mb-1">{t('board.category')}</legend>
+              <div className="mb-2">
+                <CategoryBadge
+                  category={draft.baseCategory === 'home' ? 'home' : 'kind'}
+                  kinds={draftKinds(draft, kinds ?? [])}
+                />
+              </div>
+              <div data-testid="kind-picker" className="flex flex-col">
+                {(kinds ?? []).map((kind) => {
+                  const picked =
+                    draft.baseCategory !== 'home' &&
+                    draft.kindIds.includes(kind.id)
+                  return (
+                    <label
+                      key={kind.id}
+                      className="flex min-h-11 items-center gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={picked}
+                        disabled={readOnly || (atLimit && !picked)}
+                        onChange={() => void toggleKind(kind.id)}
+                      />
+                      {kindLabel(t, kind)}
+                    </label>
+                  )
+                })}
+                <label className="flex min-h-11 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={draft.baseCategory === 'home'}
+                    disabled={readOnly}
+                    onChange={pickHome}
+                  />
+                  {t('category.home')}
+                </label>
+              </div>
+              {atLimit ? (
+                <p id={hintId} className="text-sm text-muted">
+                  {t('kinds.atMostTwo')}
+                </p>
+              ) : null}
+            </fieldset>
             {spot && spot.displayCategory === 'planned' ? (
               <p className="pb-3">
                 {t('board.plannedBadge', { count: spot.planCount })}

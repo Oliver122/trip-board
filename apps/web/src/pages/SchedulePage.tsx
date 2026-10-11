@@ -33,14 +33,16 @@ import {
 import { ScheduleList } from '../plan/ScheduleList'
 import {
   draftsEqual,
-  emptyDraft as emptySpotDraft,
-  pinCategory,
+  categoryBody,
+  draftKinds,
+  newDraft,
   type Draft,
 } from '../spots/model'
 import { SpotPanel } from '../spots/SpotPanel'
 import { createSpot, listSpots, reverseAddress } from '../spots/client'
 import { useSession } from '../session'
 import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
+import { useTripKinds } from '../kinds/store'
 import { useMapScene, useTripData, type MapScene } from '../trips/trip-context'
 
 type DialogState =
@@ -69,6 +71,7 @@ export function SchedulePage() {
     dismissNotice,
     liveError,
   } = useTripData()
+  const { kinds } = useTripKinds(trip.id)
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [formKey, setFormKey] = useState(0)
   const [conflict, setConflict] = useState<{
@@ -173,9 +176,10 @@ export function SchedulePage() {
     return {
       lng: spotPanel.draft.lng,
       lat: spotPanel.draft.lat,
-      category: pinCategory(spotPanel.draft.baseCategory),
+      category: spotPanel.draft.baseCategory,
+      kinds: draftKinds(spotPanel.draft, kinds ?? []),
     }
-  }, [spotPanel])
+  }, [kinds, spotPanel])
   const placing = spotPanel != null
   const scene = useMemo<MapScene>(
     () => ({
@@ -249,7 +253,7 @@ export function SchedulePage() {
         title: draft.title.trim(),
         lat,
         lng,
-        baseCategory: draft.baseCategory,
+        ...categoryBody(draft, kinds ?? []),
         address: blank(draft.address),
         info: blank(draft.info),
         link: normalized.link,
@@ -413,7 +417,7 @@ export function SchedulePage() {
           }}
           onCreateSpot={(entryId, query) => {
             creatingFor.current = entryId
-            const draft = { ...emptySpotDraft, title: query.trim() }
+            const draft = { ...newDraft(kinds), title: query.trim() }
             setLinkError(null)
             setSpotError(null)
             setSpotPanel({ draft, baseline: draft })
@@ -519,7 +523,8 @@ function toMapSpots(spots: Spot[]): MapSpot[] {
     id: spot.id,
     title: spot.title,
     subtitle: spot.address ?? '',
-    category: pinCategory(spot.displayCategory),
+    category: spot.displayCategory,
+    kinds: spot.kinds,
     lng: spot.lng,
     lat: spot.lat,
     primary: spot.primary,

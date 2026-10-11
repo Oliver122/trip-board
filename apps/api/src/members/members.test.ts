@@ -94,7 +94,7 @@ describe('members', () => {
     expect(created.statusCode).toBe(201)
     const invite = created.json()
     expect(invite.role).toBe('visitor')
-    expect(invite.uses).toBe(0)
+    expect(invite).not.toHaveProperty('uses')
     expect(invite.code).toMatch(/^JAP-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}$/)
     expect(crockfordSuffix.test(invite.code.slice(4))).toBe(true)
     expect(new Date(invite.expiresAt).getTime()).toBe(
@@ -111,7 +111,7 @@ describe('members', () => {
     })
     expect(listed.statusCode).toBe(200)
     expect(listed.json().invites).toEqual([
-      expect.objectContaining({ id: invite.id, code: invite.code, uses: 0 }),
+      expect.objectContaining({ id: invite.id, code: invite.code }),
     ])
     expect(
       (
@@ -153,7 +153,7 @@ describe('members', () => {
     expect(response.json().fields.role).toBe('invalid')
   })
 
-  it('T-13-03 joins a new user with the invite role and counts the use', async () => {
+  it('T-13-03 joins a new user with the invite role and uses the code up', async () => {
     const owner = await login('100000000000001305')
     const guest = await login('100000000000001306')
     const tripId = await createTrip(owner.cookie)
@@ -190,11 +190,11 @@ describe('members', () => {
       [tripId, guest.user.id],
     )
     expect(member.rows).toEqual([{ role: 'planner', invited_via: invite.id }])
-    const uses = await db.pool.query<{ uses: number }>(
-      `SELECT uses FROM trip_invites WHERE id = $1`,
+    const used = await db.pool.query<{ used_at: Date; used_by: string }>(
+      `SELECT used_at, used_by FROM trip_invites WHERE id = $1`,
       [invite.id],
     )
-    expect(uses.rows[0]?.uses).toBe(1)
+    expect(used.rows).toEqual([{ used_at: now, used_by: guest.user.id }])
     const events = await db.pool.query<{ action: string }>(
       `SELECT action FROM activity_events WHERE action = 'member.join'`,
     )
@@ -382,6 +382,242 @@ describe('members', () => {
       `SELECT action FROM activity_events WHERE action = 'member.leave'`,
     )
     expect(events.rows).toEqual([{ action: 'member.leave' }])
+  })
+
+  it('T-28-02 owner makes a member board admin; admin keeps planner rights but no member rights', async () => {
+    const owner = await login('100000000000002801')
+    const aiko = await login('100000000000002802')
+    const other = await login('100000000000002803')
+    const stranger = await login('100000000000002804')
+    const tripId = await createTrip(owner.cookie)
+    await addMember(tripId, aiko.user.id, 'planner')
+    await addMember(tripId, other.user.id, 'visitor')
+    const patch = (cookie: string, userId: string, payload: unknown) =>
+      app.inject({
+        method: 'PATCH',
+        url: `/trips/${tripId}/members/${userId}`,
+        headers: jsonHeaders(cookie),
+        payload: payload as object,
+      })
+
+    expect(
+      (await patch(owner.cookie, aiko.user.id, { role: 'bogus' })).statusCode,
+    ).toBe(400)
+    expect(
+      (
+        await app.inject({
+          method: 'PATCH',
+          url: `/trips/${tripId}/members/${aiko.user.id}`,
+          payload: { role: 'admin' },
+        })
+      ).statusCode,
+    ).toBe(401)
+    expect(
+      (await patch(stranger.cookie, aiko.user.id, { role: 'admin' }))
+        .statusCode,
+    ).toBe(404)
+    expect(
+      (await patch(owner.cookie, stranger.user.id, { role: 'admin' }))
+        .statusCode,
+    ).toBe(404)
+    expect(
+      (await patch(other.cookie, aiko.user.id, { role: 'admin' })).statusCode,
+    ).toBe(403)
+
+    const changed = await patch(owner.cookie, aiko.user.id, { role: 'admin' })
+    expect(changed.statusCode).toBe(200)
+    expect(changed.json().role).toBe('admin')
+    const events = await db.pool.query(
+      `SELECT metadata FROM activity_events WHERE action = 'member.role_update'`,
+    )
+    expect(events.rows).toHaveLength(1)
+
+    const members = await app.inject({
+      method: 'GET',
+      url: `/trips/${tripId}/members`,
+      headers: { cookie: aiko.cookie },
+    })
+    expect(members.statusCode).toBe(200)
+    expect(members.json().members[1].role).toBe('admin')
+
+    const spot = await app.inject({
+      method: 'POST',
+      url: `/trips/${tripId}/spots`,
+      headers: jsonHeaders(aiko.cookie),
+      payload: {
+        title: 'Admin spot',
+        lat: 35.68,
+        lng: 139.76,
+        category: 'maybe',
+      },
+    })
+    expect(spot.statusCode).toBe(201)
+
+    expect(
+      (await patch(aiko.cookie, other.user.id, { role: 'planner' })).statusCode,
+    ).toBe(403)
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/trips/${tripId}/invites`,
+          headers: jsonHeaders(aiko.cookie),
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(403)
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/trips/${tripId}/transfer`,
+          headers: jsonHeaders(aiko.cookie),
+          payload: { userId: other.user.id },
+        })
+      ).statusCode,
+    ).toBe(403)
+
+    expect(
+      (await postInvite(owner.cookie, tripId, { role: 'admin' })).statusCode,
+    ).toBe(400)
+
+    const transferred = await app.inject({
+      method: 'POST',
+      url: `/trips/${tripId}/transfer`,
+      headers: jsonHeaders(owner.cookie),
+      payload: { userId: aiko.user.id },
+    })
+    expect(transferred.statusCode).toBe(200)
+    const roles = await db.pool.query<{ role: string }>(
+      `SELECT role FROM trip_members WHERE trip_id = $1 AND user_id = $2`,
+      [tripId, owner.user.id],
+    )
+    expect(roles.rows).toEqual([{ role: 'planner' }])
+  })
+
+  it('T-28-21 a code is used up by the first new member', async () => {
+    const owner = await login('100000000000002811')
+    const a = await login('100000000000002812')
+    const b = await login('100000000000002813')
+    const tripId = await createTrip(owner.cookie)
+    const invite = (await postInvite(owner.cookie, tripId, {})).json()
+
+    const joinAs = (cookie: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/join/${invite.code}`,
+        headers: writeHeaders(cookie),
+      })
+    expect((await joinAs(a.cookie)).statusCode).toBe(200)
+    const used = await db.pool.query<{ used_at: Date | null; used_by: string }>(
+      `SELECT used_at, used_by FROM trip_invites WHERE id = $1`,
+      [invite.id],
+    )
+    expect(used.rows[0]?.used_at).not.toBeNull()
+    expect(used.rows[0]?.used_by).toBe(a.user.id)
+    const joins = await db.pool.query(
+      `SELECT 1 FROM activity_events WHERE action = 'member.join'`,
+    )
+    expect(joins.rowCount).toBe(1)
+
+    const second = await joinAs(b.cookie)
+    expect(second.statusCode).toBe(410)
+    expect(second.json().error).toBe('used')
+    const members = await db.pool.query(
+      `SELECT 1 FROM trip_members WHERE trip_id = $1 AND user_id = $2`,
+      [tripId, b.user.id],
+    )
+    expect(members.rowCount).toBe(0)
+
+    const listed = await app.inject({
+      method: 'GET',
+      url: `/trips/${tripId}/invites`,
+      headers: { cookie: owner.cookie },
+    })
+    expect(listed.json().invites).toEqual([])
+  })
+
+  it('T-28-22 two parallel joins give exactly one member', async () => {
+    const owner = await login('100000000000002821')
+    const a = await login('100000000000002822')
+    const b = await login('100000000000002823')
+    const tripId = await createTrip(owner.cookie)
+    const invite = (await postInvite(owner.cookie, tripId, {})).json()
+
+    const responses = await Promise.all(
+      [a, b].map((guest) =>
+        app.inject({
+          method: 'POST',
+          url: `/join/${invite.code}`,
+          headers: writeHeaders(guest.cookie),
+        }),
+      ),
+    )
+    expect(responses.map((r) => r.statusCode).sort()).toEqual([200, 410])
+    const gone = responses.find((r) => r.statusCode === 410)
+    expect(gone?.json().error).toBe('used')
+    const count = await db.pool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM trip_members WHERE trip_id = $1`,
+      [tripId],
+    )
+    expect(count.rows[0]?.count).toBe(2)
+  })
+
+  it('T-28-23 an existing member does not use a code up; used codes answer 410', async () => {
+    const owner = await login('100000000000002831')
+    const planner = await login('100000000000002832')
+    const guest = await login('100000000000002833')
+    const tripId = await createTrip(owner.cookie)
+    await addMember(tripId, planner.user.id, 'planner')
+    const invite = (
+      await postInvite(owner.cookie, tripId, { role: 'visitor' })
+    ).json()
+
+    const again = await app.inject({
+      method: 'POST',
+      url: `/join/${invite.code}`,
+      headers: writeHeaders(planner.cookie),
+    })
+    expect(again.statusCode).toBe(200)
+    const role = await db.pool.query<{ role: string }>(
+      `SELECT role FROM trip_members WHERE trip_id = $1 AND user_id = $2`,
+      [tripId, planner.user.id],
+    )
+    expect(role.rows).toEqual([{ role: 'planner' }])
+    const unused = await db.pool.query<{ used_at: Date | null }>(
+      `SELECT used_at FROM trip_invites WHERE id = $1`,
+      [invite.id],
+    )
+    expect(unused.rows[0]?.used_at).toBeNull()
+
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/join/${invite.code}`,
+          headers: writeHeaders(guest.cookie),
+        })
+      ).statusCode,
+    ).toBe(200)
+
+    const get = await app.inject({ method: 'GET', url: `/join/${invite.code}` })
+    expect(get.statusCode).toBe(410)
+    expect(get.json().error).toBe('used')
+    const bot = await app.inject({
+      method: 'GET',
+      url: `/join/${invite.code}`,
+      headers: { 'user-agent': 'Discordbot/2.0' },
+    })
+    expect(bot.statusCode).toBe(410)
+    expect(bot.body).toContain('Join on Trip Board')
+    expect(bot.body).not.toContain('Japan 2026')
+    // an existing member can still open the used code
+    const member = await app.inject({
+      method: 'POST',
+      url: `/join/${invite.code}`,
+      headers: writeHeaders(planner.cookie),
+    })
+    expect(member.statusCode).toBe(200)
   })
 
   it('T-13-09 rate-limits the 11th join attempt from one IP', async () => {
@@ -798,7 +1034,7 @@ describe('members', () => {
     const result = await db.pool.query<{ id: string }>(
       `
       INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
-      VALUES ($1, 'Dot', 35.6, 139.7, 'maybe', $2)
+      VALUES ($1, 'Dot', 35.6, 139.7, 'home', $2)
       RETURNING id
       `,
       [tripId, userId],

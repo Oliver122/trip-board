@@ -1,6 +1,7 @@
 import type {
   InviteRole,
   Member,
+  MemberRole,
   TripInvite,
   TripRole,
 } from '@tripboard/shared'
@@ -186,7 +187,7 @@ export function MembersDialog({
                       disabled={busy}
                       onChange={(event) => {
                         const next = event.target.value
-                        if (next !== 'planner' && next !== 'visitor') return
+                        if (!isMemberRole(next)) return
                         void run(async () => {
                           const updated = await updateMemberRole(
                             tripId,
@@ -201,6 +202,7 @@ export function MembersDialog({
                         })
                       }}
                     >
+                      <option value="admin">{t('trips.roles.admin')}</option>
                       <option value="planner">
                         {t('trips.roles.planner')}
                       </option>
@@ -235,6 +237,7 @@ export function MembersDialog({
           {role === 'owner' ? (
             <section className="space-y-3 border-t border-border pt-4">
               <h3 className="font-semibold">{t('invite.section')}</h3>
+              <p className="text-sm text-muted">{t('invite.singleUse')}</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Select
                   id="invite-role"
@@ -355,6 +358,10 @@ export function MembersDialog({
       ) : null}
     </DialogFrame>
   )
+}
+
+function isMemberRole(value: string): value is MemberRole {
+  return value === 'admin' || value === 'planner' || value === 'visitor'
 }
 
 function TransferForm({

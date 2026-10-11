@@ -1,12 +1,12 @@
 import {
   defaultSpotListQuery,
-  displayCategories,
   spotFiltersActive,
   spotSorts,
-  type DisplayCategory,
   type GeocodeLang,
   type Spot,
+  type SpotKind,
   type SpotListQuery,
+  type TripRole,
 } from '@tripboard/shared'
 import {
   ArrowUpDown,
@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
@@ -25,7 +26,10 @@ import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { ExportDialog } from './ExportDialog'
-import { pinCategory } from './model'
+import { CategoryDot } from '../components/category'
+import { BoardMenu } from '../kinds/BoardMenu'
+import { kindLabel } from '../kinds/label'
+import { useTripKinds } from '../kinds/store'
 
 const ImportDialog = lazy(() =>
   import('../import/ImportDialog').then((mod) => ({
@@ -46,6 +50,7 @@ export function SpotToolbar({
   entries = [],
   existingSpots,
   canImport,
+  role,
   searchDraft,
   onSearchDraft,
   onQuery,
@@ -61,6 +66,8 @@ export function SpotToolbar({
   entries?: { id: string; title: string }[]
   existingSpots: Spot[]
   canImport: boolean
+  /** The viewer's role; the board menu only shows when it is known. */
+  role?: TripRole
   searchDraft: string
   onSearchDraft: (value: string) => void
   onQuery: (query: SpotListQuery) => void
@@ -77,7 +84,8 @@ export function SpotToolbar({
   const searchId = useId()
   const filterId = useId()
   const sortId = useId()
-  const chips = filterChips(query, members, entries, t, onQuery)
+  const { kinds } = useTripKinds(tripId)
+  const chips = filterChips(query, members, entries, kinds ?? [], t, onQuery)
 
   useEffect(() => {
     if (!open) return
@@ -194,6 +202,7 @@ export function SpotToolbar({
             <Upload aria-hidden="true" className="size-4" />
           </Button>
         ) : null}
+        {role ? <BoardMenu tripId={tripId} role={role} /> : null}
       </div>
       {chips.length > 0 ? (
         <ul
@@ -208,6 +217,7 @@ export function SpotToolbar({
                   hoverClass.ghost,
                   'inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-background px-3 text-sm text-foreground',
                 )}
+                style={chip.color ? { borderColor: chip.color } : undefined}
                 aria-label={t('board.removeFilter', { label: chip.label })}
                 onClick={chip.remove}
               >
@@ -249,17 +259,23 @@ export function SpotToolbar({
               {t('board.category')}
             </legend>
             <div className="flex flex-wrap gap-2">
-              {displayCategories.map((category) => (
+              {categoryFilters(kinds ?? [], t).map((item) => (
                 <label
-                  key={category}
+                  key={item.token}
+                  data-testid={`filter-cat-${item.token}`}
                   className="inline-flex min-h-11 items-center gap-2"
                 >
                   <input
                     type="checkbox"
-                    checked={query.cat.includes(category)}
-                    onChange={() => onQuery(toggleCategory(query, category))}
+                    checked={query.cat.includes(item.token)}
+                    onChange={() => onQuery(toggleCategory(query, item.token))}
                   />
-                  {t(`category.${pinCategory(category)}`)}
+                  {item.kind ? (
+                    <CategoryDot kind={item.kind} />
+                  ) : (
+                    <CategoryDot category={item.system} />
+                  )}
+                  {item.label}
                 </label>
               ))}
             </div>
@@ -416,10 +432,34 @@ export function SpotToolbar({
   )
 }
 
-function toggleCategory(
-  query: SpotListQuery,
-  category: DisplayCategory,
-): SpotListQuery {
+type CategoryFilterItem = {
+  token: string
+  label: string
+  kind?: SpotKind
+  system?: 'planned' | 'home'
+}
+
+/** One filter per kind in kind order, then Planned and Home. */
+function categoryFilters(
+  kinds: readonly SpotKind[],
+  t: TFunction,
+): CategoryFilterItem[] {
+  return [
+    ...kinds.map((kind) => ({
+      token: kind.id,
+      kind,
+      label: kindLabel(t, kind),
+    })),
+    {
+      token: 'planned',
+      system: 'planned' as const,
+      label: t('category.planned'),
+    },
+    { token: 'home', system: 'home' as const, label: t('category.home') },
+  ]
+}
+
+function toggleCategory(query: SpotListQuery, category: string): SpotListQuery {
   const cat = query.cat.includes(category)
     ? query.cat.filter((item) => item !== category)
     : [...query.cat, category]
@@ -430,10 +470,16 @@ function filterChips(
   query: SpotListQuery,
   members: Member[],
   entries: { id: string; title: string }[],
-  t: (key: string, options?: Record<string, string>) => string,
+  kinds: readonly SpotKind[],
+  t: TFunction,
   onQuery: (query: SpotListQuery) => void,
-): { key: string; label: string; remove: () => void }[] {
-  const chips: { key: string; label: string; remove: () => void }[] = []
+): { key: string; label: string; color?: string; remove: () => void }[] {
+  const chips: {
+    key: string
+    label: string
+    color?: string
+    remove: () => void
+  }[] = []
   const trimmed = query.q.trim()
   if (trimmed.length > 0) {
     const label = t('board.searchChip', { q: trimmed })
@@ -444,10 +490,16 @@ function filterChips(
     })
   }
   for (const category of query.cat) {
-    const label = t(`category.${pinCategory(category)}`)
+    const known = categoryFilters(kinds, t).find(
+      (item) => item.token === category,
+    )
+    // A kind that is gone or not loaded yet has no name to show.
+    if (!known) continue
+    const label = known.label
     chips.push({
       key: category,
       label,
+      color: known.kind?.color,
       remove: () => onQuery(toggleCategory(query, category)),
     })
   }

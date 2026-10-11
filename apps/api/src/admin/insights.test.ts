@@ -382,8 +382,17 @@ describe.skipIf(!hasDb)('admin insights', () => {
     }
     await db.pool.query(
       `
-      INSERT INTO spots (id, trip_id, title, lat, lng, base_category, created_by)
-      VALUES ($1, $2, 'Gate', 0.5, 0.5, 'must_go', $3)
+      WITH s AS (
+        INSERT INTO spots (id, trip_id, title, lat, lng, base_category, created_by)
+        VALUES ($1, $2, 'Gate', 0.5, 0.5, 'kind', $3)
+        RETURNING id, trip_id
+      ), k AS (
+        INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+        VALUES ($2, 'must_go', '#E5484D', 'exclamation', 0)
+        RETURNING id
+      )
+      INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+      SELECT s.trip_id, s.id, k.id FROM s, k
       `,
       [spot, trip, user],
     )
@@ -450,8 +459,17 @@ describe.skipIf(!hasDb)('admin insights', () => {
     }
     await db.pool.query(
       `
-      INSERT INTO spots (id, trip_id, title, lat, lng, base_category, created_by)
-      VALUES ($1, $2, 'Gate', 0.5, 0.5, 'must_go', $3)
+      WITH s AS (
+        INSERT INTO spots (id, trip_id, title, lat, lng, base_category, created_by)
+        VALUES ($1, $2, 'Gate', 0.5, 0.5, 'kind', $3)
+        RETURNING id, trip_id
+      ), k AS (
+        INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+        VALUES ($2, 'must_go', '#E5484D', 'exclamation', 0)
+        RETURNING id
+      )
+      INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+      SELECT s.trip_id, s.id, k.id FROM s, k
       `,
       [spot, trip, user],
     )

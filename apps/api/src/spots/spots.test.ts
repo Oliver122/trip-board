@@ -82,8 +82,9 @@ describe('spots', () => {
       address: tokyo.address,
       lat: tokyo.lat,
       lng: tokyo.lng,
-      baseCategory: 'must_go',
-      displayCategory: 'must_go',
+      baseCategory: 'kind',
+      displayCategory: 'kind',
+      kinds: [{ preset: 'must_go', color: '#E5484D', symbol: 'exclamation' }],
       planCount: 0,
       firstScheduledAt: null,
       info: tokyo.info,
@@ -231,14 +232,14 @@ describe('spots', () => {
       baseCategory: 'planned',
     })
     expect(created.statusCode).toBe(400)
-    expect(created.json().fields.baseCategory).toBe('planned_automatic')
+    expect(created.json().fields.category).toBe('planned_automatic')
 
     const spot = await postSpot(owner.cookie, tripId, tokyo)
     const patched = await patchSpot(owner.cookie, spot.json().id, {
       baseCategory: 'planned',
     })
     expect(patched.statusCode).toBe(400)
-    expect(patched.json().fields.baseCategory).toBe('planned_automatic')
+    expect(patched.json().fields.category).toBe('planned_automatic')
   })
 
   it('T-06-05 expands the bbox for Okinawa and leaves an inside spot unchanged', async () => {
@@ -368,12 +369,17 @@ describe('spots', () => {
 
     const categories = await list(owner.cookie, tripId, 'cat=must_go,home')
     expect(categories.statusCode).toBe(200)
-    expect(titles(categories)).toEqual(['Must Go Cafe', 'Home Hotel'])
+    // A kind chip matches by the spot's kinds, also once it is planned.
+    expect(titles(categories)).toEqual([
+      'Planned Tower',
+      'Must Go Cafe',
+      'Home Hotel',
+    ])
     expect(
       categories
         .json()
         .spots.map((spot: { displayCategory: string }) => spot.displayCategory),
-    ).toEqual(['must_go', 'home'])
+    ).toEqual(['planned', 'kind', 'home'])
     expect(categories.json().total).toBe(4)
 
     const scheduled = await list(owner.cookie, tripId, 'status=scheduled')
@@ -570,7 +576,8 @@ describe('spots', () => {
     )
     expect(recategorised.statusCode).toBe(200)
     expect(recategorised.json()).toMatchObject({
-      baseCategory: 'maybe',
+      baseCategory: 'kind',
+      kinds: [{ preset: 'maybe' }],
       primary: false,
       stayFrom: null,
       stayTo: null,
