@@ -98,7 +98,7 @@ async function run(
   await notFoundRow.getByRole('button', { name: /Picked Place/ }).click()
   await expect(notFoundRow.getByRole('checkbox')).toBeChecked()
 
-  await dialog.getByRole('radio', { name: labels.mustGo }).check()
+  await dialog.getByRole('checkbox', { name: labels.mustGo }).check()
   await dialog.getByRole('button', { name: labels.importCount }).click()
 
   await expect(page.getByRole('dialog')).toHaveCount(0)

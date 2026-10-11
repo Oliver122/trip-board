@@ -1,4 +1,9 @@
-import type { PlanEntry, Spot, SpotListFilters } from '@tripboard/shared'
+import type {
+  PlanEntry,
+  Spot,
+  SpotKindRef,
+  SpotListFilters,
+} from '@tripboard/shared'
 import type { Member } from '@tripboard/shared'
 import type { Pool, PoolClient } from 'pg'
 import { activity } from '../activity/record.js'
@@ -26,6 +31,8 @@ export type ExportVisit = {
   visitTime: string | null
 }
 
+export type ExportKind = Pick<SpotKindRef, 'id' | 'name' | 'preset'>
+
 export type HomePlace = {
   address: string | null
   lat: number
@@ -43,6 +50,8 @@ export type ExportData = {
     timezone: string
   }
   members: Member[]
+  /** The trip's kinds in order, for grouping spots by primary kind. */
+  kinds: ExportKind[]
   spots: Spot[]
   visits: ExportVisit[]
   entries: PlanEntry[]
@@ -152,6 +161,10 @@ async function loadExport(
   const spotIds = spots.spots.map((spot) => spot.id)
   const visits =
     spotIds.length === 0 ? [] : await readVisits(db, spotIds, filters.entry)
+  const kinds = await db.query<ExportKind>(
+    `SELECT id, name, preset FROM spot_kinds WHERE trip_id = $1 ORDER BY sort_order, created_at, id`,
+    [tripId],
+  )
   const homes = await readHomes(
     db,
     plan.entries.flatMap((entry) => (entry.home ? [entry.home.spotId] : [])),
@@ -169,6 +182,7 @@ async function loadExport(
         timezone: row.timezone,
       },
       members: members.members,
+      kinds: kinds.rows,
       spots: spots.spots,
       visits,
       entries: plan.entries,

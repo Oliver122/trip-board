@@ -22,15 +22,15 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-export const tripRole = pgEnum('trip_role', ['owner', 'planner', 'visitor'])
-export const spotCategory = pgEnum('spot_category', [
-  'must_go',
-  'maybe',
-  'home',
+export const tripRole = pgEnum('trip_role', [
+  'owner',
+  'admin',
+  'planner',
+  'visitor',
 ])
+export const spotCategory = pgEnum('spot_category', ['kind', 'home'])
 export const displayCategory = pgEnum('display_category', [
-  'must_go',
-  'maybe',
+  'kind',
   'planned',
   'home',
 ])
@@ -208,7 +208,10 @@ export const tripInvites = pgTable(
       .notNull()
       .default(sql`now() + interval '7 days'`),
     revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
-    uses: integer('uses').notNull().default(0),
+    usedAt: timestamp('used_at', { withTimezone: true, mode: 'date' }),
+    usedBy: uuid('used_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
   },
   (table) => [
     unique('trip_invites_code_key').on(table.code),
@@ -220,7 +223,10 @@ export const tripInvites = pgTable(
       'trip_invites_role_check',
       sql`${table.role} IN ('planner', 'visitor')`,
     ),
-    check('trip_invites_uses_check', sql`${table.uses} >= 0`),
+    check(
+      'trip_invites_used_check',
+      sql`${table.usedBy} IS NULL OR ${table.usedAt} IS NOT NULL`,
+    ),
     check(
       'trip_invites_expires_at_check',
       sql`${table.expiresAt} > ${table.createdAt} AND ${table.expiresAt} <= ${table.createdAt} + interval '7 days'`,
@@ -311,6 +317,84 @@ export const spots = pgTable(
 
 spotsRef.tripId = spots.tripId
 spotsRef.id = spots.id
+
+export const spotKinds = pgTable(
+  'spot_kinds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    name: text('name'),
+    preset: text('preset', { enum: ['must_go', 'maybe'] }),
+    color: text('color').notNull(),
+    symbol: text('symbol', {
+      enum: [
+        'exclamation',
+        'question',
+        'dot',
+        'star',
+        'heart',
+        'food',
+        'coffee',
+        'camera',
+        'shopping',
+        'nature',
+        'temple',
+        'cat',
+      ],
+    }).notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: timestamps.createdAt,
+    updatedAt: timestamps.updatedAt,
+  },
+  (table) => [
+    unique('spot_kinds_trip_id_id_key').on(table.tripId, table.id),
+    check(
+      'spot_kinds_name_check',
+      sql`char_length(btrim(${table.name})) BETWEEN 1 AND 30`,
+    ),
+    check(
+      'spot_kinds_preset_check',
+      sql`${table.preset} IN ('must_go', 'maybe')`,
+    ),
+    check('spot_kinds_color_check', sql`${table.color} ~ '^#[0-9A-F]{6}$'`),
+    check('spot_kinds_sort_order_check', sql`${table.sortOrder} >= 0`),
+    check(
+      'spot_kinds_check',
+      sql`${table.name} IS NOT NULL OR ${table.preset} IS NOT NULL`,
+    ),
+    index('spot_kinds_trip_order_idx').on(table.tripId, table.sortOrder),
+    uniqueIndex('spot_kinds_trip_name_idx')
+      .on(table.tripId, sql`lower(btrim(${table.name}))`)
+      .where(sql`${table.name} IS NOT NULL`),
+    uniqueIndex('spot_kinds_trip_preset_idx')
+      .on(table.tripId, table.preset)
+      .where(sql`${table.preset} IS NOT NULL`),
+  ],
+)
+
+export const spotKindLinks = pgTable(
+  'spot_kind_links',
+  {
+    tripId: uuid('trip_id').notNull(),
+    spotId: uuid('spot_id').notNull(),
+    kindId: uuid('kind_id').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.spotId, table.kindId] }),
+    foreignKey({
+      columns: [table.tripId, table.spotId],
+      foreignColumns: [spots.tripId, spots.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.tripId, table.kindId],
+      foreignColumns: [spotKinds.tripId, spotKinds.id],
+    }).onDelete('cascade'),
+    index('spot_kind_links_kind_idx').on(table.kindId),
+    index('spot_kind_links_trip_idx').on(table.tripId),
+  ],
+)
 
 export const planEntries = pgTable(
   'plan_entries',
@@ -711,6 +795,8 @@ export const spotsView = pgView('spots_view', {
   baseCategory: spotCategory('base_category').notNull(),
   displayCategory: displayCategory('display_category').notNull(),
   planCount: integer('plan_count').notNull(),
+  kinds: jsonb('kinds').notNull(),
+  primaryKindOrder: integer('primary_kind_order'),
 }).existing()
 
 export const userQuotaUsage = pgView('user_quota_usage', {

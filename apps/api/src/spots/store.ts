@@ -10,6 +10,7 @@ import {
   type PatchSpotBody,
   type Spot,
   type SpotCategory,
+  type SpotKindRef,
   type SpotImportBody,
   type SpotListFilters,
   type SpotSort,
@@ -20,6 +21,7 @@ import { latestEditor, stampAgrees, type Editor } from '../live/conflict.js'
 import { withTransaction } from '../db/transaction.js'
 import { isCheckViolation } from '../http/validate.js'
 import { requireTripRole } from '../trips/roles.js'
+import { loadKinds, replaceSpotKinds, resolveKinds } from '../kinds/store.js'
 
 type Queryable = Pool | PoolClient
 
@@ -32,6 +34,7 @@ type SpotRow = {
   lng: number
   base_category: SpotCategory
   display_category: Spot['displayCategory']
+  kinds: SpotKindRef[] | string
   plan_count: number
   first_scheduled_at: string | null
   stay_from: string | null
@@ -59,6 +62,7 @@ SELECT
   s.lng,
   s.base_category,
   s.display_category,
+  s.kinds,
   s.plan_count,
   to_char(s.first_scheduled_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS first_scheduled_at,
   s.stay_from::text AS stay_from,
@@ -90,7 +94,12 @@ LEFT JOIN users u ON u.id = s.created_by
 const primaryRank = `CASE WHEN s.id = tr.primary_home_spot_id THEN 0 ELSE 1 END`
 
 export type SpotFailure =
-  | { ok: false; status: 400; fields: Record<string, string> }
+  | {
+      ok: false
+      status: 400
+      fields: Record<string, string>
+      error?: string
+    }
   | { ok: false; status: 403 | 404 }
   | {
       ok: false
@@ -100,9 +109,9 @@ export type SpotFailure =
     }
 
 const sortOrderSql: Record<SpotSort, string> = {
-  scheduled: `(s.first_scheduled_at IS NULL), s.first_scheduled_at, array_position(ARRAY['must_go','maybe','home']::display_category[], s.display_category), ${primaryRank}, lower(s.title), s.id`,
+  scheduled: `(s.first_scheduled_at IS NULL), s.first_scheduled_at, (s.base_category = 'home'), s.primary_kind_order, ${primaryRank}, lower(s.title), s.id`,
   datetime: `s.first_scheduled_at NULLS LAST, ${primaryRank}, lower(s.title), s.id`,
-  category: `array_position(ARRAY['must_go','maybe','planned','home']::display_category[], s.display_category), ${primaryRank}, lower(s.title), s.id`,
+  category: `array_position(ARRAY['kind','planned','home']::display_category[], s.display_category), s.primary_kind_order, ${primaryRank}, lower(s.title), s.id`,
   az: `lower(s.title), s.id`,
   newest: `s.created_at DESC, s.id DESC`,
 }
@@ -130,10 +139,13 @@ export async function listSpots(
       `lower(s.title || ' ' || coalesce(s.address, '') || ' ' || coalesce(s.info, '')) LIKE lower($${values.length}) ESCAPE '!'`,
     )
   }
-  if (filters.cat.length > 0) {
-    values.push(filters.cat)
-    where.push(`s.display_category::text = ANY($${values.length}::text[])`)
-  }
+  const categoryFilter = await categoryCondition(
+    db,
+    tripId,
+    filters.cat,
+    values,
+  )
+  if (categoryFilter) where.push(categoryFilter)
   if (filters.status === 'scheduled') where.push('s.plan_count > 0')
   if (filters.status === 'unscheduled') where.push('s.plan_count = 0')
   if (filters.by) {
@@ -155,6 +167,42 @@ export async function listSpots(
     spots: result.rows.map(rowToSpot),
     total: Number(totalResult.rows[0]?.total ?? 0),
   }
+}
+
+/**
+ * SQL for the `cat` tokens, or null when nothing is left to filter by. A
+ * legacy preset name maps to the trip's preset kind; one that no longer exists
+ * (and a kind id of another trip) is dropped.
+ */
+async function categoryCondition(
+  db: Queryable,
+  tripId: string,
+  cat: string[],
+  values: unknown[],
+): Promise<string | null> {
+  if (cat.length === 0) return null
+  const kinds = await loadKinds(db, tripId)
+  const kindIds = new Set<string>()
+  let planned = false
+  let home = false
+  for (const token of cat.map((entry) => entry.toLowerCase())) {
+    if (token === 'planned') planned = true
+    else if (token === 'home') home = true
+    else if (token === 'must_go' || token === 'maybe') {
+      const kind = kinds.find((entry) => entry.preset === token)
+      if (kind) kindIds.add(kind.id)
+    } else if (kinds.some((entry) => entry.id === token)) kindIds.add(token)
+  }
+  const parts: string[] = []
+  if (kindIds.size > 0) {
+    values.push([...kindIds])
+    parts.push(
+      `EXISTS (SELECT 1 FROM spot_kind_links l WHERE l.spot_id = s.id AND l.kind_id = ANY($${values.length}::uuid[]))`,
+    )
+  }
+  if (planned) parts.push(`s.display_category = 'planned'`)
+  if (home) parts.push(`s.base_category = 'home'`)
+  return parts.length > 0 ? `(${parts.join(' OR ')})` : null
 }
 
 export async function getSpot(
@@ -184,7 +232,9 @@ export async function createSpot(
       const access = await requireTripRole(tx, tripId, userId, 'planner')
       if (!access.ok) return access
       const title = input.title.trim()
-      const category = input.baseCategory as SpotCategory
+      const resolved = await resolveKinds(tx, tripId, input)
+      if (!resolved.ok) return resolved
+      const category: SpotCategory = resolved.home ? 'home' : 'kind'
       const stayFrom =
         category === 'home' ? cleanStayDate(input.stayFrom) : null
       const stayTo = category === 'home' ? cleanStayDate(input.stayTo) : null
@@ -222,6 +272,9 @@ export async function createSpot(
       )
       const id = inserted.rows[0]?.id
       if (!id) throw new Error('spot insert failed')
+      if (!resolved.home) {
+        await replaceSpotKinds(tx, tripId, id, resolved.kindIds)
+      }
       if (input.primary) {
         await tx.query(
           `UPDATE trips SET primary_home_spot_id = $2, updated_at = now() WHERE id = $1`,
@@ -274,7 +327,9 @@ async function withImportTransaction(
   return withTransaction(pool, async (tx) => {
     const access = await requireTripRole(tx, tripId, userId, 'planner')
     if (!access.ok) return access
-    const category = input.baseCategory as SpotCategory
+    const resolved = await resolveKinds(tx, tripId, input)
+    if (!resolved.ok) return resolved
+    const category: SpotCategory = resolved.home ? 'home' : 'kind'
     const columns = 9
     const values: unknown[] = []
     const placeholders = input.spots.map((spot, index) => {
@@ -303,6 +358,15 @@ async function withImportTransaction(
       values,
     )
     const ids = inserted.rows.map((row) => row.id)
+    if (!resolved.home) {
+      await tx.query(
+        `
+        INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+        SELECT $1, s, k FROM unnest($2::uuid[]) AS s CROSS JOIN unnest($3::uuid[]) AS k
+        `,
+        [tripId, ids, resolved.kindIds],
+      )
+    }
     const tripName = await expandTripForImport(tx, tripId, input.spots)
     await activity.record(tx, {
       actor: userId,
@@ -398,10 +462,12 @@ export async function updateSpot(
         patch.title !== undefined ? patch.title.trim() : current.spot.title
       const lat = patch.lat !== undefined ? patch.lat : current.spot.lat
       const lng = patch.lng !== undefined ? patch.lng : current.spot.lng
-      const baseCategory =
-        patch.baseCategory !== undefined
-          ? patch.baseCategory
-          : current.spot.baseCategory
+      const changesKinds =
+        patch.kindIds !== undefined || patch.category !== undefined
+      const resolved = changesKinds
+        ? await resolveKinds(tx, current.spot.tripId, patch)
+        : null
+      if (resolved && !resolved.ok) return resolved
       const address =
         patch.address !== undefined
           ? blankToNull(patch.address)
@@ -410,7 +476,11 @@ export async function updateSpot(
         patch.info !== undefined ? blankToNull(patch.info) : current.spot.info
       const link =
         patch.link !== undefined ? blankToNull(patch.link) : current.spot.link
-      const category = baseCategory as SpotCategory
+      const category: SpotCategory = resolved
+        ? resolved.home
+          ? 'home'
+          : 'kind'
+        : current.spot.baseCategory
       const stay = mergedStay(current.spot, patch, category)
       if (!stay.ok) return stay
       await tx.query(
@@ -441,6 +511,14 @@ export async function updateSpot(
           stay.stayTo,
         ],
       )
+      if (resolved) {
+        await replaceSpotKinds(
+          tx,
+          current.spot.tripId,
+          spotId,
+          resolved.home ? [] : resolved.kindIds,
+        )
+      }
       if (patch.primary === true && category === 'home') {
         await tx.query(
           `UPDATE trips SET primary_home_spot_id = $2, updated_at = now() WHERE id = $1`,
@@ -625,6 +703,7 @@ function rowToSpot(row: SpotRow): Spot {
     lng: row.lng,
     baseCategory: row.base_category,
     displayCategory: row.display_category,
+    kinds: typeof row.kinds === 'string' ? JSON.parse(row.kinds) : row.kinds,
     planCount: Number(row.plan_count),
     firstScheduledAt: row.first_scheduled_at,
     stayFrom: row.stay_from,

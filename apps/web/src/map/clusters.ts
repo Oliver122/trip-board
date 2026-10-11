@@ -1,3 +1,4 @@
+import type { SpotKindRef } from '@tripboard/shared'
 import Supercluster from 'supercluster'
 import type { Category } from '../components/category'
 import type { LngLatBounds } from './bounds'
@@ -9,6 +10,8 @@ export type MapSpot = {
   title: string
   subtitle: string
   category: Category
+  /** The spot's kinds in kind order; the first is the primary kind. */
+  kinds: SpotKindRef[]
   lng: number
   lat: number
   primary?: boolean

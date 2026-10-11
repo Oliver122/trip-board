@@ -1,4 +1,5 @@
 import {
+  presetKinds,
   tripSchema,
   type BBox,
   type PatchTripBody,
@@ -51,7 +52,7 @@ SELECT
         'avatarUrl', u.avatar_url
       )
       ORDER BY
-        CASE tm.role WHEN 'owner' THEN 0 WHEN 'planner' THEN 1 ELSE 2 END,
+        CASE tm.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'planner' THEN 2 ELSE 3 END,
         tm.joined_at
     )
     FROM trip_members tm
@@ -149,6 +150,15 @@ export async function createTrip(
       `,
       [id, userId],
     )
+    for (const [order, kind] of presetKinds.entries()) {
+      await tx.query(
+        `
+        INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+        [id, kind.preset, kind.color, kind.symbol, order],
+      )
+    }
     await activity.record(tx, {
       actor: userId,
       trip: id,

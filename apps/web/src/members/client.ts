@@ -8,6 +8,7 @@ import {
   type InviteRole,
   type JoinPreview,
   type Member,
+  type MemberRole,
   type TripInvite,
 } from '@tripboard/shared'
 import { request, requestJson } from '../api/http'
@@ -27,7 +28,7 @@ export async function listMembers(
 export async function updateMemberRole(
   tripId: string,
   userId: string,
-  role: InviteRole,
+  role: MemberRole,
 ): Promise<Member> {
   return requestJson(`/api/trips/${tripId}/members/${userId}`, memberSchema, {
     method: 'PATCH',

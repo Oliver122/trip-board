@@ -57,7 +57,7 @@ test('T-11-02 adding a spot to a plan marks it planned', async ({ page }) => {
   await page.getByLabel('Visit time').fill('09:00')
   await page.getByRole('button', { name: 'Add visit' }).click()
   await expect(page.getByText('Planned (1)')).toBeVisible()
-  await expect(page.getByLabel('Category')).toHaveValue('maybe')
+  await expect(page.getByRole('checkbox', { name: 'Maybe' })).toBeChecked()
   await page.getByRole('button', { name: 'Close' }).click()
   await expect(page.getByTestId(`card-${spotId}`)).toContainText('18 Apr 2026')
 })

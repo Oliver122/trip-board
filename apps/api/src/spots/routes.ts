@@ -38,6 +38,10 @@ const knownMessages = new Set([
   'too_long',
   'invalid',
   'planned_automatic',
+  'conflict',
+  'count',
+  'duplicate',
+  'required',
   'home_only',
   'invalid_date',
   'before_start',
@@ -166,13 +170,16 @@ function spotFailure(
   reply: FastifyReply,
   result: {
     status: 400 | 403 | 404 | 409
+    error?: string
     fields?: Record<string, string>
     current?: unknown
     updatedBy?: unknown
   },
 ) {
   if (result.status === 400) {
-    return sendError(reply, 400, 'invalid_request', { fields: result.fields })
+    return sendError(reply, 400, result.error ?? 'invalid_request', {
+      fields: result.fields,
+    })
   }
   if (result.status === 409) {
     return sendError(reply, 409, 'conflict', {

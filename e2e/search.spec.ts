@@ -23,13 +23,14 @@ test('T-09-06 filtering to Must go hides other pins and cards', async ({
   await expect(page.getByTestId(`card-${nara}`)).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
   await page.getByRole('checkbox', { name: 'Must go' }).click()
-  await expect(page).toHaveURL(/cat=must_go/)
+  await expect(page).toHaveURL(/cat=[0-9a-f-]{36}/)
   await expect(page.getByRole('checkbox', { name: 'Must go' })).toBeChecked()
   await expect(
     page.getByRole('button', { name: 'Remove Must go' }),
   ).toBeVisible()
-  await expect(page.getByTestId(`pin-${fushimi}`)).toHaveCount(0)
-  await expect(page.getByTestId(`card-${fushimi}`)).toHaveCount(0)
+  // Fushimi is planned, but its kind is still Must go (step 28).
+  await expect(page.getByTestId(`pin-${fushimi}`)).toBeVisible()
+  await expect(page.getByTestId(`card-${fushimi}`)).toBeVisible()
   await expect(page.getByTestId(`pin-${nara}`)).toHaveCount(0)
   await expect(page.getByTestId(`card-${nara}`)).toHaveCount(0)
   await expect(page.getByTestId(`pin-${hotel}`)).toHaveCount(0)

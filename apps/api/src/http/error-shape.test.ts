@@ -165,9 +165,19 @@ describe('error shape and params', () => {
     )
     const spot = await db.pool.query<{ id: string }>(
       `
-      INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
-      VALUES ($1, 'Dot', 35.6, 139.7, 'maybe', $2)
-      RETURNING id
+      WITH s AS (
+        INSERT INTO spots (trip_id, title, lat, lng, base_category, created_by)
+        VALUES ($1, 'Dot', 35.6, 139.7, 'kind', $2)
+        RETURNING id, trip_id
+      ), k AS (
+        INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order)
+        VALUES ($1, 'Shape test', '#0F766E', 'dot', 99)
+        RETURNING id
+      ), l AS (
+        INSERT INTO spot_kind_links (trip_id, spot_id, kind_id)
+        SELECT s.trip_id, s.id, k.id FROM s, k
+      )
+      SELECT id FROM s
       `,
       [tripId, owner.id],
     )

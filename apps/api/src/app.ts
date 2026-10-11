@@ -21,6 +21,7 @@ import { createS3Storage, type ObjectStorage } from './images/storage.js'
 import { JoinLimiter, joinRateLimit } from './members/limit.js'
 import { registerMemberRoutes } from './members/routes.js'
 import { registerCommentRoutes } from './comments/routes.js'
+import { registerKindRoutes } from './kinds/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
 import { sendError } from './http/errors.js'
@@ -113,6 +114,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
       options.joinLimiter ??
       new JoinLimiter(config.NODE_ENV === 'test' ? 10_000 : joinRateLimit),
   })
+  registerKindRoutes(app, { pool, config, now })
   registerSpotRoutes(app, { pool, config, now })
   registerCommentRoutes(app, { pool, config, now })
   registerLiveRoutes(app, { pool, config, now, hub })

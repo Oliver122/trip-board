@@ -14,13 +14,13 @@ Companion to [`PROJECT_SCOPE.md`](./PROJECT_SCOPE.md). Wireframes are low-fideli
 
 | Token | Use | Light | Dark |
 | --- | --- | --- | --- |
-| `cat-must-go` | Need to go there | `#E5484D` (red) | `#F2555A` |
-| `cat-maybe` | Maybe go there | `#30A46C` (green) | `#3DD68C` |
 | `cat-planned` | Planned (automatic) | `#3E63DD` (blue) | `#5B7FFF` |
 | `cat-home` | Home spot | `#F5A524` (amber) | `#FFC53D` |
 | `accent` | Primary buttons, focus | `zinc-900` | `zinc-50` |
 
-Pins: circle with category color + white icon (`!` must go, `?` maybe, calendar planned, house home). The selected pin grows and gets a ring; hovering a list item does the same.
+Spot kinds (step 28) have no tokens: each trip stores a `#RRGGBB` color and one of 12 white symbols per kind, and the UI uses that stored color in light and dark mode alike (no dark variant; every kind color has at least 3:1 contrast against white, and `#3E63DD` / `#F5A524` are reserved for *Planned* and *Home*). The two preset kinds start as *Must go* `#E5484D` with `!` and *Maybe* `#30A46C` with `?`.
+
+Pins: circle with the kind color + the kind's white symbol (`!` must go, `?` maybe, then star, heart, food, coffee, camera, shopping, nature, temple, cat, dot), calendar planned, house home. A spot with two kinds gets a circle split vertically: left half the primary (first in kind order) kind's color, right half the second's, with the primary kind's symbol in the middle. The list strip splits the same way top / bottom, and the badge shows both names, each with its own dot. *Planned* and *Home* pins stay as they are, also for a spot with two kinds. The selected pin grows and gets a ring; hovering a list item does the same.
 
 ---
 
@@ -137,7 +137,7 @@ Active filters show as removable chips under the toolbar: `Must go ✕` `“rame
 
 - In **add** mode the footer shows **Add**; “In plans” and “Delete” are hidden until the spot exists.
 - Visitors see the same panel read-only (no inputs, no footer buttons).
-- The category dropdown offers Must go / Maybe / Home. *Planned* is only a status badge.
+- The category field is a group of checkboxes: the trip's kinds in kind order (pick one or two; with two picked the rest are disabled with the hint “At most 2 kinds”), then Home, which clears the kinds. *Planned* is only a status badge.
 - For home spots (option D), the panel adds **Stay from / to** and a **“Primary home base”** checkbox.
 
 ### 3.4 Schedule view
@@ -525,7 +525,7 @@ Shared UI pieces live in `apps/web/src/components/`. **Rule: reuse a shared comp
 | Toast | [`components/Toast.tsx`](../apps/web/src/components/Toast.tsx) | Short, non-blocking result messages (saved, deleted by someone else) | `ToastMessage` (`text`, `tone`) |
 | States | [`components/states.tsx`](../apps/web/src/components/states.tsx) | Anything that fetches: `LoadingState`, `EmptyState`, `ErrorState`, and `PanelSkeleton` (the one skeleton, `aria-busy`) for panels | `label` / `title` / `retry` |
 | Avatar group | `MemberAvatars` in [`trips/TripCard.tsx`](../apps/web/src/trips/TripCard.tsx) | Showing who is on a trip: overlapping faces with a "+N" overflow and a spoken group label | `members`, `max` |
-| Category badge | [`components/category.tsx`](../apps/web/src/components/category.tsx) | Showing a spot category: `CategoryBadge` (label), `CategoryDot`, `CategoryStrip` (list-item border) | `category` |
+| Category badge | [`components/category.tsx`](../apps/web/src/components/category.tsx) | Showing a spot category: `CategoryBadge` (label), `CategoryDot`, `CategoryStrip` (list-item border) | `category`, `kinds` |
 
 ---
 

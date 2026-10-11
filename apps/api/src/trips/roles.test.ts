@@ -7,7 +7,8 @@ describe('trip role parsing', () => {
     expect(parseTripRole('owner')).toBe('owner')
     expect(parseTripRole('planner')).toBe('planner')
     expect(parseTripRole('visitor')).toBe('visitor')
-    expect(parseTripRole('admin')).toBeNull()
+    expect(parseTripRole('admin')).toBe('admin')
+    expect(parseTripRole('superuser')).toBeNull()
     expect(parseTripRole('')).toBeNull()
     expect(parseTripRole(null)).toBeNull()
     expect(parseTripRole(undefined)).toBeNull()
@@ -27,17 +28,19 @@ describe('trip role parsing', () => {
 const roles = [
   'visitor',
   'planner',
+  'admin',
   'owner',
 ] as const satisfies readonly TripRole[]
 
 const allowed: Record<TripRole, Record<TripRole, boolean>> = {
-  visitor: { visitor: true, planner: false, owner: false },
-  planner: { visitor: true, planner: true, owner: false },
-  owner: { visitor: true, planner: true, owner: true },
+  visitor: { visitor: true, planner: false, admin: false, owner: false },
+  planner: { visitor: true, planner: true, admin: false, owner: false },
+  admin: { visitor: true, planner: true, admin: true, owner: false },
+  owner: { visitor: true, planner: true, admin: true, owner: true },
 }
 
 describe('trip role guard', () => {
-  it('T-04-07 allows a role only when it meets the minimum', () => {
+  it('T-04-07 T-28-01 allows a role only when it meets the minimum', () => {
     for (const actual of roles) {
       for (const min of roles) {
         expect(decideTripAccess(actual, min)).toBe(

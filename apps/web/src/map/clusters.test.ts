@@ -7,7 +7,8 @@ describe('clusterSpots', () => {
       id: `tight-${index}`,
       title: 'Tight',
       subtitle: '',
-      category: 'maybe',
+      category: 'planned',
+      kinds: [],
       lng: 139.7 + (index % 5) * 0.0001,
       lat: 35.6 + Math.floor(index / 5) * 0.0001,
     }))
@@ -16,6 +17,7 @@ describe('clusterSpots', () => {
       title: 'Spread',
       subtitle: '',
       category: 'home',
+      kinds: [],
       lng: index,
       lat: 0,
     }))

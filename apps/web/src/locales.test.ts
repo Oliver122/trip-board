@@ -1,3 +1,4 @@
+import { kindErrorCodes, kindSymbols } from '@tripboard/shared'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de/common.json'
@@ -29,6 +30,45 @@ describe('locales', () => {
     })
     expect(publicEn).toEqual(en)
     expect(publicDe).toEqual(de)
+  })
+
+  it('T-28-20 has the step 28 keys in en and de', () => {
+    const keys = [
+      'trips.roles.admin',
+      'category.must-go',
+      'category.maybe',
+      'category.planned',
+      'category.home',
+      'invite.singleUse',
+      'invite.used',
+      'kinds.title',
+      'kinds.boardMenu',
+      'kinds.field',
+      'kinds.atMostTwo',
+      'kinds.addTitle',
+      'kinds.add',
+      'kinds.moveUp',
+      'kinds.moveDown',
+      'kinds.delete',
+      'kinds.deleteTitle',
+      'kinds.deleteUsed_other',
+      'kinds.moveTo',
+      ...kindErrorCodes.map((code) => `kinds.errors.${code}`),
+      ...kindSymbols.map((symbol) => `kinds.symbols.${symbol}`),
+      'admin.activity.actions.kind.create',
+      'admin.activity.actions.kind.update',
+      'admin.activity.actions.kind.reorder',
+      'admin.activity.actions.kind.delete',
+    ]
+    for (const lng of ['en', 'de'] as const) {
+      const missing = keys.filter((key) => !i18n.exists(key, { lng }))
+      expect({ lng, missing }).toEqual({ lng, missing: [] })
+    }
+    expect(i18n.t('trips.roles.admin', { lng: 'en' })).toBe('Board admin')
+    expect(i18n.t('trips.roles.admin', { lng: 'de' })).toBe('Board-Admin')
+    expect(
+      i18n.t('kinds.deleteUsed', { count: 3, name: 'Food', lng: 'en' }),
+    ).toBe('3 spots use Food.')
   })
 
   it('keeps the suspended-account sentence in both languages', () => {

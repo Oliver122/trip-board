@@ -210,7 +210,8 @@ describe('plan', () => {
     expect(once).toMatchObject({
       displayCategory: 'planned',
       planCount: 1,
-      baseCategory: 'must_go',
+      baseCategory: 'kind',
+      kinds: [{ preset: 'must_go' }],
       firstScheduledAt: '2026-04-12T00:00:00',
     })
 
@@ -336,8 +337,8 @@ describe('plan', () => {
         .statusCode,
     ).toBe(204)
     expect(await getSpot(owner.cookie, spotId)).toMatchObject({
-      displayCategory: 'must_go',
-      baseCategory: 'must_go',
+      displayCategory: 'kind',
+      baseCategory: 'kind',
       planCount: 0,
       firstScheduledAt: null,
       plans: [],
@@ -452,7 +453,7 @@ describe('plan', () => {
 
     expect((await deleteEntry(owner.cookie, tokyoId)).statusCode).toBe(204)
     expect(await getSpot(owner.cookie, spotId)).toMatchObject({
-      displayCategory: 'must_go',
+      displayCategory: 'kind',
       planCount: 0,
       plans: [],
     })

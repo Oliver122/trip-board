@@ -5,7 +5,7 @@ import { spotsView, userQuotaUsage } from './schema.js'
 
 export type SpotDisplay = {
   id: string
-  displayCategory: 'must_go' | 'maybe' | 'planned' | 'home'
+  displayCategory: 'kind' | 'planned' | 'home'
   planCount: number
 }
 

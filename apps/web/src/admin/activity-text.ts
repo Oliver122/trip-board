@@ -30,6 +30,10 @@ export const activityActions = [
   'comment.create',
   'comment.update',
   'comment.delete',
+  'kind.create',
+  'kind.update',
+  'kind.reorder',
+  'kind.delete',
 ] as const
 
 export function activitySentence(
@@ -42,13 +46,21 @@ export function activitySentence(
   locale: AppLocale,
 ): string {
   const metadata = input.metadata ?? {}
-  return i18n.t(`admin.activity.actions.${input.action}`, {
+  // A delete that moved spots names where they went.
+  const key =
+    input.action === 'kind.delete' && text(metadata, 'movedTo')
+      ? 'kind.deleteMoved'
+      : input.action
+  return i18n.t(`admin.activity.actions.${key}`, {
     lng: locale,
     defaultValue: input.action,
     actor: input.actorName || i18n.t('admin.activity.someone', { lng: locale }),
     trip: text(metadata, 'trip') || input.tripName || '',
     spot: text(metadata, 'spot') || text(metadata, 'title'),
     plan: text(metadata, 'plan'),
+    name: text(metadata, 'name'),
+    moved: text(metadata, 'moved'),
+    movedTo: text(metadata, 'movedTo'),
     count: text(metadata, 'count'),
     role: text(metadata, 'role'),
     code: text(metadata, 'code'),

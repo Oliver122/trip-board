@@ -10,9 +10,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;   -- fuzzy text search on spots
 -- Enums
 -- ─────────────────────────────────────────────────────────────────────────────
 
-CREATE TYPE trip_role       AS ENUM ('owner', 'planner', 'visitor');
-CREATE TYPE spot_category   AS ENUM ('must_go', 'maybe', 'home');
-CREATE TYPE display_category AS ENUM ('must_go', 'maybe', 'planned', 'home');
+CREATE TYPE trip_role       AS ENUM ('owner', 'admin', 'planner', 'visitor');
+CREATE TYPE spot_category   AS ENUM ('kind', 'home');
+CREATE TYPE display_category AS ENUM ('kind', 'planned', 'home');
 CREATE TYPE plan_entry_type AS ENUM ('bucket', 'single');
 CREATE TYPE app_locale      AS ENUM ('en', 'de');
 CREATE TYPE app_role        AS ENUM ('user', 'admin');
@@ -123,8 +123,10 @@ CREATE TABLE trip_invites (
   created_at  timestamptz NOT NULL DEFAULT now(),
   expires_at  timestamptz NOT NULL DEFAULT now() + interval '7 days',
   revoked_at  timestamptz,
-  uses        integer     NOT NULL DEFAULT 0 CHECK (uses >= 0),
-  CHECK (expires_at > created_at AND expires_at <= created_at + interval '7 days')
+  used_at     timestamptz,
+  used_by     uuid        REFERENCES users(id) ON DELETE SET NULL,
+  CHECK (expires_at > created_at AND expires_at <= created_at + interval '7 days'),
+  CONSTRAINT trip_invites_used_check CHECK (used_by IS NULL OR used_at IS NOT NULL)
 );
 
 CREATE INDEX trip_invites_trip_id_idx ON trip_invites (trip_id);
@@ -241,6 +243,89 @@ END $$;
 CREATE TRIGGER spots_clear_primary_home
   AFTER UPDATE OF base_category ON spots
   FOR EACH ROW EXECUTE FUNCTION clear_primary_home_on_recategorize();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Spot kinds
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- Per-trip kinds replace the fixed must_go / maybe categories. 'preset' marks
+-- the two kinds every trip starts with; their name stays null until renamed.
+CREATE TABLE spot_kinds (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id     uuid        NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  name        text        CHECK (char_length(btrim(name)) BETWEEN 1 AND 30),
+  preset      text        CHECK (preset IN ('must_go', 'maybe')),
+  color       text        NOT NULL CHECK (color ~ '^#[0-9A-F]{6}$'),
+  symbol      text        NOT NULL CHECK (symbol IN (
+                'exclamation', 'question', 'dot', 'star', 'heart', 'food',
+                'coffee', 'camera', 'shopping', 'nature', 'temple', 'cat')),
+  sort_order  integer     NOT NULL CHECK (sort_order >= 0),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (trip_id, id),
+  CHECK (name IS NOT NULL OR preset IS NOT NULL)
+);
+
+CREATE INDEX spot_kinds_trip_order_idx ON spot_kinds (trip_id, sort_order);
+CREATE UNIQUE INDEX spot_kinds_trip_name_idx ON spot_kinds (trip_id, lower(btrim(name)))
+  WHERE name IS NOT NULL;
+CREATE UNIQUE INDEX spot_kinds_trip_preset_idx ON spot_kinds (trip_id, preset)
+  WHERE preset IS NOT NULL;
+
+CREATE TRIGGER spot_kinds_updated_at BEFORE UPDATE ON spot_kinds
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- A non-home spot has 1 or 2 kinds of its own trip. The composite FKs keep a
+-- link inside its trip.
+CREATE TABLE spot_kind_links (
+  trip_id  uuid NOT NULL,
+  spot_id  uuid NOT NULL,
+  kind_id  uuid NOT NULL,
+  PRIMARY KEY (spot_id, kind_id),
+  FOREIGN KEY (trip_id, spot_id) REFERENCES spots (trip_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (trip_id, kind_id) REFERENCES spot_kinds (trip_id, id) ON DELETE CASCADE
+);
+
+CREATE INDEX spot_kind_links_kind_idx ON spot_kind_links (kind_id);
+CREATE INDEX spot_kind_links_trip_idx ON spot_kind_links (trip_id);
+
+-- home -> 0 links, otherwise 1-2 links, checked at commit.
+CREATE FUNCTION check_spot_kind_links() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+  target uuid;
+  base   spot_category;
+  links  int;
+BEGIN
+  IF TG_TABLE_NAME = 'spots' THEN
+    target := NEW.id;
+  ELSIF TG_OP = 'DELETE' THEN
+    target := OLD.spot_id;
+  ELSE
+    target := NEW.spot_id;
+  END IF;
+  SELECT s.base_category INTO base FROM spots s WHERE s.id = target;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  SELECT count(*) INTO links FROM spot_kind_links WHERE spot_id = target;
+  IF base = 'home' AND links > 0 THEN
+    RAISE EXCEPTION 'home spot % cannot have kinds', target USING ERRCODE = '23514';
+  ELSIF base = 'kind' AND (links < 1 OR links > 2) THEN
+    RAISE EXCEPTION 'spot % must have 1 or 2 kinds, has %', target, links USING ERRCODE = '23514';
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE CONSTRAINT TRIGGER spots_kind_links_valid
+  AFTER INSERT OR UPDATE OF base_category ON spots
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION check_spot_kind_links();
+
+CREATE CONSTRAINT TRIGGER spot_kind_links_valid
+  AFTER INSERT OR UPDATE OR DELETE ON spot_kind_links
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION check_spot_kind_links();
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Planning
@@ -511,17 +596,21 @@ $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- Spot as shown in the UI: automatic 'planned' status and the earliest
--- scheduled moment, used by the "scheduled first" sort.
+-- scheduled moment, used by the "scheduled first" sort. 'kinds' lists the
+-- spot's kinds in trip kind order (first = primary kind); primary_kind_order is
+-- the primary kind's sort_order, null for home spots.
 CREATE VIEW spots_view AS
 SELECT
   s.*,
   CASE
     WHEN s.base_category = 'home' THEN 'home'::display_category
     WHEN p.plan_count > 0         THEN 'planned'::display_category
-    ELSE s.base_category::text::display_category
+    ELSE 'kind'::display_category
   END                                  AS display_category,
   COALESCE(p.plan_count, 0)            AS plan_count,
-  p.first_scheduled_at
+  p.first_scheduled_at,
+  COALESCE(k.kinds, '[]'::jsonb)       AS kinds,
+  k.primary_kind_order
 FROM spots s
 LEFT JOIN LATERAL (
   SELECT
@@ -531,7 +620,21 @@ LEFT JOIN LATERAL (
   FROM plan_entry_spots pes
   JOIN plan_entries pe ON pe.id = pes.plan_entry_id
   WHERE pes.spot_id = s.id
-) p ON true;
+) p ON true
+LEFT JOIN LATERAL (
+  SELECT
+    jsonb_agg(
+      jsonb_build_object(
+        'id', sk.id, 'name', sk.name, 'preset', sk.preset,
+        'color', sk.color, 'symbol', sk.symbol
+      )
+      ORDER BY sk.sort_order, sk.created_at, sk.id
+    )                  AS kinds,
+    min(sk.sort_order) AS primary_kind_order
+  FROM spot_kind_links l
+  JOIN spot_kinds sk ON sk.id = l.kind_id
+  WHERE l.spot_id = s.id
+) k ON true;
 
 -- Effective limits: per-user override, else the platform default.
 CREATE VIEW user_quota_usage AS

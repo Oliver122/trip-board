@@ -1,5 +1,10 @@
-import type { Spot, SpotCategory } from '@tripboard/shared'
-import type { Category } from '../components/category'
+import {
+  kindLimits,
+  type Spot,
+  type SpotCategory,
+  type SpotKind,
+  type SpotKindRef,
+} from '@tripboard/shared'
 import type { LngLatBounds } from '../map/bounds'
 import { formatDate, formatTime } from '../lib/format'
 import type { AppLocale } from '../lib/locale'
@@ -10,6 +15,8 @@ export type Draft = {
   lat: number | null
   lng: number | null
   baseCategory: SpotCategory
+  /** Picked kinds in trip kind order; empty for a home spot. */
+  kindIds: string[]
   stayFrom: string
   stayTo: string
   primary: boolean
@@ -22,7 +29,8 @@ export const emptyDraft: Draft = {
   address: '',
   lat: null,
   lng: null,
-  baseCategory: 'must_go',
+  baseCategory: 'kind',
+  kindIds: [],
   stayFrom: '',
   stayTo: '',
   primary: false,
@@ -30,11 +38,31 @@ export const emptyDraft: Draft = {
   link: '',
 }
 
-export function pinCategory(
-  category: Spot['displayCategory'] | SpotCategory,
-): Category {
-  if (category === 'must_go') return 'must-go'
-  return category
+/** A blank draft that starts on the trip's first kind. */
+export function newDraft(kinds: readonly Pick<SpotKind, 'id'>[] | null): Draft {
+  const first = kinds?.[0]
+  return first ? { ...emptyDraft, kindIds: [first.id] } : emptyDraft
+}
+
+/** The kinds a draft would save, in trip kind order. */
+export function draftKinds<T extends Pick<SpotKindRef, 'id'>>(
+  draft: Pick<Draft, 'baseCategory' | 'kindIds'>,
+  kinds: readonly T[],
+): T[] {
+  if (draft.baseCategory === 'home') return []
+  return kinds.filter((kind) => draft.kindIds.includes(kind.id))
+}
+
+/** Body fields for the picked category: `kindIds` in kind order, or home. */
+export function categoryBody(
+  draft: Pick<Draft, 'baseCategory' | 'kindIds'>,
+  kinds: readonly Pick<SpotKind, 'id'>[],
+): { kindIds: string[] } | { category: 'home' } {
+  if (draft.baseCategory === 'home') return { category: 'home' }
+  const ordered = draftKinds(draft, kinds).map((kind) => kind.id)
+  const first = kinds[0]
+  const ids = ordered.length > 0 ? ordered : first ? [first.id] : []
+  return { kindIds: ids.slice(0, kindLimits.perSpot) }
 }
 
 export function draftFromSpot(spot: Spot): Draft {
@@ -44,6 +72,7 @@ export function draftFromSpot(spot: Spot): Draft {
     lat: spot.lat,
     lng: spot.lng,
     baseCategory: spot.baseCategory,
+    kindIds: spot.kinds.map((kind) => kind.id),
     stayFrom: spot.stayFrom ?? '',
     stayTo: spot.stayTo ?? '',
     primary: spot.primary,
@@ -59,6 +88,7 @@ export function draftsEqual(left: Draft, right: Draft): boolean {
     left.lat === right.lat &&
     left.lng === right.lng &&
     left.baseCategory === right.baseCategory &&
+    left.kindIds.join(',') === right.kindIds.join(',') &&
     left.stayFrom === right.stayFrom &&
     left.stayTo === right.stayTo &&
     left.primary === right.primary &&

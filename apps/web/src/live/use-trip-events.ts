@@ -6,6 +6,7 @@ import {
 import { useEffect, useRef } from 'react'
 import { clientId } from '../api/write'
 import { emitCommentsChanged } from '../comments/bus'
+import { reloadKinds } from '../kinds/store'
 import { listPlan } from '../plan/client'
 import { listSpots } from '../spots/client'
 import { isNotFound } from '../api/http'
@@ -59,6 +60,7 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
         getTrip(tripId),
         listSpots(tripId, defaultSpotListQuery),
         listPlan(tripId),
+        reloadKinds(tripId),
       ])
       if (closed) return
       refreshRef.current.setTrip(trip)
@@ -69,10 +71,12 @@ export function useTripEvents(tripId: string, refresh: Refresh) {
     async function apply(folded: FoldedChanges) {
       const resources = new Set(folded.resources)
       try {
+        if (resources.has('kind')) await reloadKinds(tripId)
         if (
           resources.has('spot') ||
           resources.has('home') ||
-          resources.has('plan')
+          resources.has('plan') ||
+          resources.has('kind')
         ) {
           const spots = await listSpots(tripId, defaultSpotListQuery)
           if (!closed) refreshRef.current.replaceSpots(spots.spots, spots.total)

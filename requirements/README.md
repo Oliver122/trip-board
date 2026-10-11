@@ -47,6 +47,8 @@ flowchart LR
     S19 --> S23
     S23 --> S26[26 Menu cleanup & core hardening]
     S26 --> S27[27 Stable cleanup e2e tests]
+    S13 --> S28[28 Board admins, spot kinds, single-use invites]
+    S26 --> S28
 ```
 
 | # | Step | Result you can check |
@@ -77,6 +79,7 @@ flowchart LR
 | 23 | [Google Maps import](./23-google-maps-import.md) | Drop a Google Takeout list CSV on the board, check the preview, and its places appear as spots |
 | 26 | [Menu cleanup & core hardening](./26-menu-cleanup-core-hardening.md) | All dialogs, menus, confirms and selects share one component; one web error/request path and one API role/param/error helper; guards fail CI on duplicates |
 | 27 | [Stable cleanup e2e tests](./27-e2e-stability.md) | `e2e/cleanup.spec.ts` passes every test in 10 repeats and next to the full suite; root causes written down; prettier and report gaps closed |
+| 28 | [Board admins, custom spot kinds, single-use invites](./28-custom-spot-kinds.md) | Owner makes a member board admin; they add “Food” in orange with a food symbol; a spot that is Food and Must go shows a half-orange, half-red pin; an invite link lets in only one person |
 
 Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any order. Step 16 can come before 15.
 

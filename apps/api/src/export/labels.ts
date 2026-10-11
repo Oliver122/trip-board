@@ -1,8 +1,4 @@
-import type {
-  DisplayCategory,
-  PlanEntryType,
-  TripRole,
-} from '@tripboard/shared'
+import type { PlanEntryType, SpotKindRef, TripRole } from '@tripboard/shared'
 
 export type ExportLocale = 'en' | 'de'
 
@@ -37,19 +33,23 @@ export const csvHeaders: Record<ExportLocale, readonly string[]> = {
   ],
 }
 
-const categories: Record<ExportLocale, Record<DisplayCategory, string>> = {
-  en: {
-    must_go: 'Must go',
-    maybe: 'Maybe',
-    planned: 'Planned',
-    home: 'Home',
-  },
-  de: {
-    must_go: 'Muss hin',
-    maybe: 'Vielleicht',
-    planned: 'Geplant',
-    home: 'Unterkunft',
-  },
+const categories: Record<ExportLocale, Record<'planned' | 'home', string>> = {
+  en: { planned: 'Planned', home: 'Home' },
+  de: { planned: 'Geplant', home: 'Unterkunft' },
+}
+
+const presets: Record<ExportLocale, Record<'must_go' | 'maybe', string>> = {
+  en: { must_go: 'Must go', maybe: 'Maybe' },
+  de: { must_go: 'Muss hin', maybe: 'Vielleicht' },
+}
+
+/** A kind's display name: the custom name, or the preset label in the language. */
+export function kindName(
+  locale: ExportLocale,
+  kind: Pick<SpotKindRef, 'name' | 'preset'>,
+): string {
+  if (kind.name) return kind.name
+  return kind.preset ? presets[locale][kind.preset] : ''
 }
 
 const entryTypes: Record<ExportLocale, Record<PlanEntryType, string>> = {
@@ -58,8 +58,18 @@ const entryTypes: Record<ExportLocale, Record<PlanEntryType, string>> = {
 }
 
 const roles: Record<ExportLocale, Record<TripRole, string>> = {
-  en: { owner: 'Owner', planner: 'Planner', visitor: 'Visitor' },
-  de: { owner: 'Besitzer', planner: 'Planer', visitor: 'Besucher' },
+  en: {
+    owner: 'Owner',
+    admin: 'Board admin',
+    planner: 'Planner',
+    visitor: 'Visitor',
+  },
+  de: {
+    owner: 'Besitzer',
+    admin: 'Board-Admin',
+    planner: 'Planer',
+    visitor: 'Besucher',
+  },
 }
 
 const copy = {
@@ -75,6 +85,8 @@ export function exportLabels(locale: ExportLocale) {
   return {
     headers: csvHeaders[locale],
     category: categories[locale],
+    kind: (kind: Pick<SpotKindRef, 'name' | 'preset'>) =>
+      kindName(locale, kind),
     entryType: entryTypes[locale],
     role: roles[locale],
     schedule: copy[locale].schedule,

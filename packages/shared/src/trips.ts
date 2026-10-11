@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
-export const tripRoles = ['visitor', 'planner', 'owner'] as const
+/** Lowest to highest. `admin` is a board admin (step 28). */
+export const tripRoles = ['visitor', 'planner', 'admin', 'owner'] as const
 export const tripRoleSchema = z.enum(tripRoles)
 export type TripRole = z.infer<typeof tripRoleSchema>
 

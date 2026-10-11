@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { cn } from '../lib/utils'
-import { pinCategory } from '../spots/model'
+import { categoryColor, kindsBarBackground } from '../components/category'
 import { Dialog } from '../spots/Dialog'
 import { isAuth } from '../api/http'
 import { useSession } from '../session'
@@ -154,7 +154,10 @@ function NewsPanel({
                       aria-hidden="true"
                       className="w-1 shrink-0 rounded-full"
                       style={{
-                        backgroundColor: `var(--cat-${pinCategory(entry.displayCategory)})`,
+                        background:
+                          entry.displayCategory === 'kind'
+                            ? kindsBarBackground(entry.kinds)
+                            : categoryColor(entry.displayCategory),
                       }}
                     />
                     <span className="min-w-0 flex-1 space-y-1">

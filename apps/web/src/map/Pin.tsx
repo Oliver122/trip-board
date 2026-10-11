@@ -1,17 +1,17 @@
 import { Calendar, House } from 'lucide-react'
-import type { Category } from '../components/category'
+import {
+  categoryColor,
+  kindColorsAttr,
+  type Category,
+  type KindMark,
+} from '../components/category'
 import { hoverClass } from '../components/ui/hover'
+import { KindSymbolIcon } from '../kinds/symbols'
 import { cn } from '../lib/utils'
-
-const glyph: Record<Category, string> = {
-  'must-go': '!',
-  maybe: '?',
-  planned: '',
-  home: '',
-}
 
 export function Pin({
   category,
+  kinds = [],
   label,
   selected = false,
   hover = false,
@@ -23,6 +23,8 @@ export function Pin({
   testId,
 }: {
   category: Category
+  /** The spot's kinds in kind order; the first is the primary kind. */
+  kinds?: readonly KindMark[]
   label: string
   selected?: boolean
   hover?: boolean
@@ -33,12 +35,15 @@ export function Pin({
   onMouseLeave?: () => void
   testId?: string
 }) {
+  const marks = category === 'kind' ? kinds.slice(0, 2) : []
+  const [primary, second] = marks
   return (
     <button
       type="button"
       aria-label={label}
       aria-pressed={selected}
       data-testid={testId}
+      data-kind-colors={marks.length > 0 ? kindColorsAttr(marks) : undefined}
       className={cn(
         hoverClass.pin,
         'relative inline-flex items-center justify-center rounded-full border-0 p-0 text-sm font-semibold text-white',
@@ -47,12 +52,35 @@ export function Pin({
           : 'size-7',
         hover && 'is-hover scale-110',
       )}
-      style={{ backgroundColor: `var(--cat-${category})` }}
+      style={{
+        backgroundColor: primary
+          ? primary.color
+          : categoryColor(category === 'kind' ? 'planned' : category),
+      }}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <PinIcon category={category} filled={filled} />
+      {second && primary ? (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 flex overflow-hidden rounded-full"
+        >
+          <span
+            data-half="left"
+            className="block w-1/2"
+            style={{ backgroundColor: primary.color }}
+          />
+          <span
+            data-half="right"
+            className="block w-1/2"
+            style={{ backgroundColor: second.color }}
+          />
+        </span>
+      ) : null}
+      <span className="relative inline-flex items-center justify-center">
+        <PinIcon category={category} primary={primary} filled={filled} />
+      </span>
       {unread ? (
         <span
           aria-hidden="true"
@@ -66,9 +94,11 @@ export function Pin({
 
 function PinIcon({
   category,
+  primary,
   filled,
 }: {
   category: Category
+  primary: KindMark | undefined
   filled: boolean
 }) {
   if (category === 'planned') {
@@ -86,9 +116,5 @@ function PinIcon({
       />
     )
   }
-  return (
-    <span aria-hidden="true" data-icon={category}>
-      {glyph[category]}
-    </span>
-  )
+  return primary ? <KindSymbolIcon symbol={primary.symbol} /> : null
 }

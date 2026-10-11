@@ -90,7 +90,8 @@
     "roles": {
       "owner": "Besitzer",
       "planner": "Planer",
-      "visitor": "Besucher"
+      "visitor": "Besucher",
+      "admin": "Board-Admin"
     },
     "errors": {
       "load": "Reisen konnten nicht geladen werden.",
@@ -330,7 +331,9 @@
     "empty": "Keine aktiven Einladungen.",
     "expiresIn_one": "läuft in {{count}} Tag ab",
     "expiresIn_other": "läuft in {{count}} Tagen ab",
-    "expired": "Diese Einladung ist abgelaufen. Bitte den Reise-Owner um einen neuen Link."
+    "expired": "Diese Einladung ist abgelaufen. Bitte den Reise-Owner um einen neuen Link.",
+    "singleUse": "Jeder Link funktioniert für eine Person",
+    "used": "Diese Einladung wurde bereits verwendet. Bitte den Reise-Owner um einen neuen Link."
   },
   "join": {
     "title": "Reise beitreten",
@@ -606,6 +609,13 @@
           "create": "{{actor}} hat {{spot}} in {{trip}} kommentiert",
           "update": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} bearbeitet",
           "delete": "{{actor}} hat einen Kommentar zu {{spot}} in {{trip}} gelöscht"
+        },
+        "kind": {
+          "create": "{{actor}} hat die Art {{name}} zu {{trip}} hinzugefügt",
+          "update": "{{actor}} hat die Art {{name}} in {{trip}} geändert",
+          "reorder": "{{actor}} hat die Arten von {{trip}} neu sortiert",
+          "delete": "{{actor}} hat die Art {{name}} aus {{trip}} gelöscht",
+          "deleteMoved": "{{actor}} hat die Art {{name}} aus {{trip}} gelöscht und {{moved}} Spots nach {{movedTo}} verschoben"
         }
       }
     },
@@ -662,7 +672,6 @@
     "planned": "Geplant",
     "home": "Unterkunft"
   },
-
   "comments": {
     "section": "Diskussion",
     "empty": "Noch keine Kommentare. Frag die anderen, ob sie dort hinwollen.",
@@ -701,5 +710,65 @@
     "tripNew_other": "{{count}} neue Kommentare",
     "tabTitle": "({{count}}) {{trip}} · {{app}}",
     "loadError": "Neuigkeiten konnten nicht geladen werden."
+  },
+  "kinds": {
+    "title": "Spot-Arten",
+    "field": "Arten",
+    "atMostTwo": "Höchstens 2 Arten",
+    "both": "{{first}} und {{second}}",
+    "pinLabel": "{{title}}, {{kinds}}",
+    "boardMenu": "Board-Menü",
+    "loadError": "Spot-Arten konnten nicht geladen werden.",
+    "list": "Spot-Arten dieser Reise",
+    "spotCount_one": "{{count}} Spot",
+    "spotCount_other": "{{count}} Spots",
+    "addTitle": "Neue Art",
+    "name": "Name",
+    "add": "Art hinzufügen",
+    "color": "Farbe",
+    "colorOf": "Farbe von {{name}}",
+    "hex": "Hex-Farbe",
+    "symbol": "Symbol",
+    "symbolOf": "Symbol von {{name}}",
+    "style": "Farbe und Symbol von {{name}}",
+    "rename": "Name von {{name}}",
+    "moveUp": "{{name}} nach oben",
+    "moveDown": "{{name}} nach unten",
+    "delete": "{{name}} löschen",
+    "limit": "Eine Reise kann bis zu {{max}} Arten haben.",
+    "deleteTitle": "{{name}} löschen?",
+    "deleteUsed_one": "{{count}} Spot nutzt {{name}}.",
+    "deleteUsed_other": "{{count}} Spots nutzen {{name}}.",
+    "deleteUnused": "Kein Spot nutzt {{name}}.",
+    "moveTo": "Verschieben nach",
+    "movePick": "Art wählen",
+    "errors": {
+      "kind_name_taken": "Eine Art mit diesem Namen gibt es schon.",
+      "kind_limit": "Eine Reise kann höchstens 12 Arten haben.",
+      "kind_last": "Die letzte Art kann nicht gelöscht werden.",
+      "kind_symbol_unknown": "Wähle eines der angezeigten Symbole.",
+      "kind_color_contrast": "Diese Farbe ist für ein weißes Symbol zu hell. Wähle eine dunklere.",
+      "kind_color_reserved": "Diese Farbe gehört zu Geplant oder Unterkunft. Wähle eine andere.",
+      "kind_not_found": "Diese Art gibt es nicht mehr.",
+      "kind_move_required": "Wähle eine Art, in die die Spots verschoben werden.",
+      "kind_move_same": "Wähle eine andere Art für die Spots.",
+      "invalid_color": "Gib eine Farbe als #RRGGBB ein.",
+      "invalid_name": "Gib einen Namen mit 1 bis 30 Zeichen ein.",
+      "generic": "Die Änderung konnte nicht gespeichert werden. Versuch es noch einmal."
+    },
+    "symbols": {
+      "exclamation": "Ausrufezeichen",
+      "question": "Fragezeichen",
+      "dot": "Punkt",
+      "star": "Stern",
+      "heart": "Herz",
+      "food": "Essen",
+      "coffee": "Kaffee",
+      "camera": "Kamera",
+      "shopping": "Einkaufen",
+      "nature": "Natur",
+      "temple": "Tempel",
+      "cat": "Katze"
+    }
   }
 }

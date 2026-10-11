@@ -18,11 +18,19 @@ describe.skipIf(!hasDb)('view helpers', () => {
     await db?.drop()
   })
 
-  it('returns planned for a bucket spot and maybe for an unplanned maybe spot', async () => {
+  it('returns planned for a bucket spot and kind for an unplanned kind spot', async () => {
     const planned = await getSpotDisplay(db.pool, seedIds.spots.shibuya)
-    const maybe = await getSpotDisplay(db.pool, seedIds.spots.nara)
+    const kind = await getSpotDisplay(db.pool, seedIds.spots.nara)
     expect(planned?.displayCategory).toBe('planned')
-    expect(maybe?.displayCategory).toBe('maybe')
+    expect(kind?.displayCategory).toBe('kind')
+  })
+
+  it("lists a spot's kinds from spots_view", async () => {
+    const result = await db.pool.query<{ kinds: { preset: string }[] }>(
+      'SELECT kinds FROM spots_view WHERE id = $1',
+      [seedIds.spots.nara],
+    )
+    expect(result.rows[0]?.kinds.map((kind) => kind.preset)).toEqual(['maybe'])
   })
 
   it('reads platform quota defaults from user_quota_usage', async () => {
