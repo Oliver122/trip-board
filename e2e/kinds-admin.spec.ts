@@ -124,6 +124,15 @@ function row(dialog: ReturnType<Page['locator']>, name: string) {
   })
 }
 
+/** Add kind menu, then Custom kind…; returns the new-kind form. */
+async function openCustomForm(dialog: ReturnType<Page['locator']>) {
+  await dialog.getByTestId('kind-add-menu').click()
+  await dialog.getByTestId('kind-add-custom').click()
+  const form = dialog.getByRole('form', { name: 'New kind' })
+  await expect(form).toBeVisible()
+  return form
+}
+
 test('T-28-12 only board admins and the owner see Spot kinds in the board menu @chromium', async ({
   page,
   browser,
@@ -179,19 +188,19 @@ test('T-28-13 a board admin adds, reorders and renames kinds and the spot panel 
   await page.goto(`/trips/${tripId}`)
   const dialog = await openDialog(page)
 
-  const form = dialog.getByRole('form', { name: 'New kind' })
-  await form.getByLabel('Name').fill('Food')
+  const form = await openCustomForm(dialog)
+  await form.getByLabel('Name', { exact: true }).fill('Noodles')
   await form.getByRole('button', { name: '#D9480F' }).click()
-  await form.getByRole('button', { name: 'Food', exact: true }).click()
+  await form.getByRole('option', { name: 'Food', exact: true }).click()
   await form.getByRole('button', { name: 'Add kind' }).click()
-  const food = row(dialog, 'Food')
-  await expect(food).toBeVisible()
-  await expect(food.getByTestId('kind-swatch')).toHaveCSS(
+  const noodles = row(dialog, 'Noodles')
+  await expect(noodles).toBeVisible()
+  await expect(noodles.getByTestId('kind-swatch')).toHaveCSS(
     'background-color',
     'rgb(217, 72, 15)',
   )
 
-  await dialog.getByRole('button', { name: 'Move Food up' }).click()
+  await dialog.getByRole('button', { name: 'Move Noodles up' }).click()
   const names = dialog.getByTestId('kind-row').getByRole('textbox')
   await expect
     .poll(async () =>
@@ -199,7 +208,7 @@ test('T-28-13 a board admin adds, reorders and renames kinds and the spot panel 
         inputs.map((input) => (input as HTMLInputElement).value),
       ),
     )
-    .toEqual(['Must go', 'Food', 'Maybe'])
+    .toEqual(['Must go', 'Maybe', 'Food', 'Noodles', 'Sights'])
 
   const mustGo = dialog.getByRole('textbox', { name: 'Name of Must go' })
   await mustGo.fill('Top')
@@ -212,14 +221,20 @@ test('T-28-13 a board admin adds, reorders and renames kinds and the spot panel 
 
   await page.getByTestId(`card-${spotId}`).click()
   const picker = page.getByTestId('kind-picker')
-  await expect(picker.getByRole('checkbox')).toHaveCount(4)
-  await expect
-    .poll(async () => picker.locator('label').allTextContents())
-    .toEqual(['Top', 'Food', 'Maybe', 'Home'])
-  await picker.getByRole('checkbox', { name: 'Food' }).check()
-  await picker.getByRole('checkbox', { name: 'Maybe' }).uncheck()
-  await picker.getByRole('checkbox', { name: 'Top' }).check()
-  await expect(picker.getByRole('checkbox', { name: 'Maybe' })).toBeDisabled()
+  const chip = (name: string) =>
+    picker.locator('button[aria-pressed]').filter({
+      has: page.locator('span:last-of-type', {
+        hasText: new RegExp(`^${name}$`),
+      }),
+    })
+  await expect(picker.locator('button[aria-pressed]')).toHaveCount(6)
+  await expect(
+    picker.locator('button[aria-pressed] > span:last-of-type'),
+  ).toHaveText(['Top', 'Maybe', 'Food', 'Noodles', 'Sights', 'Home'])
+  await chip('Food').click()
+  await chip('Maybe').click()
+  await chip('Top').click()
+  await expect(chip('Maybe')).toBeDisabled()
   await expect(page.getByText('At most 2 kinds')).toBeVisible()
 })
 
@@ -231,14 +246,9 @@ test('T-28-14 deleting a kind in use asks where its spots go @chromium', async (
   await login(page, freshDiscordId())
   const tripId = await createTrip(page)
   const kinds = await listKinds(page, tripId)
-  const food = await api<{ id: string }>(
-    page,
-    'POST',
-    `/trips/${tripId}/kinds`,
-    { name: 'Food', color: '#D9480F', symbol: 'food' },
-  )
-  const first = await createSpot(page, tripId, 'Ramen', [food.id])
-  const second = await createSpot(page, tripId, 'Sushi', [food.id])
+  const foodId = presetId(kinds, 'food')
+  const first = await createSpot(page, tripId, 'Ramen', [foodId])
+  const second = await createSpot(page, tripId, 'Sushi', [foodId])
   await page.goto(`/trips/${tripId}`)
   const dialog = await openDialog(page)
   await expect(row(dialog, 'Food').getByTestId('kind-count')).toHaveText(
@@ -266,9 +276,11 @@ test('T-28-14 deleting a kind in use asks where its spots go @chromium', async (
 
   // Down to one kind: no delete button is left.
   const reopened = await openDialog(page)
-  await reopened.getByRole('button', { name: 'Delete Must go' }).click()
-  await page.getByTestId('kind-delete-accept').click()
-  await expect(page.getByTestId('kind-delete-dialog')).toHaveCount(0)
+  for (const name of ['Must go', 'Sights']) {
+    await reopened.getByRole('button', { name: `Delete ${name}` }).click()
+    await page.getByTestId('kind-delete-accept').click()
+    await expect(page.getByTestId('kind-delete-dialog')).toHaveCount(0)
+  }
   await expect(reopened.getByTestId('kind-row')).toHaveCount(1)
   await expect(reopened.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
   expect(presetId(kinds, 'maybe')).toBeTruthy()
@@ -288,29 +300,31 @@ test('T-28-15 another browser sees a new and recolored kind without a reload @ch
   await guest.goto(`/trips/${tripId}`)
   await guest.getByRole('button', { name: 'Filter' }).click()
   const region = guest.getByRole('region', { name: 'Filter' })
-  await expect(region.getByLabel('Must go')).toBeVisible()
-  await expect(region.getByLabel('Food')).toHaveCount(0)
+  const chip = (name: string) =>
+    region.getByRole('button', { name: new RegExp(`^${name}\\b`) })
+  await expect(chip('Must go')).toBeVisible()
+  await expect(chip('Noodles')).toHaveCount(0)
 
   await page.goto(`/trips/${tripId}`)
   const dialog = await openDialog(page)
-  const form = dialog.getByRole('form', { name: 'New kind' })
-  await form.getByLabel('Name').fill('Food')
+  const form = await openCustomForm(dialog)
+  await form.getByLabel('Name', { exact: true }).fill('Noodles')
   await form.getByRole('button', { name: 'Add kind' }).click()
-  await expect(row(dialog, 'Food')).toBeVisible()
-  await expect(region.getByLabel('Food')).toBeVisible()
+  await expect(row(dialog, 'Noodles')).toBeVisible()
+  await expect(chip('Noodles')).toBeVisible()
 
   const kinds = await listKinds(page, tripId)
-  const foodId = kinds.find((kind) => kind.name === 'Food')!.id
+  const foodId = kinds.find((kind) => kind.name === 'Noodles')!.id
   const spotId = await createSpot(page, tripId, 'Ramen', [foodId])
   const strip = guest
     .getByTestId(`card-${spotId}`)
     .getByTestId('category-strip')
   await expect(strip).toHaveAttribute('data-kind-colors', '#D9480F')
 
-  await row(dialog, 'Food')
-    .getByRole('button', { name: 'Color and symbol of Food' })
+  await row(dialog, 'Noodles')
+    .getByRole('button', { name: 'Color and symbol of Noodles' })
     .click()
-  await row(dialog, 'Food').getByRole('button', { name: '#0F766E' }).click()
+  await row(dialog, 'Noodles').getByRole('button', { name: '#0F766E' }).click()
   await expect(strip).toHaveAttribute('data-kind-colors', '#0F766E')
 })
 
@@ -332,7 +346,7 @@ for (const scheme of ['light', 'dark'] as const) {
       label: `dialog ${scheme}`,
     })
 
-    const down = dialog.getByRole('button', { name: 'Move Must go down' })
+    const down = dialog.getByRole('button', { name: 'Move Food down' })
     await down.focus()
     await page.keyboard.press('Enter')
     await expect
@@ -344,13 +358,13 @@ for (const scheme of ['light', 'dark'] as const) {
             inputs.map((input) => (input as HTMLInputElement).value),
           ),
       )
-      .toEqual(['Maybe', 'Must go'])
+      .toEqual(['Must go', 'Maybe', 'Sights', 'Food'])
     // Focus stays on the row's move buttons after the move.
     await expect(
-      dialog.getByRole('button', { name: 'Move Must go down' }),
+      dialog.getByRole('button', { name: 'Move Food down' }),
     ).toBeDisabled()
     await expect(
-      dialog.getByRole('button', { name: 'Move Must go up' }),
+      dialog.getByRole('button', { name: 'Move Food up' }),
     ).toBeFocused()
 
     await dialog.getByRole('button', { name: 'Delete Maybe' }).click()

@@ -12,9 +12,10 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { ChipGroup } from '../components/ui/chip-group'
 import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
-import { CategoryBadge } from '../components/category'
+import { CategoryBadge, CategoryDot } from '../components/category'
 import { kindLabel } from '../kinds/label'
 import { useTripKinds } from '../kinds/store'
 import { activeLocale } from '../i18n'
@@ -85,7 +86,6 @@ export function SpotPanel({
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const titleId = useId()
   const addressId = useId()
-  const hintId = useId()
   const { kinds } = useTripKinds(tripId)
   const stayFromId = useId()
   const stayToId = useId()
@@ -146,9 +146,6 @@ export function SpotPanel({
       lng: place.lng,
     })
   }
-
-  const atLimit =
-    draft.baseCategory !== 'home' && draft.kindIds.length >= kindLimits.perSpot
 
   const overlaps =
     draft.baseCategory === 'home'
@@ -286,53 +283,52 @@ export function SpotPanel({
           )}
 
           <div className="flex flex-wrap items-end gap-3">
-            <fieldset
-              className="min-w-40 flex-1 border-0 p-0"
-              aria-describedby={atLimit ? hintId : undefined}
-            >
-              <legend className="mb-1">{t('board.category')}</legend>
+            <div className="min-w-40 flex-1">
+              <p aria-hidden="true" className="mb-1">
+                {t('board.category')}
+              </p>
               <div className="mb-2">
                 <CategoryBadge
                   category={draft.baseCategory === 'home' ? 'home' : 'kind'}
                   kinds={draftKinds(draft, kinds ?? [])}
                 />
               </div>
-              <div data-testid="kind-picker" className="flex flex-col">
-                {(kinds ?? []).map((kind) => {
-                  const picked =
-                    draft.baseCategory !== 'home' &&
-                    draft.kindIds.includes(kind.id)
-                  return (
-                    <label
-                      key={kind.id}
-                      className="flex min-h-11 items-center gap-2"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={picked}
-                        disabled={readOnly || (atLimit && !picked)}
-                        onChange={() => void toggleKind(kind.id)}
-                      />
-                      {kindLabel(t, kind)}
-                    </label>
-                  )
-                })}
-                <label className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={draft.baseCategory === 'home'}
-                    disabled={readOnly}
-                    onChange={pickHome}
-                  />
-                  {t('category.home')}
-                </label>
+              <div data-testid="kind-picker" className="flex flex-wrap gap-2">
+                <ChipGroup
+                  label={t('board.category')}
+                  options={(kinds ?? []).map((kind) => ({
+                    value: kind.id,
+                    label: kindLabel(t, kind),
+                    mark: <CategoryDot kind={kind} />,
+                  }))}
+                  value={draft.baseCategory === 'home' ? [] : draft.kindIds}
+                  max={kindLimits.perSpot}
+                  maxHint={t('kinds.atMostTwo')}
+                  disabled={readOnly}
+                  onChange={(next) => {
+                    const toggled = [...next, ...draft.kindIds].find(
+                      (id) => next.includes(id) !== draft.kindIds.includes(id),
+                    )
+                    if (toggled) void toggleKind(toggled)
+                  }}
+                />
+                <ChipGroup
+                  label={t('category.home')}
+                  options={[
+                    {
+                      value: 'home',
+                      label: t('category.home'),
+                      mark: <CategoryDot category="home" />,
+                    },
+                  ]}
+                  value={draft.baseCategory === 'home' ? ['home'] : []}
+                  disabled={readOnly}
+                  onChange={(next) => {
+                    if (next.includes('home')) pickHome()
+                  }}
+                />
               </div>
-              {atLimit ? (
-                <p id={hintId} className="text-sm text-muted">
-                  {t('kinds.atMostTwo')}
-                </p>
-              ) : null}
-            </fieldset>
+            </div>
             {spot && spot.displayCategory === 'planned' ? (
               <p className="pb-3">
                 {t('board.plannedBadge', { count: spot.planCount })}

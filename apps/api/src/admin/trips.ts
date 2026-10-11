@@ -7,6 +7,7 @@ import {
   num,
   type SortSpec,
 } from './page.js'
+import { readKindLimit } from './kind-limits.js'
 import { activitySparkline } from './spark.js'
 import { toAction } from './users.js'
 
@@ -109,7 +110,7 @@ export async function getAdminTrip(pool: Pool, id: string) {
   )
   const row = found.rows[0]
   if (!row) return null
-  const [members, actions, sparkline] = await Promise.all([
+  const [members, actions, sparkline, kindLimit] = await Promise.all([
     pool.query<{
       id: string
       username: string
@@ -140,6 +141,7 @@ export async function getAdminTrip(pool: Pool, id: string) {
       [id],
     ),
     activitySparkline(pool, 'trip_id', id),
+    readKindLimit(pool, id),
   ])
   return {
     trip: toAdminTrip(row),
@@ -151,5 +153,6 @@ export async function getAdminTrip(pool: Pool, id: string) {
     })),
     actions: actions.rows.map(toAction),
     sparkline,
+    kindLimit: kindLimit!,
   }
 }

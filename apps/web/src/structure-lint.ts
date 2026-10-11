@@ -9,6 +9,35 @@ const fetchAllowList = [
   'dev-login.tsx',
 ]
 
+// Files whose category section must pick kinds with the chip group (R-29-15).
+const kindPickerFiles = [
+  'spots/SpotToolbar.tsx',
+  'spots/SpotPanel.tsx',
+  'import/ImportDialog.tsx',
+]
+
+// A checkbox whose options come from the trip's kinds: inside a `.map(` over
+// `kinds`, or within a short window after the `board.category` heading.
+export function kindCheckboxViolations(source: string): string[] {
+  const checkbox = /type=["']checkbox["']/
+  for (const match of source.matchAll(/\bkinds\b[^;]{0,40}\.map\(/g)) {
+    const start = match.index + match[0].length
+    let depth = 1
+    let end = start
+    while (end < source.length && depth > 0) {
+      if (source[end] === '(') depth += 1
+      if (source[end] === ')') depth -= 1
+      end += 1
+    }
+    if (checkbox.test(source.slice(start, end))) return ['kind checkbox']
+  }
+  for (const match of source.matchAll(/board\.category/g)) {
+    const window = source.slice(match.index, match.index + 700)
+    if (checkbox.test(window)) return ['kind checkbox']
+  }
+  return []
+}
+
 // `file` is a path relative to apps/web/src, using forward slashes.
 export function structureViolations(source: string, file: string): string[] {
   const found: string[] = []
@@ -26,6 +55,8 @@ export function structureViolations(source: string, file: string): string[] {
   ) {
     found.push('fetch(')
   }
+  if (kindPickerFiles.includes(file))
+    found.push(...kindCheckboxViolations(source))
   return found
 }
 

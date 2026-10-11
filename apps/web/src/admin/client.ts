@@ -2,6 +2,8 @@ import {
   activityListSchema,
   adminMetricsSchema,
   adminStatsSchema,
+  adminKindLimitRequestListSchema,
+  adminKindLimitSchema,
   adminStorageSchema,
   adminTripDetailSchema,
   adminTripListSchema,
@@ -11,6 +13,8 @@ import {
   auditListSchema,
   quotaRequestListSchema,
   quotaRequestSchema,
+  type AdminKindLimit,
+  type AdminKindLimitRequestList,
   type AdminMetrics,
   type AdminStats,
   type AdminStorage,
@@ -18,6 +22,7 @@ import {
   type AdminUserDetail,
   type AppSettings,
   type AuditEntry,
+  type KindLimitPatch,
   type QuotaPatch,
   type QuotaRequest,
   type SettingsPatch,
@@ -125,15 +130,61 @@ export async function listQuotaRequests(signal?: AbortSignal) {
   })
 }
 
+/** Pending storage requests plus pending kind limit requests. */
 export async function pendingRequestCount(
   signal?: AbortSignal,
 ): Promise<number> {
-  const list = await requestJson(
-    '/api/admin/quota-requests?status=pending',
-    quotaRequestListSchema,
+  const [storage, kinds] = await Promise.all([
+    requestJson(
+      '/api/admin/quota-requests?status=pending',
+      quotaRequestListSchema,
+      { signal },
+    ),
+    requestJson(
+      '/api/admin/kind-limit-requests?status=pending',
+      adminKindLimitRequestListSchema,
+      { signal },
+    ),
+  ])
+  return storage.pendingCount + kinds.pendingCount
+}
+
+export async function listKindLimitRequests(
+  signal?: AbortSignal,
+): Promise<AdminKindLimitRequestList> {
+  return requestJson(
+    '/api/admin/kind-limit-requests',
+    adminKindLimitRequestListSchema,
     { signal },
   )
-  return list.pendingCount
+}
+
+export async function approveKindLimitRequest(
+  id: string,
+  body: { maxKinds?: number; note?: string },
+) {
+  await request(`/api/admin/kind-limit-requests/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function rejectKindLimitRequest(id: string, note: string) {
+  await request(`/api/admin/kind-limit-requests/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(note ? { note } : {}),
+  })
+}
+
+export async function patchKindLimit(
+  tripId: string,
+  body: KindLimitPatch,
+): Promise<AdminKindLimit> {
+  return requestJson(
+    `/api/admin/trips/${tripId}/kind-limit`,
+    adminKindLimitSchema,
+    { method: 'PATCH', body: JSON.stringify(body) },
+  )
 }
 
 export async function approveRequest(

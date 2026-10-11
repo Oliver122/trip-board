@@ -137,7 +137,7 @@ Active filters show as removable chips under the toolbar: `Must go ✕` `“rame
 
 - In **add** mode the footer shows **Add**; “In plans” and “Delete” are hidden until the spot exists.
 - Visitors see the same panel read-only (no inputs, no footer buttons).
-- The category field is a group of checkboxes: the trip's kinds in kind order (pick one or two; with two picked the rest are disabled with the hint “At most 2 kinds”), then Home, which clears the kinds. *Planned* is only a status badge.
+- The category field is a chip group (step 29): one chip per trip kind in kind order (pick one or two; with two picked the rest are disabled with the hint “At most 2 kinds”), then a separate Home chip, which clears the kinds. *Planned* is only a status badge.
 - For home spots (option D), the panel adds **Stay from / to** and a **“Primary home base”** checkbox.
 
 ### 3.4 Schedule view
@@ -521,6 +521,7 @@ Shared UI pieces live in `apps/web/src/components/`. **Rule: reuse a shared comp
 | Menu | [`components/ui/menu.tsx`](../apps/web/src/components/ui/menu.tsx) | A trigger that opens a short list of actions or links (avatar menu) | `Menu`: `label`, `trigger`, `align`; children `MenuItem` (`onSelect`, `danger`) and `MenuLink` (`to`) |
 | Confirm | [`components/ui/confirm.tsx`](../apps/web/src/components/ui/confirm.tsx) | Any "are you sure?" question; never `window.confirm`. Use `danger` for destructive actions | `useConfirm()` returns `(opts: { title, message?, confirmLabel?, cancelLabel?, danger? }) => Promise<boolean>`; `ConfirmProvider` is mounted once in `App.tsx` |
 | Select | [`components/ui/select.tsx`](../apps/web/src/components/ui/select.tsx) | Choosing one of a few options; keeps the native picker | native select props plus `label`, `hideLabel`, `wrapperClassName` |
+| Chip group | [`components/ui/chip-group.tsx`](../apps/web/src/components/ui/chip-group.tsx) | Choosing any number of options from a few or many (filter categories, a spot's kinds, the import kind): toggle chips with `aria-pressed`, color dot or symbol, label and count. Never a checkbox list for a trip's kinds (guarded in `structure-lint.ts`) | `options` (`value`, `label`, `mark`, `count`, `disabled`), `value`, `onChange`, `label`, `max` + `maxHint` (unpressed chips disabled at the max), `searchLabel` (search field appears above 8 options); Tab enters the group, arrows move, Space/Enter toggle |
 | Notice | [`components/notice.tsx`](../apps/web/src/components/notice.tsx) | Inline form feedback: `FieldError` under a field, `ErrorNotice` for a failed action | `message`, optional `id` / retry handler |
 | Toast | [`components/Toast.tsx`](../apps/web/src/components/Toast.tsx) | Short, non-blocking result messages (saved, deleted by someone else) | `ToastMessage` (`text`, `tone`) |
 | States | [`components/states.tsx`](../apps/web/src/components/states.tsx) | Anything that fetches: `LoadingState`, `EmptyState`, `ErrorState`, and `PanelSkeleton` (the one skeleton, `aria-busy`) for panels | `label` / `title` / `retry` |

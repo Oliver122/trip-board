@@ -11,8 +11,9 @@ test('T-14-09 the export dialog names the current view and downloads a CSV', asy
   await setLocale(page, 'en')
   await page.goto(japanTrip)
   await page.getByRole('button', { name: 'Filter' }).click()
-  await page.getByRole('checkbox', { name: 'Must go' }).click()
-  await page.getByRole('checkbox', { name: 'Maybe' }).click()
+  const filter = page.getByRole('region', { name: 'Filter' })
+  await filter.getByRole('button', { name: /^Must go/ }).click()
+  await filter.getByRole('button', { name: /^Maybe/ }).click()
   await page.getByRole('button', { name: 'Export' }).click()
 
   const dialog = page.getByRole('dialog', { name: /Export .*Japan 2026/ })

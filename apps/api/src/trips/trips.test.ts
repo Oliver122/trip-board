@@ -279,7 +279,7 @@ describe('trips', () => {
     expect(gone.statusCode).toBe(404)
   })
 
-  it('T-28-05 a new trip gets Must go and Maybe, and none without the trip', async () => {
+  it('T-28-05 a new trip gets Must go, Maybe, Food and Sights, and none without the trip', async () => {
     const owner = await login('100000000000002805')
     const created = await postTrip(owner.cookie, japan)
     expect(created.statusCode).toBe(201)
@@ -304,6 +304,20 @@ describe('trips', () => {
         color: '#30A46C',
         symbol: 'question',
         sort_order: 1,
+      },
+      {
+        name: null,
+        preset: 'food',
+        color: '#D9480F',
+        symbol: 'food',
+        sort_order: 2,
+      },
+      {
+        name: null,
+        preset: 'sights',
+        color: '#6D28D9',
+        symbol: 'camera',
+        sort_order: 3,
       },
     ])
 

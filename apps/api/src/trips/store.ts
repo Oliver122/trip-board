@@ -1,5 +1,6 @@
 import {
-  presetKinds,
+  presetKind,
+  starterPresets,
   tripSchema,
   type BBox,
   type PatchTripBody,
@@ -150,7 +151,8 @@ export async function createTrip(
       `,
       [id, userId],
     )
-    for (const [order, kind] of presetKinds.entries()) {
+    for (const [order, preset] of starterPresets.entries()) {
+      const kind = presetKind(preset)
       await tx.query(
         `
         INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)

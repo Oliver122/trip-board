@@ -1,12 +1,12 @@
 import {
   kindErrorCodes,
-  kindLimits,
   kindSwatches,
-  kindSymbols,
+  presetKinds,
+  type KindPreset,
   type KindSymbol,
   type SpotKind,
 } from '@tripboard/shared'
-import { ArrowDown, ArrowUp, Palette, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Palette, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, isAuth } from '../api/http'
@@ -14,13 +14,23 @@ import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button, buttonVariants } from '../components/ui/button'
 import { hoverClass } from '../components/ui/hover'
+import { Menu, MenuItem } from '../components/ui/menu'
 import { Modal } from '../components/ui/modal'
 import { Select } from '../components/ui/select'
 import { cn } from '../lib/utils'
 import { useSession } from '../session'
-import { createKind, deleteKind, reorderKinds, updateKind } from './client'
+import {
+  createKind,
+  createPresetKind,
+  deleteKind,
+  reorderKinds,
+  updateKind,
+} from './client'
 import { kindLabel } from './label'
+import { KindPreview } from './KindPreview'
+import { LimitRequest } from './LimitRequest'
 import { reloadKinds, setKinds, useTripKinds } from './store'
+import { SymbolPicker } from './SymbolPicker'
 import { KindSymbolIcon } from './symbols'
 
 const inputClass =
@@ -39,7 +49,13 @@ export function KindsDialog({
 }) {
   const { t } = useTranslation()
   const { reload: reloadSession } = useSession()
-  const { kinds, error: loadFailed, reload } = useTripKinds(tripId)
+  const {
+    kinds,
+    limit,
+    count,
+    error: loadFailed,
+    reload,
+  } = useTripKinds(tripId)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [deleting, setDeleting] = useState<SpotKind | null>(null)
@@ -64,7 +80,7 @@ export function KindsDialog({
   function describe(caught: unknown): string {
     if (caught instanceof ApiError) {
       if ((kindErrorCodes as readonly string[]).includes(caught.code)) {
-        return t(`kinds.errors.${caught.code}`)
+        return t(`kinds.errors.${caught.code}`, { limit })
       }
       if (caught.fields.color) return t('kinds.errors.invalid_color')
       if (caught.fields.name) return t('kinds.errors.invalid_name')
@@ -81,16 +97,20 @@ export function KindsDialog({
       await reloadKinds(tripId)
       return true
     } catch (caught) {
-      if (isAuth(caught)) {
-        reloadSession()
-        onClose()
-        return false
-      }
+      if (handleAuth(caught)) return false
       setError(describe(caught))
       return false
     } finally {
       setBusy(false)
     }
+  }
+
+  /** A lost session closes the dialog; true when it did. */
+  function handleAuth(caught: unknown): boolean {
+    if (!isAuth(caught)) return false
+    reloadSession()
+    onClose()
+    return true
   }
 
   async function move(kind: SpotKind, dir: 'up' | 'down') {
@@ -162,8 +182,17 @@ export function KindsDialog({
           ))}
         </ul>
         <AddKind
+          tripId={tripId}
+          kinds={kinds}
+          limit={limit}
+          count={count}
           busy={busy}
-          full={kinds.length >= kindLimits.perTrip}
+          onAuthError={handleAuth}
+          onPreset={(preset) =>
+            write(async () => {
+              await createPresetKind(tripId, preset)
+            })
+          }
           onAdd={(body) =>
             write(async () => {
               await createKind(tripId, body)
@@ -370,6 +399,7 @@ function IconButton({
 
 function StylePicker({
   name,
+  previewName = name,
   color,
   symbol,
   busy,
@@ -377,6 +407,8 @@ function StylePicker({
   onSymbol,
 }: {
   name: string
+  /** Pin preview label; empty falls back to the placeholder name. */
+  previewName?: string
   color: string
   symbol: KindSymbol
   busy: boolean
@@ -441,72 +473,50 @@ function StylePicker({
           className={cn(inputClass, 'max-w-40 font-mono')}
         />
       </div>
-      <SymbolGrid name={name} symbol={symbol} busy={busy} onPick={onSymbol} />
+      <SymbolPicker
+        name={name}
+        symbol={symbol}
+        disabled={busy}
+        onPick={onSymbol}
+      />
+      <KindPreview name={previewName} color={color} symbol={symbol} />
     </div>
   )
 }
 
-function SymbolGrid({
-  name,
-  symbol,
-  busy,
-  onPick,
-}: {
-  name: string
-  symbol: KindSymbol
-  busy: boolean
-  onPick: (symbol: KindSymbol) => void
-}) {
-  const { t } = useTranslation()
-  return (
-    <div role="group" aria-label={t('kinds.symbolOf', { name })}>
-      <div className="flex flex-wrap gap-2">
-        {kindSymbols.map((key) => (
-          <button
-            key={key}
-            type="button"
-            aria-label={t(`kinds.symbols.${key}`)}
-            aria-pressed={key === symbol}
-            disabled={busy}
-            data-testid="kind-symbol"
-            className={cn(
-              hoverClass.secondary,
-              'inline-flex size-11 items-center justify-center rounded-[8px] text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
-              key === symbol && 'border-foreground bg-hover',
-            )}
-            onClick={() => onPick(key)}
-          >
-            <span
-              aria-hidden="true"
-              className="inline-flex size-7 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-card"
-            >
-              <KindSymbolIcon symbol={key} />
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
+/** Add kind: a menu of the presets the trip lacks plus the custom form. */
 function AddKind({
+  tripId,
+  kinds,
+  limit,
+  count,
   busy,
-  full,
+  onPreset,
   onAdd,
+  onAuthError,
 }: {
+  tripId: string
+  kinds: SpotKind[]
+  limit: number
+  count: number
   busy: boolean
-  full: boolean
+  onPreset: (preset: KindPreset) => Promise<boolean>
   onAdd: (body: {
     name: string
     color: string
     symbol: KindSymbol
   }) => Promise<boolean>
+  onAuthError: (caught: unknown) => boolean
 }) {
   const { t } = useTranslation()
   const nameId = useId()
+  const [custom, setCustom] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(defaultColor)
   const [symbol, setSymbol] = useState<KindSymbol>('dot')
+  const full = count >= limit
+  const taken = new Set(kinds.map((kind) => kind.preset))
+  const presets = presetKinds.filter((item) => !taken.has(item.preset))
 
   async function submit() {
     const done = await onAdd({ name: name.trim(), color: color.trim(), symbol })
@@ -514,55 +524,114 @@ function AddKind({
       setName('')
       setColor(defaultColor)
       setSymbol('dot')
+      setCustom(false)
     }
   }
 
   return (
-    <form
+    <section
       className="mt-4 flex flex-col gap-3 border-t border-border pt-4"
-      aria-labelledby={`${nameId}-title`}
-      onSubmit={(event) => {
-        event.preventDefault()
-        void submit()
-      }}
+      aria-label={t('kinds.addMenu')}
     >
-      <h3 id={`${nameId}-title`} className="text-base font-semibold">
-        {t('kinds.addTitle')}
-      </h3>
-      <div>
-        <label htmlFor={nameId} className="mb-1 block text-sm">
-          {t('kinds.name')}
-        </label>
-        <input
-          id={nameId}
-          value={name}
-          disabled={busy || full}
-          onChange={(event) => setName(event.target.value)}
-          className={inputClass}
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        {full ? (
+          <Button type="button" variant="outline" disabled>
+            {t('kinds.addMenu')}
+          </Button>
+        ) : (
+          <Menu
+            label={t('kinds.addMenu')}
+            testId="kind-add-menu"
+            align="start"
+            trigger={
+              <>
+                <Plus aria-hidden="true" className="size-4" />
+                {t('kinds.addMenu')}
+              </>
+            }
+            triggerClassName="border border-border bg-card px-4"
+          >
+            {presets.map((item) => (
+              <MenuItem
+                key={item.preset}
+                testId={`kind-add-${item.preset}`}
+                onSelect={() => void onPreset(item.preset)}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                  style={{ backgroundColor: item.color }}
+                >
+                  <KindSymbolIcon symbol={item.symbol} className="size-3" />
+                </span>
+                {kindLabel(t, { name: null, preset: item.preset })}
+              </MenuItem>
+            ))}
+            <MenuItem testId="kind-add-custom" onSelect={() => setCustom(true)}>
+              {t('kinds.custom')}
+            </MenuItem>
+          </Menu>
+        )}
+        <span className="text-sm text-muted" data-testid="kind-total">
+          {t('kinds.count', { count, limit })}
+        </span>
       </div>
-      <StylePicker
-        name={name.trim() || t('kinds.addTitle')}
-        color={color}
-        symbol={symbol}
-        busy={busy || full}
-        onColor={setColor}
-        onSymbol={setSymbol}
+      <LimitRequest
+        tripId={tripId}
+        limit={limit}
+        full={full}
+        onAuthError={onAuthError}
       />
-      {full ? (
-        <p className="text-sm text-muted">
-          {t('kinds.limit', { max: kindLimits.perTrip })}
-        </p>
-      ) : null}
-      <div>
-        <Button
-          type="submit"
-          disabled={busy || full || name.trim().length === 0}
+      {custom && !full ? (
+        <form
+          className="flex flex-col gap-3"
+          aria-labelledby={`${nameId}-title`}
+          onSubmit={(event) => {
+            event.preventDefault()
+            void submit()
+          }}
         >
-          {t('kinds.add')}
-        </Button>
-      </div>
-    </form>
+          <h3 id={`${nameId}-title`} className="text-base font-semibold">
+            {t('kinds.addTitle')}
+          </h3>
+          <div>
+            <label htmlFor={nameId} className="mb-1 block text-sm">
+              {t('kinds.name')}
+            </label>
+            <input
+              id={nameId}
+              data-testid="kind-name-input"
+              value={name}
+              disabled={busy}
+              autoFocus
+              onChange={(event) => setName(event.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <StylePicker
+            name={name.trim() || t('kinds.addTitle')}
+            previewName={name}
+            color={color}
+            symbol={symbol}
+            busy={busy}
+            onColor={setColor}
+            onSymbol={setSymbol}
+          />
+          <div className="flex gap-2">
+            <Button type="submit" disabled={busy || name.trim().length === 0}>
+              {t('kinds.add')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCustom(false)}
+            >
+              {t('ui.cancel')}
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </section>
   )
 }
 

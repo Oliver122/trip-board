@@ -34,6 +34,7 @@ export const activityActions = [
   'kind.update',
   'kind.reorder',
   'kind.delete',
+  'kind.limit_request',
 ] as const
 
 export function activitySentence(

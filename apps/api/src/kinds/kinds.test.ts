@@ -83,7 +83,7 @@ describe('spot kinds', () => {
       preset: null,
       color: '#D9480F',
       symbol: 'food',
-      sortOrder: 2,
+      sortOrder: 4,
       spotCount: 0,
     })
     const food = created.json() as Kind
@@ -94,7 +94,7 @@ describe('spot kinds', () => {
     })
     expect(plain.statusCode).toBe(201)
     expect(plain.json().symbol).toBe('dot')
-    expect(plain.json().sortOrder).toBe(3)
+    expect(plain.json().sortOrder).toBe(5)
 
     const renamed = await patchKind(admin.cookie, tripId, food.id, {
       name: 'Eating',
@@ -108,7 +108,8 @@ describe('spot kinds', () => {
       symbol: 'coffee',
     })
 
-    const [mustGo, maybe] = (await kinds(admin.cookie, tripId)).slice(0, 2)
+    const starters = (await kinds(admin.cookie, tripId)).slice(0, 4)
+    const [mustGo] = starters
     const renamedPreset = await patchKind(admin.cookie, tripId, mustGo?.id, {
       name: 'Top',
     })
@@ -117,23 +118,23 @@ describe('spot kinds', () => {
       preset: 'must_go',
     })
 
-    const ids = [food.id, mustGo?.id, maybe?.id, plain.json().id]
+    const ids = [food.id, ...starters.map((kind) => kind.id), plain.json().id]
     const order = await putOrder(admin.cookie, tripId, ids)
     expect(order.statusCode).toBe(200)
     expect(order.json().kinds.map((kind: Kind) => kind.id)).toEqual(ids)
     expect(
       (await kinds(admin.cookie, tripId)).map((kind) => kind.sortOrder),
-    ).toEqual([0, 1, 2, 3])
+    ).toEqual([0, 1, 2, 3, 4, 5])
 
     const pizza = await patchKind(admin.cookie, tripId, food.id, {
-      symbol: 'pizza',
+      symbol: 'pizzaslice',
     })
     expect(pizza.statusCode).toBe(400)
     expect(pizza.json().error).toBe('kind_symbol_unknown')
     const unknownSymbol = await postKind(admin.cookie, tripId, {
       name: 'Pizza',
       color: '#D9480F',
-      symbol: 'pizza',
+      symbol: 'pizzaslice',
     })
     expect(unknownSymbol.statusCode).toBe(400)
     expect(unknownSymbol.json().error).toBe('kind_symbol_unknown')
@@ -141,6 +142,8 @@ describe('spot kinds', () => {
       'coffee',
       'exclamation',
       'question',
+      'food',
+      'camera',
       'dot',
     ])
 
@@ -159,13 +162,13 @@ describe('spot kinds', () => {
     for (const bad of [
       ids.slice(1),
       [...ids, ids[0]],
-      [ids[0], ids[0], ids[1], ids[2]],
+      [ids[0], ids[0], ...ids.slice(2)],
     ]) {
       const response = await putOrder(admin.cookie, tripId, bad)
       expect(response.statusCode).toBe(400)
     }
 
-    for (let index = 4; index < 12; index += 1) {
+    for (let index = 6; index < 12; index += 1) {
       const filler = await postKind(admin.cookie, tripId, {
         name: `Kind ${index}`,
         color: '#57534E',
@@ -272,7 +275,7 @@ describe('spot kinds', () => {
     })
     expect(malformed.statusCode).toBe(400)
     expect(malformed.json().error).toBe('invalid_request')
-    expect(await kinds(admin.cookie, tripId)).toHaveLength(2)
+    expect(await kinds(admin.cookie, tripId)).toHaveLength(4)
   })
 
   it('T-28-07 deleting a kind moves its spots in one transaction', async () => {
@@ -285,7 +288,7 @@ describe('spot kinds', () => {
     const b = await spot(admin.cookie, tripId, 'B', [food.id, mustGo.id])
     const c = await spot(admin.cookie, tripId, 'C', [food.id, maybe.id])
     await spot(admin.cookie, tripId, 'D', [maybe.id])
-    expect((await kinds(admin.cookie, tripId))[2]?.spotCount).toBe(3)
+    expect((await kinds(admin.cookie, tripId))[4]?.spotCount).toBe(3)
 
     const missing = await deleteKind(admin.cookie, tripId, food.id)
     expect(missing.statusCode).toBe(400)
@@ -315,13 +318,18 @@ describe('spot kinds', () => {
         'DROP TRIGGER fail_move ON spot_kind_links; DROP FUNCTION fail_move()',
       )
     }
-    expect((await kinds(admin.cookie, tripId))[2]?.spotCount).toBe(3)
+    expect((await kinds(admin.cookie, tripId))[4]?.spotCount).toBe(3)
 
     const deleted = await deleteKind(admin.cookie, tripId, food.id, maybe.id)
     expect(deleted.statusCode).toBe(204)
     const after = await kinds(admin.cookie, tripId)
-    expect(after.map((kind) => kind.preset)).toEqual(['must_go', 'maybe'])
-    expect(after.map((kind) => kind.spotCount)).toEqual([1, 4])
+    expect(after.map((kind) => kind.preset)).toEqual([
+      'must_go',
+      'maybe',
+      'food',
+      'sights',
+    ])
+    expect(after.map((kind) => kind.spotCount)).toEqual([1, 4, 0, 0])
     expect(await kindNames(admin.cookie, a)).toEqual(['maybe'])
     expect(await kindNames(admin.cookie, b)).toEqual(['must_go', 'maybe'])
     expect(await kindNames(admin.cookie, c)).toEqual(['maybe'])
@@ -343,6 +351,11 @@ describe('spot kinds', () => {
       204,
     )
 
+    for (const preset of after.slice(2)) {
+      expect(
+        (await deleteKind(admin.cookie, tripId, preset.id)).statusCode,
+      ).toBe(204)
+    }
     expect(
       (await deleteKind(admin.cookie, tripId, mustGo.id, maybe.id)).statusCode,
     ).toBe(204)
@@ -384,7 +397,7 @@ describe('spot kinds', () => {
     ])
     expect(rows.rows[0]?.metadata).toEqual({ name: 'Food' })
     expect(rows.rows[1]?.metadata).toEqual({ name: 'Eats' })
-    expect(rows.rows[2]?.metadata).toEqual({ count: 3 })
+    expect(rows.rows[2]?.metadata).toEqual({ count: 5 })
     expect(rows.rows[3]?.metadata).toEqual({
       name: 'Eats',
       movedTo: null,

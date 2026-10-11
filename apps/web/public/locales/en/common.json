@@ -36,7 +36,15 @@
     "close": "Close",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "menu": "Menu"
+    "menu": "Menu",
+    "chips": {
+      "search": "Search options",
+      "max": "At most {{max}}",
+      "noMatch": "No matches",
+      "all": "All",
+      "clear": "Clear",
+      "more": "{{first}} +{{count}}"
+    }
   },
   "confirm": {
     "discardTitle": "Discard changes?",
@@ -474,7 +482,18 @@
         "pending": "Pending",
         "approved": "Approved",
         "rejected": "Rejected"
-      }
+      },
+      "type": "Type",
+      "filterType": "Filter by type",
+      "allTypes": "All types",
+      "types": {
+        "storage": "Storage",
+        "kinds": "Spot kinds"
+      },
+      "kindSummary": "{{trip}}: {{requested}} kinds requested (limit {{current}}, {{count}} used)",
+      "maxKinds": "Kinds per trip",
+      "by": "Requested by {{name}}",
+      "allStatuses": "All statuses"
     },
     "settings": {
       "quota": "Default quota",
@@ -486,7 +505,9 @@
       "switches": "Switches",
       "uploads": "Uploads enabled",
       "signups": "New signups enabled",
-      "saved": "Saved. The new values apply now."
+      "saved": "Saved. The new values apply now.",
+      "kinds": "Spot kinds",
+      "kindsPerTrip": "Kinds per trip"
     },
     "audit": {
       "admin": "Admin id",
@@ -615,7 +636,8 @@
           "update": "{{actor}} changed the kind {{name}} in {{trip}}",
           "reorder": "{{actor}} reordered the kinds of {{trip}}",
           "delete": "{{actor}} deleted the kind {{name}} from {{trip}}",
-          "deleteMoved": "{{actor}} deleted the kind {{name}} from {{trip}} and moved {{moved}} spots to {{movedTo}}"
+          "deleteMoved": "{{actor}} deleted the kind {{name}} from {{trip}} and moved {{moved}} spots to {{movedTo}}",
+          "limit_request": "{{actor}} requested {{count}} kinds for {{trip}}"
         }
       }
     },
@@ -645,6 +667,17 @@
     "spark": {
       "title": "Activity (30 days)",
       "view": "View all in Activity"
+    },
+    "kindLimit": {
+      "title": "Spot kinds",
+      "effective": "{{count}} of {{limit}} kinds",
+      "default": "Platform default",
+      "override": "Override",
+      "field": "Kinds for this trip",
+      "reason": "Reason (optional)",
+      "set": "Set override",
+      "clear": "Use default",
+      "saved": "Kind limit saved."
     }
   },
   "live": {
@@ -744,7 +777,7 @@
     "movePick": "Choose a kind",
     "errors": {
       "kind_name_taken": "A kind with this name already exists.",
-      "kind_limit": "A trip can have at most 12 kinds.",
+      "kind_limit": "This trip can have at most {{limit}} kinds.",
       "kind_last": "The last kind can’t be deleted.",
       "kind_symbol_unknown": "Choose one of the listed symbols.",
       "kind_color_contrast": "This color is too light for a white symbol. Choose a darker one.",
@@ -754,7 +787,9 @@
       "kind_move_same": "Choose a different kind to move the spots to.",
       "invalid_color": "Enter a color as #RRGGBB.",
       "invalid_name": "Enter a name of 1 to 30 characters.",
-      "generic": "The change could not be saved. Try again."
+      "generic": "The change could not be saved. Try again.",
+      "kind_preset_taken": "This trip already has this kind.",
+      "request_pending": "A request is already pending."
     },
     "symbols": {
       "exclamation": "Exclamation mark",
@@ -768,7 +803,90 @@
       "shopping": "Shopping",
       "nature": "Nature",
       "temple": "Temple",
-      "cat": "Cat"
+      "cat": "Cat",
+      "beer": "Beer",
+      "wine": "Wine",
+      "cocktail": "Cocktail",
+      "pizza": "Pizza",
+      "soup": "Soup",
+      "cake": "Cake",
+      "ice_cream": "Ice cream",
+      "fish": "Fish",
+      "hotel": "Hotel",
+      "bed": "Bed",
+      "tent": "Tent",
+      "mountain": "Mountain",
+      "beach": "Beach",
+      "water": "Water",
+      "flower": "Flower",
+      "leaf": "Leaf",
+      "sun": "Sun",
+      "snow": "Snow",
+      "sunset": "Sunset",
+      "castle": "Castle",
+      "church": "Church",
+      "building": "Building",
+      "train": "Train",
+      "bus": "Bus",
+      "car": "Car",
+      "plane": "Plane",
+      "ship": "Ship",
+      "bike": "Bike",
+      "walk": "Walk",
+      "parking": "Parking",
+      "fuel": "Fuel",
+      "music": "Music",
+      "theater": "Theater",
+      "film": "Film",
+      "game": "Game",
+      "ticket": "Ticket",
+      "gift": "Gift",
+      "book": "Book",
+      "shirt": "Clothes",
+      "store": "Store",
+      "market": "Market",
+      "money": "Money",
+      "hospital": "Hospital",
+      "info": "Information",
+      "wifi": "Wi-Fi",
+      "bath": "Bath",
+      "sparkles": "Sparkles",
+      "dog": "Dog",
+      "bird": "Bird",
+      "flag": "Flag",
+      "pin": "Map pin",
+      "bookmark": "Bookmark"
+    },
+    "presets": {
+      "food": "Food",
+      "sights": "Sights",
+      "shopping": "Shopping",
+      "coffee": "Coffee",
+      "nature": "Nature",
+      "nightlife": "Nightlife"
+    },
+    "addMenu": "Add kind",
+    "custom": "Custom kind…",
+    "count": "{{count}} of {{limit}} kinds",
+    "limitReached": "Kind limit reached",
+    "requestMore": "Request more",
+    "symbolSearch": "Search symbols",
+    "symbolNone": "No symbol matches",
+    "symbolGrid": "Symbols",
+    "preview": "Preview",
+    "previewName": "New kind",
+    "request": {
+      "title": "Request more kinds",
+      "number": "Number of kinds",
+      "message": "Message (optional)",
+      "send": "Send request",
+      "pending": "Request for {{count}} kinds pending",
+      "approved": "Your request for {{count}} kinds was approved.",
+      "rejected": "Your request for {{count}} kinds was rejected.",
+      "note": "Note: {{note}}",
+      "dismiss": "Dismiss",
+      "invalidMax": "Enter a number above {{limit}} and at most 64.",
+      "loadError": "The request status could not be loaded."
     }
   }
 }

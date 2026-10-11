@@ -9,6 +9,37 @@ import {
 } from './structure-lint'
 
 describe('structure lint', () => {
+  it('T-29-15 flags kind options rendered as checkboxes and passes the chip group', () => {
+    const bad = `<fieldset><legend>{t('board.category')}</legend>
+  {(kinds ?? []).map((kind) => (
+    <label key={kind.id}><input type="checkbox" checked /> {kind.name}</label>
+  ))}
+</fieldset>`
+    for (const file of [
+      'spots/SpotToolbar.tsx',
+      'spots/SpotPanel.tsx',
+      'import/ImportDialog.tsx',
+    ]) {
+      expect(structureViolations(bad, file)).toEqual(['kind checkbox'])
+    }
+    const bySection = `<fieldset><legend>{t('board.category')}</legend>
+  <label><input type="checkbox" /> Home</label>
+</fieldset>`
+    expect(structureViolations(bySection, 'spots/SpotPanel.tsx')).toEqual([
+      'kind checkbox',
+    ])
+    const good = `<fieldset><legend>{t('board.category')}</legend>
+  <ChipGroup options={kinds.map((kind) => ({ value: kind.id }))} />
+</fieldset>
+`
+    expect(structureViolations(good, 'spots/SpotPanel.tsx')).toEqual([])
+    // A checkbox far from the category section (primary home base) is fine.
+    const farAway = `<p>{t('board.category')}</p><ChipGroup />${' '.repeat(800)}<label><input type="checkbox" checked={primary} /></label>`
+    expect(structureViolations(farAway, 'spots/SpotPanel.tsx')).toEqual([])
+    // Other files may use checkboxes freely.
+    expect(structureViolations(bad, 'admin/Other.tsx')).toEqual([])
+  })
+
   it('T-26-14 flags window.confirm anywhere', () => {
     expect(
       structureViolations('if (window.confirm("x")) go()', 'pages/A.tsx'),

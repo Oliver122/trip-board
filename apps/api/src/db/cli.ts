@@ -2,7 +2,7 @@ import { config as loadDotenv } from 'dotenv'
 import { resolve } from 'node:path'
 import { loadConfig } from '../config.js'
 import { createPool } from '../db.js'
-import { runChecks } from './checks.js'
+import { expectedCheckCount, runChecks } from './checks.js'
 import { applyMigrations } from './migrate.js'
 import { createTestDatabase } from './test-db.js'
 import { repoRoot } from './paths.js'
@@ -30,7 +30,7 @@ try {
     const scratch = await createTestDatabase()
     try {
       await runChecks(scratch.url)
-      console.log('42 schema checks passed.')
+      console.log(`${expectedCheckCount} schema checks passed.`)
     } finally {
       await scratch.drop()
     }

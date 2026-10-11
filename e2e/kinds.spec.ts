@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
 })
 
-/** A fresh owner with a trip whose kinds are Top (was Must go), Food, Maybe. */
+/** A fresh owner with a trip whose kinds are Top (was Must go), Food, Maybe, Sights. */
 async function setup(page: Page) {
   await login(page, freshDiscordId())
   await setLocale(page, 'en')
@@ -30,14 +30,11 @@ async function setup(page: Page) {
   await api(page, 'PATCH', `/api/trips/${tripId}/kinds/${mustGo.id}`, {
     name: 'Top',
   })
-  const food = await api<{ id: string }>(
-    page,
-    'POST',
-    `/api/trips/${tripId}/kinds`,
-    { name: 'Food', color: '#D9480F', symbol: 'food' },
-  )
+  const food = kinds.find((kind) => kind.preset === 'food')
+  const sights = kinds.find((kind) => kind.preset === 'sights')
+  if (!food || !sights) throw new Error('starter kinds are missing')
   await api(page, 'PUT', `/api/trips/${tripId}/kinds/order`, {
-    ids: [mustGo.id, food.id, maybe.id],
+    ids: [mustGo.id, food.id, maybe.id, sights.id],
   })
   return { tripId, top: mustGo.id, food: food.id, maybe: maybe.id }
 }
@@ -57,7 +54,7 @@ test('T-28-16 filter by a kind, an old must_go link, and Category sort', async (
   await gotoBoard(page, `/trips/${trip.tripId}`)
   await expect(page.getByTestId(`card-${hotel}`)).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
-  await page.getByRole('checkbox', { name: 'Food' }).check()
+  await page.getByTestId(`chip-${trip.food}`).click()
   await expect(page).toHaveURL(new RegExp(`cat=${trip.food}`), {
     timeout: 15_000,
   })
@@ -122,11 +119,12 @@ test('T-28-18 importing with Food and Maybe gives every spot both kinds', async 
     buffer: Buffer.from(csv, 'utf8'),
   })
   // The default is the first kind; add Food, then drop Top, then add Maybe.
-  await expect(dialog.getByRole('checkbox', { name: 'Top' })).toBeChecked()
-  await dialog.getByRole('checkbox', { name: 'Food' }).check()
-  await dialog.getByRole('checkbox', { name: 'Top' }).uncheck()
-  await dialog.getByRole('checkbox', { name: 'Maybe' }).check()
-  await expect(dialog.getByRole('checkbox', { name: 'Top' })).toBeDisabled()
+  const chip = (id: string) => dialog.getByTestId(`chip-${id}`)
+  await expect(chip(trip.top)).toHaveAttribute('aria-pressed', 'true')
+  await chip(trip.food).click()
+  await chip(trip.top).click()
+  await chip(trip.maybe).click()
+  await expect(chip(trip.top)).toBeDisabled()
   await dialog.getByRole('button', { name: 'Import 2 spots' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
@@ -212,17 +210,13 @@ test('T-28-13 the spot panel lists the kinds in order, saves one, and limits to 
 
   const dialog = page.getByRole('dialog')
   const picker = dialog.getByTestId('kind-picker')
-  await expect(picker.getByRole('checkbox')).toHaveCount(4)
-  await expect(picker.locator('label')).toHaveText([
-    'Top',
-    'Food',
-    'Maybe',
-    'Home',
-  ])
+  await expect(
+    picker.locator('button[aria-pressed] > span:last-of-type'),
+  ).toHaveText(['Top', 'Food', 'Maybe', 'Sights', 'Home'])
 
   // Move from Maybe to Food only.
-  await picker.getByRole('checkbox', { name: 'Food' }).check()
-  await picker.getByRole('checkbox', { name: 'Maybe' }).uncheck()
+  await picker.getByTestId(`chip-${trip.food}`).click()
+  await picker.getByTestId(`chip-${trip.maybe}`).click()
   await dialog.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const pin = page.getByTestId(`pin-${id}`)
@@ -234,8 +228,8 @@ test('T-28-13 the spot panel lists the kinds in order, saves one, and limits to 
 
   // Food and Top picked: the rest is disabled with a hint.
   await page.getByTestId(`card-${id}`).click()
-  await dialog.getByRole('checkbox', { name: 'Top' }).check()
-  await expect(dialog.getByRole('checkbox', { name: 'Maybe' })).toBeDisabled()
+  await dialog.getByTestId(`chip-${trip.top}`).click()
+  await expect(dialog.getByTestId(`chip-${trip.maybe}`)).toBeDisabled()
   await expect(dialog.getByText('At most 2 kinds')).toBeVisible()
 })
 

@@ -5,6 +5,7 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../i18n'
 import { Button } from './button'
+import { Menu, MenuItem } from './menu'
 import { Modal } from './modal'
 
 describe('modal', () => {
@@ -44,6 +45,28 @@ describe('modal', () => {
     view.unmount()
     expect(document.activeElement).toBe(opener)
     opener.remove()
+  })
+
+  it('T-29-09 Escape in an open menu closes only the menu', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="Kinds" onClose={onClose}>
+        <Menu label="Add kind" trigger="Add kind">
+          <MenuItem onSelect={() => undefined}>Coffee</MenuItem>
+        </Menu>
+      </Modal>,
+    )
+    const trigger = screen.getByRole('button', { name: 'Add kind' })
+    fireEvent.click(trigger)
+    const item = screen.getByRole('menuitem', { name: 'Coffee' })
+    item.focus()
+    fireEvent.keyDown(item, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(trigger)
+
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('T-26-01 locks body scroll, sizes and layers the center variant', () => {

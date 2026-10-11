@@ -180,23 +180,23 @@ test('T-26-06 clearing a stay asks first; cancel keeps the category, confirm app
   const spotId = await createSpot(page, tripId, 'Hotel Clear')
   await page.goto(`/trips/${tripId}`)
   await page.getByTestId(`card-${spotId}`).click()
-  const home = page.getByRole('checkbox', { name: 'Home', exact: true })
-  const maybe = page.getByRole('checkbox', { name: 'Maybe' })
-  await home.check()
+  const home = page.getByRole('button', { name: 'Home', exact: true })
+  const maybe = page.getByRole('button', { name: 'Maybe', exact: true })
+  await home.click()
   await page.getByLabel('Stay from').fill('2026-04-12')
   await page.getByLabel('Stay to').fill('2026-04-16')
 
   await maybe.click()
   await expect(page.getByTestId('confirm-dialog')).toContainText('Stay dates')
   await answerConfirm(page, 'dismiss')
-  await expect(home).toBeChecked()
+  await expect(home).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Stay from')).toHaveValue('2026-04-12')
 
   await maybe.click()
   await answerConfirm(page, 'accept')
   await expect(page.getByLabel('Stay from')).toHaveCount(0)
 
-  await home.check()
+  await home.click()
   await page.getByLabel('Stay from').fill('2026-04-12')
   await page.getByLabel('Stay to').fill('2026-04-16')
   await page.getByRole('button', { name: 'Save' }).click()
@@ -204,7 +204,7 @@ test('T-26-06 clearing a stay asks first; cancel keeps the category, confirm app
   await setLocale(page, 'de')
   await page.reload()
   await page.getByTestId(`card-${spotId}`).click()
-  await page.getByRole('checkbox', { name: 'Vielleicht' }).click()
+  await page.getByRole('button', { name: 'Vielleicht', exact: true }).click()
   await expect(page.getByTestId('confirm-dialog')).toContainText(
     'Kategorie ändern?',
   )
@@ -457,17 +457,29 @@ test('T-26-16 shared step 26 labels exist in en and de', () => {
   const en = load('en')
   const de = load('de')
   const groups = ['ui', 'confirm'] as const
+  // Nested groups such as ui.chips count with dotted keys.
+  const flat = (value: unknown, prefix = ''): Record<string, unknown> =>
+    Object.fromEntries(
+      Object.entries((value ?? {}) as Record<string, unknown>).flatMap(
+        ([key, item]) =>
+          typeof item === 'object' && item !== null
+            ? Object.entries(flat(item, `${prefix}${key}.`))
+            : [[`${prefix}${key}`, item]],
+      ),
+    )
   for (const group of groups) {
-    const enKeys = Object.keys(en[group] ?? {}).sort()
-    const deKeys = Object.keys(de[group] ?? {}).sort()
+    const enFlat = flat(en[group])
+    const deFlat = flat(de[group])
+    const enKeys = Object.keys(enFlat).sort()
+    const deKeys = Object.keys(deFlat).sort()
     expect(enKeys.length, `${group} has keys`).toBeGreaterThan(0)
     expect(deKeys, `${group} keys match`).toEqual(enKeys)
     for (const key of enKeys) {
       for (const [name, bundle] of [
-        ['en', en],
-        ['de', de],
+        ['en', enFlat],
+        ['de', deFlat],
       ] as const) {
-        const value = bundle[group]?.[key]
+        const value = bundle[key]
         expect(typeof value, `${name} ${group}.${key}`).toBe('string')
         expect((value as string).trim(), `${name} ${group}.${key}`).not.toBe('')
       }

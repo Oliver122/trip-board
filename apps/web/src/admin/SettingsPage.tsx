@@ -66,6 +66,16 @@ export function SettingsPage() {
         />
       </fieldset>
       <fieldset className="space-y-3">
+        <legend className="font-semibold">{t('admin.settings.kinds')}</legend>
+        <NumberField
+          label={t('admin.settings.kindsPerTrip')}
+          value={settings.defaultMaxKinds}
+          min={1}
+          max={64}
+          onChange={(value) => update('defaultMaxKinds', value)}
+        />
+      </fieldset>
+      <fieldset className="space-y-3">
         <legend className="font-semibold">
           {t('admin.settings.capacity')}
         </legend>

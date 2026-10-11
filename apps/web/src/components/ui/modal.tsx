@@ -69,6 +69,12 @@ export function Modal({
     const onKey = (event: KeyboardEvent) => {
       if (modalStack[modalStack.length - 1] !== token) return
       if (event.key === 'Escape') {
+        // An open menu inside the modal closes itself first (R-26-03); this
+        // capture listener would otherwise close the whole modal.
+        const target = event.target
+        if (target instanceof Element && target.closest('[role="menu"]')) {
+          return
+        }
         event.preventDefault()
         if (dismissibleRef.current) onCloseRef.current()
         return
