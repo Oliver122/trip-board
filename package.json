@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test && pnpm test:req",
-    "test:req": "node --test scripts/req/",
+    "test:req": "node --test scripts/req/req.test.mjs",
     "req:build": "node scripts/req/req.mjs",
     "req:check": "node scripts/req/req.mjs --check",
     "test:e2e": "playwright test",
