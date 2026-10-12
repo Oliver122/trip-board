@@ -121,7 +121,10 @@ export function SpotToolbar({
   }
 
   return (
-    <div ref={rootRef} className="relative border-b border-border">
+    <div
+      ref={rootRef}
+      className="relative flex min-h-0 flex-col border-b border-border"
+    >
       {phone ? (
         <div className="px-3 py-2">
           <Button
@@ -272,7 +275,7 @@ export function SpotToolbar({
           id={filterId}
           role="region"
           aria-label={t('board.filter')}
-          className="mx-3 mb-2 max-h-[70vh] overflow-auto rounded-card border border-border bg-card p-3 shadow-panel"
+          className="mx-3 mb-2 max-h-[70vh] min-h-0 overflow-auto overscroll-contain rounded-card border border-border bg-card p-3 shadow-panel"
         >
           <div>
             <p aria-hidden="true" className="mb-2 text-sm font-semibold">

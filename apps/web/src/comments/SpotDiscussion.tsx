@@ -1,5 +1,6 @@
 import type { Comment, Spot } from '@tripboard/shared'
 import { commentLimits } from '@tripboard/shared'
+import { Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { isAuth } from '../api/http'
@@ -402,7 +403,7 @@ function CommentItem({
             <>
               <CommentBody body={comment.body} />
               {comment.canEdit || comment.canDelete ? (
-                <div className="flex gap-3 text-sm">
+                <div className="flex items-center gap-3 text-sm">
                   {comment.canEdit ? (
                     <button
                       type="button"
@@ -413,13 +414,16 @@ function CommentItem({
                     </button>
                   ) : null}
                   {comment.canDelete ? (
-                    <button
-                      type="button"
-                      className={cn(hoverClass.link, 'min-h-11')}
+                    <Button
+                      variant="danger"
+                      size="icon"
+                      aria-label={t('comments.deleteComment')}
+                      title={t('comments.deleteComment')}
+                      data-testid="comment-delete"
                       onClick={onDelete}
                     >
-                      {t('comments.delete')}
-                    </button>
+                      <Trash2 aria-hidden="true" className="size-4" />
+                    </Button>
                   ) : null}
                 </div>
               ) : null}

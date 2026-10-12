@@ -75,8 +75,8 @@ test('T-07-03 edit saves the title and delete removes the spot', async ({
     .getByTestId('spot-list')
     .getByRole('button', { name: /New title/ })
     .click()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await page.getByRole('button', { name: 'Delete spot' }).click()
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(page.getByText('New title')).toHaveCount(0)
   await expect(page.getByTestId('draft-pin')).toHaveCount(0)
 })
@@ -127,9 +127,7 @@ test('T-07-06 a visitor gets a read-only panel', async ({ page }) => {
   await page.getByTestId(`card-${fushimi}`).click()
   await expect(titleField(page)).toHaveAttribute('readonly', '')
   await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0)
-  await expect(
-    page.getByRole('button', { name: 'Delete', exact: true }),
-  ).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Delete spot' })).toHaveCount(0)
 })
 
 test('T-07-07 a failed save reverts the card and shows a toast', async ({

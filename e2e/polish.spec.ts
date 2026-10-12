@@ -34,7 +34,7 @@ test('T-20-03 hovered controls change and use a pointer', async ({ page }) => {
   await expectHover(page.getByRole('button', { name: 'Zoom in' }))
 
   await page.getByTestId(`card-${shibuya}`).click()
-  const remove = page.getByRole('button', { name: 'Delete', exact: true })
+  const remove = page.getByRole('button', { name: 'Delete spot' })
   await expect(remove).toBeVisible()
   await expectHover(remove)
 
@@ -176,7 +176,7 @@ test('T-20-10 destructive actions use the danger look', async ({ page }) => {
   await setLocale(page, 'en')
   await page.goto(japanTrip)
   await page.getByTestId(`card-${shibuya}`).click()
-  const deleteSpot = page.getByRole('button', { name: 'Delete', exact: true })
+  const deleteSpot = page.getByRole('button', { name: 'Delete spot' })
   await expect(deleteSpot).toBeVisible()
   expect(await deleteSpot.evaluate((el) => getComputedStyle(el).color)).toBe(
     await token(page, '--danger', 'color'),

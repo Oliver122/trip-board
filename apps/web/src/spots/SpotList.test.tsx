@@ -92,6 +92,13 @@ describe('SpotList empty states', () => {
     expect(screen.getByTestId('spot-count')).toHaveTextContent('1 spot')
   })
 
+  it('T-31-05 the list contains overscroll and scrolls on its own', () => {
+    renderList([kyoto])
+    const list = screen.getByTestId('spot-list-items')
+    expect(list).toHaveClass('overscroll-contain', 'overflow-auto')
+    expect(screen.getByTestId('spot-list')).not.toHaveClass('shrink-0')
+  })
+
   it('T-07-10 shows the trip empty state when there are no spots', () => {
     renderList([])
     expect(

@@ -30,6 +30,7 @@ The trip's plan: entries that are either a *bucket* (a date range such as “Tok
 | C-PLAN-17 | The spot panel's “In plans” section lists the spot's entries with remove buttons and “+ Add to plan” (choose an entry, optional date and time); adding switches the spot's badge to *Planned* at once. <!-- R-11-06, R-11-08 --> | active | 11 | — | T-11-02 |
 | C-PLAN-18 | Editing a bucket's range warns, before saving, how many visit dates will be cleared (“1 visit date will be cleared”). <!-- R-11-11 --> | active | 11 | — | T-11-06 |
 | C-PLAN-19 | An empty schedule shows “Nothing planned yet — create a bucket like ‘Tokyo, 12–16 Apr’”. <!-- R-11-10 --> | active | 11 | — | — |
+| C-PLAN-20 | Delete in the plan entry dialog is a trash icon button (“Delete entry”) that first asks “Delete this entry?” inline above *Cancel* and *Delete*; confirming deletes the entry. <!-- R-31-09, R-31-11 --> | active | 31 | — | T-31-07, T-31-09, T-31-10 |
 
 ## Known gaps
 

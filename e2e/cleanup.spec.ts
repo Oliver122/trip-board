@@ -146,14 +146,14 @@ test('T-26-06 deleting a comment asks first; cancel keeps it, confirm removes it
   await expect(page.getByTestId('comment')).toHaveCount(1)
 
   const discussion = page.getByTestId('discussion')
-  await discussion.getByRole('button', { name: 'Delete', exact: true }).click()
+  await discussion.getByRole('button', { name: 'Delete comment' }).click()
   await expect(page.getByTestId('confirm-dialog')).toContainText(
     'Delete this comment?',
   )
   await answerConfirm(page, 'dismiss')
   await expect(page.getByTestId('comment')).toHaveCount(1)
 
-  await discussion.getByRole('button', { name: 'Delete', exact: true }).click()
+  await discussion.getByRole('button', { name: 'Delete comment' }).click()
   await answerConfirm(page, 'accept')
   await expect(page.getByTestId('comment')).toHaveCount(0)
 
@@ -164,7 +164,7 @@ test('T-26-06 deleting a comment asks first; cancel keeps it, confirm removes it
   await page.getByRole('button', { name: 'Senden', exact: true }).click()
   await page
     .getByTestId('discussion')
-    .getByRole('button', { name: 'Löschen', exact: true })
+    .getByRole('button', { name: 'Kommentar löschen' })
     .click()
   await expect(page.getByTestId('confirm-dialog')).toContainText(
     'Diesen Kommentar löschen?',

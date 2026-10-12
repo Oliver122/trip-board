@@ -8,6 +8,7 @@ import {
   type Spot,
   type SpotPlan,
 } from '@tripboard/shared'
+import { Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
@@ -97,10 +98,21 @@ export function SpotPanel({
   const [addressFocused, setAddressFocused] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const skipSearch = useRef(false)
+  const deleteRef = useRef<HTMLDivElement>(null)
+  const refocusDelete = useRef(false)
   const ready =
     draft.title.trim().length > 0 && draft.lat != null && draft.lng != null
   const normalizedLink = normalizeSpotLink(draft.link)
   const linkHref = 'link' in normalizedLink ? normalizedLink.link : null
+
+  useEffect(() => {
+    if (!confirming && refocusDelete.current) {
+      refocusDelete.current = false
+      deleteRef.current
+        ?.querySelector<HTMLButtonElement>('[data-testid="spot-delete"]')
+        ?.focus()
+    }
+  }, [confirming])
 
   useEffect(() => {
     if (readOnly || !addressFocused) return
@@ -220,7 +232,11 @@ export function SpotPanel({
       onClose={onClose}
     >
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
-        <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
+        <div
+          data-modal-body
+          data-testid="spot-panel-body"
+          className="min-h-0 flex-1 space-y-3 overflow-auto overscroll-contain px-4 py-4"
+        >
           <label htmlFor={titleId} className="block">
             {t('board.spotTitle')}
           </label>
@@ -483,58 +499,78 @@ export function SpotPanel({
         </div>
 
         {readOnly ? null : (
-          <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
+          <div
+            ref={deleteRef}
+            className="flex flex-col gap-2 border-t border-border px-4 py-3"
+          >
             {formError ? (
               <ErrorNotice testId="form-error">{formError}</ErrorNotice>
             ) : null}
-            <div className="flex items-center justify-between gap-2">
-              {confirming ? (
-                <>
-                  <p>
-                    {t('board.confirmDelete')}
-                    {spot && spot.commentCount > 0
-                      ? ` ${t('board.confirmDeleteComments', { count: spot.commentCount })}`
-                      : null}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setConfirming(false)}
-                    >
-                      {t('board.cancel')}
-                    </Button>
-                    <Button
-                      variant="dangerSolid"
-                      onClick={onDelete}
-                      disabled={saving}
-                    >
-                      {t('board.deleteSpot')}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {mode === 'edit' ? (
-                    <Button
-                      variant="danger"
-                      onClick={() => setConfirming(true)}
-                    >
-                      {t('board.delete')}
-                    </Button>
-                  ) : (
-                    <span />
-                  )}
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={onClose}>
-                      {t('board.cancel')}
-                    </Button>
-                    <Button type="submit" disabled={!ready || saving}>
-                      {mode === 'add' ? t('board.add') : t('board.save')}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+            {confirming ? (
+              <div
+                data-testid="spot-delete-confirm"
+                className="flex flex-wrap items-center justify-end gap-2"
+              >
+                <p className="min-w-0 basis-full">
+                  {t('board.confirmDelete')}
+                  {spot && spot.commentCount > 0
+                    ? ` ${t('board.confirmDeleteComments', { count: spot.commentCount })}`
+                    : null}
+                </p>
+                <Button
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={() => {
+                    refocusDelete.current = true
+                    setConfirming(false)
+                  }}
+                >
+                  {t('board.cancel')}
+                </Button>
+                <Button
+                  variant="dangerSolid"
+                  className="whitespace-nowrap"
+                  onClick={onDelete}
+                  disabled={saving}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                  {t('board.delete')}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {mode === 'edit' ? (
+                  <Button
+                    variant="danger"
+                    size="icon"
+                    aria-label={t('board.deleteSpot')}
+                    title={t('board.deleteSpot')}
+                    data-testid="spot-delete"
+                    onClick={() => setConfirming(true)}
+                  >
+                    <Trash2 aria-hidden="true" className="size-4" />
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="whitespace-nowrap"
+                    onClick={onClose}
+                  >
+                    {t('board.cancel')}
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="whitespace-nowrap"
+                    disabled={!ready || saving}
+                  >
+                    {mode === 'add' ? t('board.add') : t('board.save')}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </form>
