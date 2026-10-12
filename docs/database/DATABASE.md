@@ -313,12 +313,16 @@ One row per user and spot: `last_read_at`, the newest comment the user has seen.
 - `bytes` is the size **after** compression; it is what counts against the quota.
 - `uploaded_by` is the quota owner. If a user is deleted it becomes null (image stays on the trip).
 - Deleting an image row, directly or via a spot or trip cascade, inserts its `storage_key` into `blob_deletions`.
+- `source_url` (≤ 2000), `credit` (≤ 300) and `license` (≤ 100) are null for uploaded files. A photo added from a URL stores the final URL after redirects in `source_url`; a Wikimedia Commons photo stores the file's description page there, the artist in `credit` and the license short name in `license` (step 34). The same description page is added at most once per spot by the API.
 
 ### blob_deletions
 Work queue for the storage cleanup worker: delete object → delete row; on failure increment `attempts` and store `last_error`. Retries with backoff, alert after 10 attempts.
 
 ### geocode_cache
 Cached Nominatim responses keyed by normalised query (`search:<locale>:<lowercased q>` or `reverse:<lat 4dp>,<lng 4dp>`). Entries expire after 30 days.
+
+### commons_cache
+Cached Wikimedia Commons photo suggestions keyed by the point rounded to 4 decimals (`point_key`, e.g. `35.0394,135.7292`); `response` holds `{suggestions: [...]}`. Entries are used for 7 days; a stale row is replaced on the next request and the housekeeping job deletes rows older than 7 days (step 34).
 
 ### app_settings
 Single row (`id = true`). Platform defaults and limits, editable in the admin area:
@@ -473,7 +477,7 @@ UPDATE trip_invites SET used_at = now(), used_by = $2 WHERE code = $1;
 | `plan_entries (trip_id, start_date, start_time)` | Schedule view |
 | `plan_entry_spots (plan_entry_id, sort_order)`, `(spot_id)` | Entry contents, auto *Planned* |
 | `images (spot_id, sort_order)`, `(uploaded_by)` | Panel gallery, quota |
-| `sessions (expires_at)`, `geocode_cache (created_at)` | Cleanup jobs |
+| `sessions (expires_at)`, `geocode_cache (created_at)`, `commons_cache (created_at)` | Cleanup jobs |
 | `activity_events (created_at)`, `(actor_id, …)`, `(trip_id, …)`, `(action, …)` | Admin activity feed and its filters |
 | `users (created_at)`, `users (last_seen_at)` | Signup and active-user graphs |
 | `quota_requests (user_id) WHERE pending` unique | One open request per user |

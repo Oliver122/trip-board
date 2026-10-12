@@ -1,6 +1,12 @@
 import { tripSchema, type Trip } from '@tripboard/shared'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
 import { Button } from '../components/ui/button'
@@ -10,6 +16,7 @@ import { activeLocale } from '../i18n'
 import { useSession } from '../session'
 import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
 import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
+import { KindsSection } from '../kinds/KindsSection'
 import { updateTrip } from '../trips/client'
 import { DeleteTripDialog } from '../trips/DeleteTripDialog'
 import { fieldMessage } from '../trips/fields'
@@ -23,9 +30,11 @@ export function TripSettingsPage() {
   const { trip, setTrip } = useTripData()
   const [confirming, setConfirming] = useState(false)
   const closeDelete = useCallback(() => setConfirming(false), [])
+  const showKinds = trip.role === 'admin' || trip.role === 'owner'
+  useKindsAnchor(showKinds)
 
   return (
-    <main className="mx-auto w-full max-w-xl px-4 py-8 md:px-8">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 md:px-8">
       <Link to="/trips" className={cn(hoverClass.link, 'text-sm text-muted')}>
         {t('trips.back')}
       </Link>
@@ -34,6 +43,7 @@ export function TripSettingsPage() {
         onUpdated={setTrip}
         onUnauthorized={reload}
         onDelete={() => setConfirming(true)}
+        kinds={showKinds ? <KindsSection tripId={trip.id} /> : null}
       />
       <DeleteTripDialog
         trip={confirming ? trip : null}
@@ -43,6 +53,30 @@ export function TripSettingsPage() {
       />
     </main>
   )
+}
+
+/** `#kinds`: scroll the section into view and focus its heading, once per navigation. */
+function useKindsAnchor(rendered: boolean) {
+  const { hash, key } = useLocation()
+  useEffect(() => {
+    if (hash !== '#kinds' || !rendered) return
+    let frame = 0
+    let tries = 0
+    // The kinds load after the first render; wait for the section to exist.
+    const attempt = () => {
+      const heading = document.querySelector<HTMLElement>(
+        '#kinds > h2[tabindex]',
+      )
+      if (heading) {
+        heading.scrollIntoView({ block: 'start' })
+        heading.focus({ preventScroll: true })
+      } else if (tries++ < 120) {
+        frame = requestAnimationFrame(attempt)
+      }
+    }
+    attempt()
+    return () => cancelAnimationFrame(frame)
+  }, [hash, key, rendered])
 }
 
 function tripConflictRows(
@@ -65,11 +99,13 @@ function SettingsForm({
   onUpdated,
   onUnauthorized,
   onDelete,
+  kinds,
 }: {
   trip: Trip
   onUpdated: (trip: Trip) => void
   onUnauthorized: () => void
   onDelete: () => void
+  kinds: ReactNode
 }) {
   const { t, i18n } = useTranslation()
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
@@ -232,6 +268,7 @@ function SettingsForm({
           onTheirs={useTheirs}
         />
       ) : null}
+      {kinds}
       {trip.role === 'owner' ? (
         <div className="mt-8">
           <Button variant="danger" onClick={onDelete}>

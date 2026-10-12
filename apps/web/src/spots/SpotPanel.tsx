@@ -1,6 +1,7 @@
 import {
   kindLimits,
   normalizeSpotLink,
+  type PlaceFromLink,
   staysOverlap,
   type GeocodeLang,
   type GeocodePlace,
@@ -8,7 +9,7 @@ import {
   type Spot,
   type SpotPlan,
 } from '@tripboard/shared'
-import { Trash2 } from 'lucide-react'
+import { LoaderCircle, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
@@ -24,9 +25,11 @@ import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { formatDate, formatTime } from '../lib/format'
 import { searchAddress } from './client'
+import { placeLinkError, resolvePlaceLink } from './place-link'
 import { CopyAddress } from './CopyAddress'
 import { Dialog } from './Dialog'
 import { Gallery } from '../images/Gallery'
+import { DraftPhotos } from '../images/DraftPhotos'
 import { SpotDiscussion } from '../comments/SpotDiscussion'
 import { useTripData } from '../trips/trip-context'
 import { InPlans } from './InPlans'
@@ -48,6 +51,8 @@ export function SpotPanel({
   plans,
   entries,
   onDraft,
+  onLinkPlace,
+  linkUnplaced = false,
   onClose,
   onSubmit,
   onDelete,
@@ -68,6 +73,10 @@ export function SpotPanel({
   plans: SpotPlan[]
   entries: PlanEntry[]
   onDraft: (draft: Draft) => void
+  /** The *Google Maps link* field found a place (R-33-06). */
+  onLinkPlace?: (place: PlaceFromLink) => void
+  /** The last lookup found no point, so the pin is still unset (R-33-07). */
+  linkUnplaced?: boolean
   onClose: () => void
   onSubmit: () => void
   onDelete: () => void
@@ -93,6 +102,10 @@ export function SpotPanel({
   const primaryId = useId()
   const infoId = useId()
   const linkId = useId()
+  const mapsLinkId = useId()
+  const [mapsLink, setMapsLink] = useState('')
+  const [mapsLinkBusy, setMapsLinkBusy] = useState(false)
+  const [mapsLinkError, setMapsLinkError] = useState<string | null>(null)
   const readOnly = mode === 'view'
   const [results, setResults] = useState<GeocodePlace[]>([])
   const [addressFocused, setAddressFocused] = useState(false)
@@ -219,6 +232,21 @@ export function SpotPanel({
     onDraft({ ...draft, baseCategory: 'home', kindIds: [] })
   }
 
+  async function fillFromMapsLink() {
+    const value = mapsLink.trim()
+    if (!value || mapsLinkBusy || !onLinkPlace) return
+    setMapsLinkBusy(true)
+    setMapsLinkError(null)
+    try {
+      onLinkPlace(await resolvePlaceLink(tripId, { text: value }))
+      setMapsLink('')
+    } catch (error) {
+      setMapsLinkError(placeLinkError(error, t))
+    } finally {
+      setMapsLinkBusy(false)
+    }
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!ready || saving || readOnly) return
@@ -249,6 +277,55 @@ export function SpotPanel({
             }
             className={inputClass}
           />
+
+          {mode === 'add' && onLinkPlace ? (
+            <div>
+              <label htmlFor={mapsLinkId} className="mb-1 block">
+                {t('places.linkField')}
+              </label>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <FieldError
+                    message={mapsLinkError}
+                    id={`${mapsLinkId}-error`}
+                    testId="maps-link-error"
+                  >
+                    <input
+                      id={mapsLinkId}
+                      value={mapsLink}
+                      placeholder="https://maps.app.goo.gl/…"
+                      onChange={(event) => {
+                        setMapsLink(event.target.value)
+                        setMapsLinkError(null)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return
+                        event.preventDefault()
+                        void fillFromMapsLink()
+                      }}
+                      className={inputClass}
+                    />
+                  </FieldError>
+                </div>
+                <Button
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  data-testid="maps-link-fill"
+                  disabled={!mapsLink.trim() || mapsLinkBusy || saving}
+                  aria-busy={mapsLinkBusy}
+                  onClick={() => void fillFromMapsLink()}
+                >
+                  {mapsLinkBusy ? (
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="size-4 animate-spin motion-reduce:animate-none"
+                    />
+                  ) : null}
+                  {t('places.fillIn')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <label htmlFor={addressId} className="block">
             {t('board.address')}
@@ -297,6 +374,11 @@ export function SpotPanel({
           {readOnly ? null : (
             <p className="text-sm text-muted">{t('board.placeHint')}</p>
           )}
+          {linkUnplaced ? (
+            <p role="status" data-testid="link-unplaced" className="text-sm">
+              {t('places.unplaced')}
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-40 flex-1">
@@ -464,6 +546,18 @@ export function SpotPanel({
             </a>
           ) : null}
 
+          {mode === 'add' && draft.lat != null && draft.lng != null ? (
+            <DraftPhotos
+              tripId={tripId}
+              lat={draft.lat}
+              lng={draft.lng}
+              photos={draft.photos}
+              onChange={(photos) => onDraft({ ...draft, photos })}
+              autoOpenSuggestions={draft.fromLink}
+              disabled={saving}
+            />
+          ) : null}
+
           {spot?.createdBy ? (
             <p className="text-sm text-muted">
               {t('board.createdBy', {
@@ -477,6 +571,11 @@ export function SpotPanel({
               spotId={spot.id}
               canEdit={!readOnly}
               revision={imageRevision}
+              tripId={tripId}
+              title={draft.title}
+              address={draft.address}
+              lat={spot.lat}
+              lng={spot.lng}
             />
           ) : null}
           {spot ? (

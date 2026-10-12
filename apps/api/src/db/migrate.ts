@@ -11,6 +11,7 @@ const MIGRATION_FILES = [
   '0003_spot_comments.sql',
   '0004_spot_kinds.sql',
   '0005_kind_catalog.sql',
+  '0006_web_photos.sql',
 ] as const
 
 export async function applyMigrations(pool: Pool): Promise<void> {

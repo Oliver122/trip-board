@@ -18,6 +18,9 @@ export type ImageRecord = {
   height: number
   sortOrder: number
   createdAt: string
+  sourceUrl: string | null
+  credit: string | null
+  license: string | null
 }
 
 type ImageRow = {
@@ -29,12 +32,52 @@ type ImageRow = {
   height: number
   sort_order: number
   created_at: Date
+  source_url: string | null
+  credit: string | null
+  license: string | null
+}
+
+const imageColumns =
+  'id, trip_id, spot_id, bytes, width, height, sort_order, created_at, source_url, credit, license'
+
+/** Where a photo came from, for URL and Commons photos (R-34-05, R-34-06). */
+export type ImageSource = {
+  kind: 'url' | 'commons'
+  url: string | null
+  credit: string | null
+  license: string | null
 }
 
 export class QuotaExceeded extends Error {
   constructor(readonly quota: Quota) {
     super('quota')
   }
+}
+
+class AlreadyAdded extends Error {}
+
+/** Planner access to a spot, checked before anything is downloaded. */
+export async function planSpotAccess(
+  db: Pool,
+  spotId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; status: 403 | 404 }> {
+  const spot = await spotTrip(db, spotId)
+  if (!spot) return { ok: false, status: 404 }
+  const access = await requireTripRole(db, spot.tripId, userId, 'planner')
+  return access.ok ? { ok: true } : access
+}
+
+export async function hasSourceImage(
+  db: Pool,
+  spotId: string,
+  sourceUrl: string,
+): Promise<boolean> {
+  const result = await db.query(
+    'SELECT 1 FROM images WHERE spot_id = $1 AND source_url = $2',
+    [spotId, sourceUrl],
+  )
+  return (result.rowCount ?? 0) > 0
 }
 
 export async function uploadsEnabled(db: Pool | PoolClient): Promise<boolean> {
@@ -87,7 +130,7 @@ export async function listImages(
   if (!access.ok) return access
   const rows = await pool.query<ImageRow>(
     `
-    SELECT id, trip_id, spot_id, bytes, width, height, sort_order, created_at
+    SELECT ${imageColumns}
     FROM images
     WHERE spot_id = $1
     ORDER BY sort_order, created_at, id
@@ -112,7 +155,7 @@ export async function getImage(
 > {
   const row = await pool.query<ImageRow>(
     `
-    SELECT id, trip_id, spot_id, bytes, width, height, sort_order, created_at
+    SELECT ${imageColumns}
     FROM images
     WHERE id = $1
     `,
@@ -149,10 +192,11 @@ export async function storeImage(
     secret: string
     now: Date
     beforeInsert?: () => Promise<void>
+    source?: ImageSource
   },
 ): Promise<
   | { ok: true; image: ImageRecord }
-  | { ok: false; status: 403 | 404 | 413; quota?: Quota }
+  | { ok: false; status: 403 | 404 | 409 | 413; quota?: Quota }
 > {
   const spot = await spotTrip(pool, input.spotId)
   if (!spot) return { ok: false, status: 404 }
@@ -178,6 +222,15 @@ export async function storeImage(
         quota.usedBytes + input.image.data.length <= quota.maxBytes
       if (!allowed) throw new QuotaExceeded(quota)
 
+      // The same Commons file twice on one spot (R-34-09).
+      if (input.source?.kind === 'commons' && input.source.url) {
+        const same = await tx.query(
+          'SELECT 1 FROM images WHERE spot_id = $1 AND source_url = $2',
+          [spot.id, input.source.url],
+        )
+        if ((same.rowCount ?? 0) > 0) throw new AlreadyAdded()
+      }
+
       await storage.put(key, input.image.data)
       uploaded = true
       if (input.beforeInsert) await input.beforeInsert()
@@ -185,13 +238,15 @@ export async function storeImage(
       const inserted = await tx.query<ImageRow>(
         `
         INSERT INTO images (
-          trip_id, spot_id, uploaded_by, storage_key, bytes, width, height, sort_order
+          trip_id, spot_id, uploaded_by, storage_key, bytes, width, height, sort_order,
+          source_url, credit, license
         )
         VALUES (
           $1, $2, $3, $4, $5, $6, $7,
-          COALESCE((SELECT max(sort_order) + 1 FROM images WHERE spot_id = $2), 0)
+          COALESCE((SELECT max(sort_order) + 1 FROM images WHERE spot_id = $2), 0),
+          $8, $9, $10
         )
-        RETURNING id, trip_id, spot_id, bytes, width, height, sort_order, created_at
+        RETURNING ${imageColumns}
         `,
         [
           spot.tripId,
@@ -201,6 +256,9 @@ export async function storeImage(
           input.image.data.length,
           input.image.width,
           input.image.height,
+          input.source?.url ?? null,
+          input.source?.credit ?? null,
+          input.source?.license ?? null,
         ],
       )
       const row = inserted.rows[0]
@@ -210,7 +268,11 @@ export async function storeImage(
         trip: spot.tripId,
         action: 'image.upload',
         entityId: row.id,
-        metadata: { spot: spot.title, bytes: row.bytes },
+        metadata: {
+          spot: spot.title,
+          bytes: row.bytes,
+          ...(input.source ? { source: input.source.kind } : {}),
+        },
       })
       return { missing: false as const, row }
     })
@@ -223,6 +285,7 @@ export async function storeImage(
     if (error instanceof QuotaExceeded) {
       return { ok: false, status: 413, quota: error.quota }
     }
+    if (error instanceof AlreadyAdded) return { ok: false, status: 409 }
     if (isForeignKey(error)) return { ok: false, status: 404 }
     throw error
   }
@@ -289,6 +352,9 @@ function toImage(row: ImageRow, secret: string, now: Date): ImageRecord {
     height: Number(row.height),
     sortOrder: Number(row.sort_order),
     createdAt: row.created_at.toISOString(),
+    sourceUrl: row.source_url,
+    credit: row.credit,
+    license: row.license,
   }
 }
 

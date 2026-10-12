@@ -41,7 +41,7 @@ describe.skipIf(!hasDb)('migrated schema', () => {
   // T-01-01; checks.sql also holds the T-24-01 (spot_comments constraints) and T-24-18 (spot_comment_reads cascade and trip match) checks
   it('passes checks.sql', async () => {
     await expect(runChecks(migrated.url)).resolves.toBeUndefined()
-    expect(expectedCheckCount).toBe(74)
+    expect(expectedCheckCount).toBe(77)
   })
 
   it('defines every table from the reference schema', async () => {

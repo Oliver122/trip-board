@@ -12,6 +12,7 @@ import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
 import { getQuota } from '../images/client'
 import { megabytes } from '../images/format'
+import { GoogleMapsSection } from '../share/GoogleMapsSection'
 import { Dialog } from '../spots/Dialog'
 import { useSession } from '../session'
 
@@ -119,6 +120,7 @@ export function AccountPage() {
           {t('account.listFollowsMap')}
         </label>
       </section>
+      <GoogleMapsSection />
     </main>
   )
 }

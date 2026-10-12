@@ -249,12 +249,29 @@ export type {
   SpotSort,
 } from './spot-query.js'
 export {
+  imageFromCommonsSchema,
+  imageFromUrlSchema,
   imageListSchema,
   imageSchema,
   maxUploadBytes,
+  photoSuggestionListSchema,
+  photoSuggestionSchema,
   quotaSchema,
+  webImageErrorCodes,
+  webImageLimits,
 } from './images.js'
-export type { ImageList, Quota, SpotImage } from './images.js'
+export type {
+  ImageFromCommonsBody,
+  ImageFromUrlBody,
+  ImageList,
+  PhotoSuggestion,
+  PhotoSuggestionList,
+  Quota,
+  SpotImage,
+  WebImageErrorCode,
+} from './images.js'
+export * from './google-maps.js'
+export * from './places.js'
 export {
   bboxSchema,
   createTripSchema,

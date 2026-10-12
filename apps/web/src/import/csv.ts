@@ -1,6 +1,6 @@
 import type { ParseResult } from './model.js'
 import { hasTitle, overRowLimit, shapeRow } from './model.js'
-import { coordsFromGoogleMapsUrl } from './url-coords.js'
+import { coordsFromGoogleMapsUrl } from '@tripboard/shared'
 
 const knownHeaders = ['title', 'note', 'url', 'address', 'comment'] as const
 type KnownHeader = (typeof knownHeaders)[number]

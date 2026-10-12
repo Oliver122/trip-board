@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
+import { settle } from './settle'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 
@@ -184,4 +185,34 @@ async function login(page: Page, discordId: string) {
       body: JSON.stringify({ locale: 'en' }),
     })
   }, discordId)
+}
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(`T-32-10 axe finds no serious issues on the kinds settings, the add menu and the symbol picker in ${scheme} mode`, async ({
+    page,
+  }) => {
+    test.setTimeout(60_000)
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.emulateMedia({ colorScheme: scheme })
+    await login(page, '100000000000000001')
+    await page.goto(`${japanTrip}/settings`)
+    const section = page.getByTestId('kinds-section')
+    await expect(section.getByTestId('kind-row').first()).toBeVisible()
+    await expectNoSeriousViolations(page, `settings ${scheme}`)
+
+    await section.getByTestId('kind-add-menu').scrollIntoViewIfNeeded()
+    await settle(page)
+    await section.getByTestId('kind-add-menu').click()
+    await expect(page.getByRole('menu')).toBeVisible()
+    await expectNoSeriousViolations(page, `add menu ${scheme}`)
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('menu')).toHaveCount(0)
+
+    await section
+      .getByRole('button', { name: /^Color and symbol of/ })
+      .first()
+      .click()
+    await expect(section.getByTestId('symbol-picker')).toBeVisible()
+    await expectNoSeriousViolations(page, `symbol picker ${scheme}`)
+  })
 }

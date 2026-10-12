@@ -9,13 +9,11 @@ import {
 } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import type { KindLimitRequest, SpotKind } from '@tripboard/shared'
-import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/http'
 import i18n from '../i18n'
-import { BoardMenu } from './BoardMenu'
 import * as client from './client'
-import { KindsDialog } from './KindsDialog'
+import { KindsSection } from './KindsSection'
 import { setKinds } from './store'
 
 vi.mock('../session', () => ({ useSession: () => ({ reload: vi.fn() }) }))
@@ -64,9 +62,7 @@ function open(
   setKinds(tripId, kinds, limit)
   vi.mocked(client.listKinds).mockResolvedValue(list(kinds, limit))
   vi.mocked(client.latestKindRequest).mockResolvedValue(latest)
-  const onClose = vi.fn()
-  render(<KindsDialog tripId={tripId} onClose={onClose} />)
-  return onClose
+  render(<KindsSection tripId={tripId} />)
 }
 
 function openCustomForm() {
@@ -75,7 +71,7 @@ function openCustomForm() {
   return screen.getByRole('form', { name: i18n.t('kinds.addTitle') })
 }
 
-describe('spot kinds dialog', () => {
+describe('spot kinds section', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en')
     vi.mocked(client.listKinds).mockResolvedValue(list([mustGo, maybe, food]))
@@ -83,6 +79,24 @@ describe('spot kinds dialog', () => {
   afterEach(() => {
     cleanup()
     vi.resetAllMocks()
+  })
+
+  it('renders a labelled #kinds section with a focusable heading', () => {
+    open()
+    const section = screen.getByTestId('kinds-section')
+    expect(section).toHaveAttribute('id', 'kinds')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    const heading = within(section).getByRole('heading', {
+      level: 2,
+      name: 'Spot kinds',
+    })
+    expect(section).toHaveAttribute('aria-labelledby', heading.id)
+    expect(heading).toHaveAttribute('tabindex', '-1')
+    heading.focus()
+    expect(heading).toHaveFocus()
+    expect(
+      within(section).getByText(i18n.t('kinds.sectionDescription')),
+    ).toBeInTheDocument()
   })
 
   it('T-28-20 lists the kinds in order with preset labels, counts and symbols', () => {
@@ -381,68 +395,7 @@ describe('spot kinds dialog', () => {
   it('shows an error state with retry when the kinds cannot load', () => {
     cleanup()
     vi.mocked(client.listKinds).mockRejectedValue(new ApiError(500))
-    render(<KindsDialog tripId="trip-unloaded" onClose={vi.fn()} />)
+    render(<KindsSection tripId="trip-unloaded" />)
     expect(screen.getByRole('status')).toBeInTheDocument()
-  })
-})
-
-describe('board menu', () => {
-  beforeEach(async () => {
-    await i18n.changeLanguage('en')
-    vi.mocked(client.listKinds).mockResolvedValue(list([mustGo, maybe]))
-    setKinds(tripId, [mustGo, maybe])
-  })
-  afterEach(() => {
-    cleanup()
-    vi.resetAllMocks()
-  })
-
-  function renderMenu(
-    role: 'owner' | 'admin' | 'planner' | 'visitor',
-    url = '/',
-  ) {
-    render(
-      <MemoryRouter initialEntries={[url]}>
-        <BoardMenu tripId={tripId} role={role} />
-      </MemoryRouter>,
-    )
-  }
-
-  it('T-28-12 shows the menu to admins and owners only', () => {
-    for (const role of ['owner', 'admin'] as const) {
-      renderMenu(role)
-      expect(
-        screen.getByRole('button', { name: 'Board menu' }),
-      ).toBeInTheDocument()
-      cleanup()
-    }
-    for (const role of ['planner', 'visitor'] as const) {
-      renderMenu(role)
-      expect(screen.queryByRole('button', { name: 'Board menu' })).toBeNull()
-      cleanup()
-    }
-  })
-
-  it('T-28-12 opens the dialog from the menu and closes it again', () => {
-    renderMenu('admin')
-    fireEvent.click(screen.getByRole('button', { name: 'Board menu' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Spot kinds' }))
-    expect(
-      screen.getByRole('dialog', { name: 'Spot kinds' }),
-    ).toBeInTheDocument()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('T-28-12 shows no dialog for ?dialog=kinds to planners and visitors', () => {
-    for (const role of ['planner', 'visitor'] as const) {
-      renderMenu(role, '/?dialog=kinds')
-      expect(screen.queryByRole('dialog')).toBeNull()
-      cleanup()
-    }
-    renderMenu('owner', '/?dialog=kinds')
-    expect(
-      screen.getByRole('dialog', { name: 'Spot kinds' }),
-    ).toBeInTheDocument()
   })
 })

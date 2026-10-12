@@ -60,19 +60,18 @@ async function listKinds(page: Page, tripId: string): Promise<Kind[]> {
   return body.kinds
 }
 
-async function openDialog(page: Page) {
-  await page.getByTestId('board-menu').click()
-  await page.getByTestId('board-menu-kinds').click()
-  const dialog = page.getByTestId('kinds-dialog')
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByTestId('kind-row').first()).toBeVisible()
-  return dialog
+async function openSection(page: Page, tripId: string) {
+  await page.goto(`/trips/${tripId}/settings`)
+  const section = page.getByTestId('kinds-section')
+  await expect(section).toBeVisible()
+  await expect(section.getByTestId('kind-row').first()).toBeVisible()
+  return section
 }
 
-async function openCustomForm(dialog: ReturnType<Page['locator']>) {
-  await dialog.getByTestId('kind-add-menu').click()
-  await dialog.getByTestId('kind-add-custom').click()
-  const form = dialog.locator('form[aria-labelledby]').first()
+async function openCustomForm(section: ReturnType<Page['locator']>) {
+  await section.getByTestId('kind-add-menu').click()
+  await section.page().getByTestId('kind-add-custom').click()
+  const form = section.locator('form[aria-labelledby]').first()
   await expect(form).toBeVisible()
   return form
 }
@@ -89,10 +88,9 @@ test('T-29-09 the Add kind menu lists missing presets and picks one at once @chr
   test.setTimeout(30_000)
   await showLocale(page, 'en')
   const tripId = await ownerPage(page)
-  await page.goto(`/trips/${tripId}`)
-  const dialog = await openDialog(page)
+  const section = await openSection(page, tripId)
 
-  await dialog.getByTestId('kind-add-menu').click()
+  await section.getByTestId('kind-add-menu').click()
   const items = page.getByRole('menuitem')
   await expect(items).toHaveText([
     'Shopping',
@@ -103,15 +101,15 @@ test('T-29-09 the Add kind menu lists missing presets and picks one at once @chr
   ])
   await page.getByRole('menuitem', { name: 'Coffee' }).click()
   await expect(
-    dialog.getByRole('textbox', { name: 'Name of Coffee' }),
+    section.getByRole('textbox', { name: 'Name of Coffee' }),
   ).toBeVisible()
-  await expect(dialog.getByTestId('kind-total')).toHaveText('5 of 12 kinds')
+  await expect(section.getByTestId('kind-total')).toHaveText('5 of 12 kinds')
   const kinds = await listKinds(page, tripId)
   expect(
     kinds.find((kind) => kind.name === null && kind.symbol === 'coffee'),
   ).toBeTruthy()
 
-  const form = await openCustomForm(dialog)
+  const form = await openCustomForm(section)
   const pin = form.getByTestId('kind-preview-pin').locator('[data-kind-colors]')
   await expect(pin).toHaveAttribute('data-kind-colors', '#D9480F')
   await form.getByRole('button', { name: '#0F766E' }).click()
@@ -126,21 +124,19 @@ test('T-29-09 Escape closes only the Add kind menu and returns focus to its trig
   test.setTimeout(30_000)
   await showLocale(page, 'en')
   const tripId = await ownerPage(page)
-  await page.goto(`/trips/${tripId}`)
-  const dialog = await openDialog(page)
-  const trigger = dialog.getByTestId('kind-add-menu')
-  await trigger.click()
+  const section = await openSection(page, tripId)
+  const trigger = section.getByTestId('kind-add-menu')
+  await section.getByTestId('kind-add-menu').click()
   await expect(page.getByRole('menu')).toBeVisible()
-  await expectNoSeriousViolations(page, {
-    include: '[data-testid="kinds-dialog"]',
-  })
+  // The menu is portaled to the body, so scan the whole page.
+  await expectNoSeriousViolations(page)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('menu')).toHaveCount(0)
-  await expect(dialog).toBeVisible()
+  await expect(section).toBeVisible()
   await expect(trigger).toBeFocused()
 
   // The menu opens again and still reaches the custom form.
-  await openCustomForm(dialog)
+  await openCustomForm(section)
 })
 
 test('T-29-10 the symbol picker searches in German and picks by keyboard @chromium', async ({
@@ -149,9 +145,8 @@ test('T-29-10 the symbol picker searches in German and picks by keyboard @chromi
   test.setTimeout(30_000)
   await showLocale(page, 'de')
   const tripId = await ownerPage(page)
-  await page.goto(`/trips/${tripId}`)
-  const dialog = await openDialog(page)
-  const form = await openCustomForm(dialog)
+  const section = await openSection(page, tripId)
+  const form = await openCustomForm(section)
 
   const search = form.getByRole('searchbox')
   await search.fill('kat')
@@ -172,13 +167,13 @@ test('T-29-10 the symbol picker searches in German and picks by keyboard @chromi
   await form.getByTestId('kind-name-input').fill('Katzencafé')
   await form.locator('button[type="submit"]').click()
   await expect(
-    dialog.getByRole('textbox', { name: /Katzencafé/ }),
+    section.getByRole('textbox', { name: /Katzencafé/ }),
   ).toBeVisible()
   const kinds = await listKinds(page, tripId)
   expect(kinds.find((kind) => kind.name === 'Katzencafé')?.symbol).toBe('cat')
 
   // Arrow keys move through the grid.
-  const second = await openCustomForm(dialog)
+  const second = await openCustomForm(section)
   const first = second.getByRole('option').first()
   await first.focus()
   await page.keyboard.press('ArrowRight')
@@ -208,18 +203,17 @@ test('T-29-11 a board at its kind limit requests more and gets them live @chromi
   await api(page, 'PATCH', `/admin/trips/${tripId}/kind-limit`, {
     maxKinds: 4,
   })
-  await page.goto(`/trips/${tripId}`)
-  const dialog = await openDialog(page)
+  const section = await openSection(page, tripId)
 
-  await expect(dialog.getByRole('button', { name: 'Add kind' })).toBeDisabled()
-  await expect(dialog.getByText('Kind limit reached')).toBeVisible()
-  await expect(dialog.getByTestId('kind-total')).toHaveText('4 of 4 kinds')
-  await dialog.getByRole('button', { name: 'Request more' }).click()
-  await dialog.getByLabel('Number of kinds').fill('14')
-  await dialog.getByRole('button', { name: 'Send request' }).click()
-  await expect(dialog.getByText('Request for 14 kinds pending')).toBeVisible()
+  await expect(section.getByRole('button', { name: 'Add kind' })).toBeDisabled()
+  await expect(section.getByText('Kind limit reached')).toBeVisible()
+  await expect(section.getByTestId('kind-total')).toHaveText('4 of 4 kinds')
+  await section.getByRole('button', { name: 'Request more' }).click()
+  await section.getByLabel('Number of kinds').fill('14')
+  await section.getByRole('button', { name: 'Send request' }).click()
+  await expect(section.getByText('Request for 14 kinds pending')).toBeVisible()
   await expect(
-    dialog.getByRole('button', { name: 'Request more' }),
+    section.getByRole('button', { name: 'Request more' }),
   ).toHaveCount(0)
 
   const context = await browser.newContext()
@@ -234,16 +228,16 @@ test('T-29-11 a board at its kind limit requests more and gets them live @chromi
   await expect(item.getByTestId('request-type')).toHaveText('Spot kinds')
   await item.getByRole('button', { name: 'Approve' }).click()
 
-  await expect(dialog.getByTestId('kind-total')).toHaveText('4 of 14 kinds')
-  await expect(dialog.getByRole('button', { name: 'Add kind' })).toBeEnabled()
+  await expect(section.getByTestId('kind-total')).toHaveText('4 of 14 kinds')
+  await expect(section.getByRole('button', { name: 'Add kind' })).toBeEnabled()
   await expect(
-    dialog.getByText('Your request for 14 kinds was approved.'),
+    section.getByText('Your request for 14 kinds was approved.'),
   ).toBeVisible()
   await context.close()
 })
 
 for (const scheme of ['light', 'dark'] as const) {
-  test(`T-29-23 the Spot kinds dialog passes axe with menu, symbol picker and request form in ${scheme} mode @chromium`, async ({
+  test(`T-29-23 the Spot kinds section passes axe with menu, symbol picker and request form in ${scheme} mode @chromium`, async ({
     page,
   }) => {
     test.setTimeout(60_000)
@@ -253,15 +247,14 @@ for (const scheme of ['light', 'dark'] as const) {
     await api(page, 'PATCH', `/admin/trips/${tripId}/kind-limit`, {
       maxKinds: 5,
     })
-    await page.goto(`/trips/${tripId}`)
-    const dialog = await openDialog(page)
-    const scope = { include: '[data-testid="kinds-dialog"]' }
+    const section = await openSection(page, tripId)
+    const scope = { include: '[data-testid="kinds-section"]' }
 
-    await dialog.getByTestId('kind-add-menu').click()
+    await section.getByTestId('kind-add-menu').click()
     await expect(page.getByRole('menu')).toBeVisible()
-    await expectNoSeriousViolations(page, { ...scope, label: `menu ${scheme}` })
-    await dialog.getByTestId('kind-add-custom').click()
-    const form = dialog.locator('form[aria-labelledby]').first()
+    await expectNoSeriousViolations(page, `menu ${scheme}`)
+    await page.getByTestId('kind-add-custom').click()
+    const form = section.locator('form[aria-labelledby]').first()
     await expect(form).toBeVisible()
     await form.getByRole('searchbox').fill('a')
     await expectNoSeriousViolations(page, {
@@ -271,11 +264,11 @@ for (const scheme of ['light', 'dark'] as const) {
     await form.getByRole('button', { name: 'Cancel' }).click()
 
     // One more kind reaches the limit of 5; then the request form shows.
-    await dialog.getByTestId('kind-add-menu').click()
+    await section.getByTestId('kind-add-menu').click()
     await page.getByRole('menuitem', { name: 'Coffee' }).click()
-    await expect(dialog.getByTestId('kind-total')).toHaveText('5 of 5 kinds')
-    await dialog.getByRole('button', { name: 'Request more' }).click()
-    await expect(dialog.getByLabel('Number of kinds')).toBeVisible()
+    await expect(section.getByTestId('kind-total')).toHaveText('5 of 5 kinds')
+    await section.getByRole('button', { name: 'Request more' }).click()
+    await expect(section.getByLabel('Number of kinds')).toBeVisible()
     await expectNoSeriousViolations(page, {
       ...scope,
       label: `request ${scheme}`,

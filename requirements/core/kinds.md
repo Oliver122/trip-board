@@ -22,7 +22,7 @@ Per-trip spot kinds: the categories a trip defines for its spots (name, color, s
 | --- | --- | --- | --- | --- | --- |
 | C-KIND-10 | A kind's symbol is one of exactly 64 keys (`kindSymbols`, append-only so texture cells never move; `home` and `calendar` are system-only and not in the list), any other value is 400 `kind_symbol_unknown`, and every symbol has a translated name in `en` and `de`. <!-- R-28-03, R-29-01 --> | active | 28 | 29 | T-28-06, T-29-01 |
 | C-KIND-11 | Eight presets exist, each with a fixed color and symbol defined once in `presetKinds`: `must_go`, `maybe`, `food`, `sights`, `shopping`, `coffee`, `nature`, `nightlife`. The “Add kind” button in the Spot kinds dialog is a menu that lists the presets the trip does not have yet, then “Custom kind…”, and picking a preset creates it at once. <!-- R-29-02, R-29-03 --> | active | 29 | — | T-29-02, T-29-09 |
-| C-KIND-12 | The symbol picker shows the 64 symbols in a grid with a search field that filters by the translated name (current language, case-insensitive, umlaut-safe), arrow keys and Enter to pick, and “No symbol matches” when nothing fits; the add and edit forms show a live pin preview that follows name, color and symbol. <!-- R-29-04, R-29-05 --> | active | 29 | — | T-29-09, T-29-10 |
+| C-KIND-12 | The symbol picker shows the 64 symbols in a grid with a search field that filters by the translated name (current language, case-insensitive, umlaut-safe), arrow keys and Enter to pick, and “No symbol matches” when nothing fits; the add and edit forms show a live pin preview that follows name, color and symbol. The selected symbol (`aria-selected`) and the selected color swatch (`aria-pressed`) show a 2 px `foreground` ring with a 2 px offset and a check badge, with at least 3:1 contrast against the card in light and dark mode; unselected items have neither. <!-- R-29-04, R-29-05, R-32-12 --> | active | 29 | 32 | T-29-09, T-29-10, T-32-06, T-32-07 |
 
 ## Spots and kinds
 
@@ -34,14 +34,14 @@ Per-trip spot kinds: the categories a trip defines for its spots (name, color, s
 | C-KIND-16 | In the spot panel the category field is a chip group of the trip's kinds in kind order plus a separate *Home* chip: at most 2 kind chips can be pressed (the others are disabled with “At most 2 kinds”), pressing *Home* clears the kinds and pressing a kind clears *Home*, and a new spot starts on the trip's first kind. <!-- R-07-06, R-28-13, R-29-14 --> | active | 07 | 28, 29 | T-28-13, T-29-14 |
 | C-KIND-17 | One shared chip group (`components/ui/chip-group.tsx`) renders toggle chips with `aria-pressed`, a color dot or symbol, an optional count, a `max` that disables unpressed chips, arrow-key movement and a search field above 8 options, and a guard fails CI if the filter toolbar, spot panel or import dialog render a checkbox for the trip's kinds. <!-- R-29-12, R-29-15 --> | active | 29 | — | T-29-12, T-29-15 |
 
-## Spot kinds dialog
+## Spot kinds section
 
 | ID | Rule | Status | Since | Changed by | Tests |
 | --- | --- | --- | --- | --- | --- |
-| C-KIND-18 | The “Spot kinds” dialog is opened from the board menu (or `?dialog=kinds`) by board admins and the owner only; planners and visitors see no menu entry and the direct link shows nothing. <!-- R-28-11 --> | active | 28 | — | T-28-12 |
-| C-KIND-19 | The dialog lists the kinds in order with swatch, name and spot count and supports add, inline rename, color (10 swatches plus a hex field), symbol pick, move up and move down buttons (keyboard-operable) and delete, with loading and error states, and shows “5 of 12 kinds”. <!-- R-28-11, R-29-11 --> | active | 28 | 29 | T-28-13, T-28-19, T-29-23 |
+| C-KIND-18 | Board admins and the owner manage spot kinds in the *Spot kinds* section (`id="kinds"`, heading *Spot kinds* / *Ortsarten*) of `/trips/:id/settings`, below the trip form and above *Delete trip*; for planners and visitors the section is not rendered, and the board's filter toolbar has no board menu. `/trips/:id?dialog=kinds` sends board admins and the owner to `/trips/:id/settings#kinds` and drops the parameter for everyone else; `#kinds` scrolls the settings column to the section and focuses its heading. <!-- R-28-11, R-32-01, R-32-02, R-32-03, R-32-04, R-32-05 --> | active | 28 | 32 | T-28-12, T-32-01, T-32-02, T-32-03 |
+| C-KIND-19 | The *Spot kinds* section lists the kinds in order with swatch, name and spot count and supports add, inline rename, color (10 swatches plus a hex field), symbol pick, move up and move down buttons (keyboard-operable) and delete, with loading and error states, and shows “5 of 12 kinds”. Rendered in place (no modal) on the settings page of at most `max-w-3xl`, a row keeps its name field, count and 4 icon buttons on one line at ≥ 768 px and wraps without horizontal scrolling at 375 px. <!-- R-28-11, R-29-11, R-32-01, R-32-06 --> | active | 28 | 29, 32 | T-28-13, T-28-19, T-29-23, T-32-01, T-32-09 |
 | C-KIND-20 | Deleting a kind with spots asks “3 spots use Food” and a required “Move them to” select with the other kinds (Delete stays disabled until one is chosen), a kind without spots gets a plain confirm, and the last kind has no delete button. <!-- R-28-12 --> | active | 28 | — | T-28-14 |
-| C-KIND-21 | At the kind limit the Add kind menu is disabled with “Kind limit reached” and a “Request more” form (requested number, message); while a request is pending the dialog says “Request for 20 kinds pending”, and an approved or rejected request shows its result and note once. When the platform admin decides, the open dialog shows the new limit without a reload. <!-- R-29-10, R-29-11 --> | active | 29 | — | T-29-11 |
+| C-KIND-21 | At the kind limit the Add kind menu is disabled with “Kind limit reached” and a “Request more” form (requested number, message); while a request is pending the section says “Request for 20 kinds pending”, and an approved or rejected request shows its result and note once. Kind changes by another user and the platform admin's decision update the open *Spot kinds* section without a reload. <!-- R-29-10, R-29-11, R-32-07 --> | active | 29 | 32 | T-29-11, T-32-08 |
 
 ## Textures
 
@@ -55,7 +55,7 @@ Per-trip spot kinds: the categories a trip defines for its spots (name, color, s
 
 | ID | Rule | Status | Since | Changed by | Tests |
 | --- | --- | --- | --- | --- | --- |
-| C-KIND-25 | Preset labels, symbol names, the kind dialog, the limit and request texts and every kind error exist in `en` and `de`; kind names typed by users are not translated. <!-- R-28-17, R-29-21 --> | active | 28 | 29 | T-28-20, T-29-24 |
+| C-KIND-25 | Preset labels, symbol names, the *Spot kinds* section (heading and description, `kinds.section*`), the limit and request texts and every kind error exist in `en` and `de`; kind names typed by users are not translated. <!-- R-28-17, R-29-21, R-32-08 --> | active | 28 | 29, 32 | T-28-20, T-29-24, T-32-11 |
 
 ## Known gaps
 

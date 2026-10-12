@@ -41,6 +41,8 @@ describe('hardening', () => {
     expect(csp).toBe(contentSecurityPolicy('https://blobs.example'))
     expect(csp).toContain("default-src 'self'")
     expect(csp).toContain(tileOrigin)
+    expect(csp).toContain('img-src')
+    expect(csp).toMatch(/img-src [^;]*https:\/\/upload\.wikimedia\.org/)
     expect(csp).toContain('https://blobs.example')
     expect(csp).toContain('blob:')
     expect(csp).toContain("frame-ancestors 'none'")

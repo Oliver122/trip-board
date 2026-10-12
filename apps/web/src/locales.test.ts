@@ -1,4 +1,9 @@
-import { kindErrorCodes, kindPresets, kindSymbols } from '@tripboard/shared'
+import {
+  kindErrorCodes,
+  kindPresets,
+  kindSymbols,
+  placeLinkErrorCodes,
+} from '@tripboard/shared'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de/common.json'
@@ -42,7 +47,6 @@ describe('locales', () => {
       'invite.singleUse',
       'invite.used',
       'kinds.title',
-      'kinds.boardMenu',
       'kinds.field',
       'kinds.atMostTwo',
       'kinds.addTitle',
@@ -137,6 +141,43 @@ describe('locales', () => {
     expect(
       i18n.t('kinds.errors.kind_limit', { limit: 12, lng: 'de' }),
     ).toContain('12')
+  })
+
+  it('T-32-11 has the kinds section keys in en and de', () => {
+    for (const lng of ['en', 'de'] as const) {
+      for (const key of ['kinds.sectionTitle', 'kinds.sectionDescription']) {
+        expect({ lng, key, has: i18n.exists(key, { lng }) }).toEqual({
+          lng,
+          key,
+          has: true,
+        })
+      }
+    }
+    expect(i18n.t('kinds.sectionTitle', { lng: 'de' })).toBe('Ortsarten')
+  })
+
+  it('T-33-11 has the places and share keys in en and de', () => {
+    const keys = [
+      'places.looking',
+      'places.linkField',
+      'places.fillIn',
+      'places.unplaced',
+      'places.errors.rate_limited',
+      'places.errors.generic',
+      ...placeLinkErrorCodes.map((code) => `places.errors.${code}`),
+    ]
+    const shareKeys = flatKeys(en).filter((key) => key.startsWith('share.'))
+    for (const lng of ['en', 'de'] as const) {
+      const missing = [...keys, ...shareKeys].filter(
+        (key) => !i18n.exists(key, { lng }),
+      )
+      expect({ lng, missing }).toEqual({ lng, missing: [] })
+    }
+    expect(i18n.t('places.linkField', { lng: 'en' })).toBe('Google Maps link')
+    expect(i18n.t('places.fillIn', { lng: 'de' })).toBe('Übernehmen')
+    expect(
+      i18n.t('places.errors.link_not_google_maps', { lng: 'de' }),
+    ).not.toBe(i18n.t('places.errors.link_not_google_maps', { lng: 'en' }))
   })
 
   it('keeps the suspended-account sentence in both languages', () => {

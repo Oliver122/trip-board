@@ -4,7 +4,6 @@ import {
   type GeocodeLang,
   type Spot,
   type SpotListQuery,
-  type TripRole,
 } from '@tripboard/shared'
 import { Calendar, House, MessageSquare } from 'lucide-react'
 import {
@@ -64,7 +63,6 @@ export function SpotList({
   spots,
   existingSpots,
   canImport,
-  role,
   total,
   bounds,
   query,
@@ -86,7 +84,6 @@ export function SpotList({
   spots: Spot[]
   existingSpots: Spot[]
   canImport: boolean
-  role?: TripRole
   total: number
   bounds: LngLatBounds | null
   query: SpotListQuery
@@ -201,7 +198,6 @@ export function SpotList({
         entries={entries}
         existingSpots={existingSpots}
         canImport={canImport}
-        role={role}
         searchDraft={searchDraft}
         onSearchDraft={onSearchDraft}
         onQuery={onQuery}

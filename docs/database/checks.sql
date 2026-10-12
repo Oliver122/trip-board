@@ -296,6 +296,22 @@ SELECT pg_temp.expect_error($$
   ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
    'trips/1/c.png', 1, 1, 1, 'image/png')$$, 'only webp stored');
 
+-- T-34-12: source, credit and license on images; commons_cache.
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, spot_id, storage_key, bytes, width, height, source_url) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
+   'trips/1/d.webp', 1, 1, 1, repeat('x', 2001))$$, 'image source_url over 2000 characters rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, spot_id, storage_key, bytes, width, height, credit, license) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001',
+   'trips/1/e.webp', 1, 1, 1, repeat('x', 300), repeat('y', 101))$$, 'image license over 100 characters rejected');
+SELECT pg_temp.expect(
+  (SELECT count(*) = 3 FROM information_schema.columns
+    WHERE table_name = 'images' AND column_name IN ('source_url', 'credit', 'license'))
+  AND to_regclass('commons_cache') IS NOT NULL
+  AND to_regclass('commons_cache_created_at_idx') IS NOT NULL,
+  'images have source columns and commons_cache has its index');
+
 -- Admin: quotas & settings ------------------------------------------------
 SELECT pg_temp.expect(
   (SELECT max_images = 100 AND max_bytes = 209715200 AND NOT has_override FROM user_quota_usage

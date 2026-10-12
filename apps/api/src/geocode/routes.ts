@@ -16,6 +16,7 @@ import {
   createGeocodeService,
   GeocodeNotFoundError,
   GeocodeUpstreamError,
+  type GeocodeService,
 } from './store.js'
 import { sendError } from '../http/errors.js'
 
@@ -24,6 +25,8 @@ export type GeocodeRouteOptions = {
   config: AppConfig
   now: () => Date
   fetch?: typeof fetch
+  /** A shared service; built from `fetch` when not given. */
+  service?: GeocodeService
 }
 
 const knownMessages = new Set(['empty', 'too_long', 'invalid'])
@@ -92,15 +95,17 @@ export function registerGeocodeRoutes(
 ): void {
   const { pool, config, now } = options
   const secure = config.NODE_ENV === 'production'
-  const service = createGeocodeService(
-    pool,
-    new NominatimClient({
-      fetch: options.fetch ?? globalThis.fetch,
-      baseUrl: config.NOMINATIM_BASE_URL,
-      userAgent: config.NOMINATIM_USER_AGENT,
-      referer: config.WEB_ORIGIN,
-    }),
-  )
+  const service =
+    options.service ??
+    createGeocodeService(
+      pool,
+      new NominatimClient({
+        fetch: options.fetch ?? globalThis.fetch,
+        baseUrl: config.NOMINATIM_BASE_URL,
+        userAgent: config.NOMINATIM_USER_AGENT,
+        referer: config.WEB_ORIGIN,
+      }),
+    )
 
   app.get('/geocode/search', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)

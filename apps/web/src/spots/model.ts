@@ -1,10 +1,12 @@
 import {
   kindLimits,
+  type PlaceFromLink,
   type Spot,
   type SpotCategory,
   type SpotKind,
   type SpotKindRef,
 } from '@tripboard/shared'
+import type { QueuedPhoto } from '../images/queue'
 import type { LngLatBounds } from '../map/bounds'
 import { formatDate, formatTime } from '../lib/format'
 import type { AppLocale } from '../lib/locale'
@@ -22,6 +24,10 @@ export type Draft = {
   primary: boolean
   info: string
   link: string
+  /** Step 34: photos queued in add mode, sent after *Add* (R-34-12). */
+  photos: QueuedPhoto[]
+  /** Step 33: the draft was filled from a Google Maps link (R-34-12 opens suggestions). */
+  fromLink: boolean
 }
 
 export const emptyDraft: Draft = {
@@ -36,6 +42,8 @@ export const emptyDraft: Draft = {
   primary: false,
   info: '',
   link: '',
+  photos: [],
+  fromLink: false,
 }
 
 /** A blank draft that starts on the trip's first kind. */
@@ -78,6 +86,32 @@ export function draftFromSpot(spot: Spot): Draft {
     primary: spot.primary,
     info: spot.info ?? '',
     link: spot.link ?? '',
+    photos: [],
+    fromLink: false,
+  }
+}
+
+/**
+ * A draft filled from a Google Maps link (R-33-07). From the field the typed
+ * title stays; an unplaced result leaves the pin as it was.
+ */
+export function draftWithPlace(
+  draft: Draft,
+  place: PlaceFromLink,
+  keepTitle: boolean,
+): Draft {
+  const placed = place.placed && place.lat != null && place.lng != null
+  return {
+    ...draft,
+    title:
+      keepTitle && draft.title.trim()
+        ? draft.title
+        : (place.title ?? draft.title),
+    address: place.address ?? draft.address,
+    link: place.link,
+    lat: placed ? place.lat : draft.lat,
+    lng: placed ? place.lng : draft.lng,
+    fromLink: true,
   }
 }
 
@@ -93,7 +127,9 @@ export function draftsEqual(left: Draft, right: Draft): boolean {
     left.stayTo === right.stayTo &&
     left.primary === right.primary &&
     left.info === right.info &&
-    left.link === right.link
+    left.link === right.link &&
+    left.photos.map((photo) => photo.id).join(',') ===
+      right.photos.map((photo) => photo.id).join(',')
   )
 }
 
