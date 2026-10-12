@@ -9,6 +9,7 @@ export function kindLabel(
   if (kind.name) return kind.name
   if (kind.preset === 'must_go') return t('category.must-go')
   if (kind.preset === 'maybe') return t('category.maybe')
+  if (kind.preset) return t(`kinds.presets.${kind.preset}`)
   return ''
 }
 

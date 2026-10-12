@@ -1,4 +1,4 @@
-import type { AdminTripDetail } from '@tripboard/shared'
+import type { AdminKindLimit, AdminTripDetail } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
@@ -9,7 +9,9 @@ import { megabytes } from '../images/format'
 import { activeLocale } from '../i18n'
 import { activitySentence } from './activity-text'
 import { isNotFound } from '../api/http'
-import { getAdminTrip } from './client'
+import { ErrorNotice } from '../components/notice'
+import { Button } from '../components/ui/button'
+import { getAdminTrip, patchKindLimit } from './client'
 import { Sparkline } from './Sparkline'
 
 export function TripPage() {
@@ -67,6 +69,15 @@ export function TripPage() {
           </dd>
         </div>
       </dl>
+      <KindLimit
+        tripId={trip.id}
+        limit={detail.kindLimit}
+        onChange={(kindLimit) =>
+          setDetail((current) =>
+            current ? { ...current, kindLimit } : current,
+          )
+        }
+      />
       <section className="mb-6" aria-labelledby="members-heading">
         <h2 id="members-heading" className="mb-2 font-semibold">
           {t('header.members')}
@@ -128,5 +139,105 @@ export function TripPage() {
         )}
       </section>
     </>
+  )
+}
+
+/** R-29-07: the effective kind limit, and a platform admin's override. */
+function KindLimit({
+  tripId,
+  limit,
+  onChange,
+}: {
+  tripId: string
+  limit: AdminKindLimit
+  onChange: (next: AdminKindLimit) => void
+}) {
+  const { t } = useTranslation()
+  const [value, setValue] = useState(String(limit.override ?? limit.effective))
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  function save(maxKinds: number | null) {
+    setSaving(true)
+    setSaved(false)
+    setFailed(false)
+    void patchKindLimit(tripId, {
+      maxKinds,
+      ...(reason.trim() ? { reason: reason.trim() } : {}),
+    })
+      .then((next) => {
+        onChange(next)
+        setValue(String(next.override ?? next.effective))
+        setReason('')
+        setSaved(true)
+      })
+      .catch(() => setFailed(true))
+      .finally(() => setSaving(false))
+  }
+
+  const number = Number(value)
+  const valid = Number.isInteger(number) && number >= 1 && number <= 64
+  const source = `${t(limit.override === null ? 'admin.kindLimit.default' : 'admin.kindLimit.override')} (${limit.override ?? limit.default})`
+
+  return (
+    <section className="mb-6 max-w-xl" aria-labelledby="kind-limit-heading">
+      <h2 id="kind-limit-heading" className="mb-2 font-semibold">
+        {t('admin.kindLimit.title')}
+      </h2>
+      <p data-testid="kind-limit-effective">
+        {t('admin.kindLimit.effective', {
+          count: limit.count,
+          limit: limit.effective,
+        })}
+      </p>
+      <p data-testid="kind-limit-source" className="mb-3 text-sm text-muted">
+        {source}
+      </p>
+      <form
+        className="space-y-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (valid) save(number)
+        }}
+      >
+        <label className="block">
+          {t('admin.kindLimit.field')}
+          <input
+            type="number"
+            min={1}
+            max={64}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+          />
+        </label>
+        <label className="block">
+          {t('admin.kindLimit.reason')}
+          <input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+          />
+        </label>
+        {saved ? <p role="status">{t('admin.kindLimit.saved')}</p> : null}
+        {failed ? (
+          <ErrorNotice>{t('admin.user.errors.save')}</ErrorNotice>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={!valid || saving}>
+            {t('admin.kindLimit.set')}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={limit.override === null || saving}
+            onClick={() => save(null)}
+          >
+            {t('admin.kindLimit.clear')}
+          </Button>
+        </div>
+      </form>
+    </section>
   )
 }

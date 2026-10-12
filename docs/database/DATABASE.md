@@ -23,7 +23,8 @@ erDiagram
     TRIPS ||--o{ TRIP_INVITES : "has"
     TRIP_INVITES |o--o{ TRIP_MEMBERS : "used by"
     TRIPS ||--o{ SPOTS : "contains"
-    TRIPS ||--o{ SPOT_KINDS : "defines (1 to 12)"
+    TRIPS ||--o{ SPOT_KINDS : "defines (up to its kind limit)"
+    TRIPS ||--o{ KIND_LIMIT_REQUESTS : "asks for more kinds"
     SPOTS ||--o{ SPOT_KIND_LINKS : "has 1 or 2 (not home)"
     SPOT_KINDS ||--o{ SPOT_KIND_LINKS : "used by"
     TRIPS |o--o| SPOTS : "primary home base"
@@ -249,6 +250,7 @@ One row per Discord account. `discord_id` is the stable identity; `username`, `d
 - `created_by` is the original creator, shown as “created by”. It does **not** change when ownership is transferred.
 - `timezone` (IANA name) is the trip's local time. Plan dates/times are stored as local `date`/`time` without zone and interpreted in this timezone, e.g. for calendar export.
 - The **bounding box** is the map scope. The API expands it when a spot is saved outside it (spot + 10 % padding).
+- `max_kinds` (nullable, `CHECK BETWEEN 1 AND 64`) is the platform admin's override of the kind limit; `NULL` means `app_settings.default_max_kinds`. The effective limit is `COALESCE(trips.max_kinds, default_max_kinds)`. Lowering it below the trip's current number of kinds deletes nothing and only blocks new kinds.
 - `primary_home_spot_id` is the trip's main home base (home spot option D). It must reference a `home` spot of the same trip (composite FK + trigger).
 
 ### trip_members
@@ -271,10 +273,10 @@ One row per Discord account. `discord_id` is the stable identity; `username`, `d
 - When a home spot is recategorised, a trigger clears it as primary home base.
 
 ### spot_kinds
-Per-trip spot kinds (step 28), 1 to 12 per trip (the limits are enforced by the API).
+Per-trip spot kinds (step 28), at most the trip's effective kind limit (default 12, ceiling 64; enforced by the API, see `trips.max_kinds`).
 - `name` is 1 to 30 characters after trimming and unique per trip, ignoring case (`UNIQUE (trip_id, lower(btrim(name)))`). It is null only for a preset kind that was never renamed; the UI then shows the translated preset label (`CHECK (name IS NOT NULL OR preset IS NOT NULL)`).
-- `preset` is `must_go`, `maybe` or null; a trip has each preset at most once. Every new trip starts with *Must go* (`#E5484D`, `exclamation`) and *Maybe* (`#30A46C`, `question`) in that order.
-- `color` is upper-case `#RRGGBB`; `symbol` is one of 12 keys. The contrast and reserved-color rules are enforced by the API.
+- `preset` is one of `must_go`, `maybe`, `food`, `sights`, `shopping`, `coffee`, `nature`, `nightlife` or null (`CHECK`); a trip has each preset at most once (partial unique index `(trip_id, preset) WHERE preset IS NOT NULL`). Every new trip starts with *Must go* (`#E5484D`, `exclamation`), *Maybe* (`#30A46C`, `question`), *Food* (`#D9480F`, `food`) and *Sights* (`#6D28D9`, `camera`) in that order, in the same transaction as the trip. Existing trips keep their kinds; no migration adds kinds. The other presets are added one click at a time.
+- `color` is upper-case `#RRGGBB`; `symbol` is one of the 64 keys of `kindSymbols` (`packages/shared`), enforced by `spot_kinds_symbol_check`. The list is append-only: a symbol's position is its cell in the texture atlas, so keys are never removed or reordered (a test keeps the `CHECK` and `kindSymbols` in sync). The contrast and reserved-color rules are enforced by the API.
 - `UNIQUE (trip_id, id)` lets `spot_kind_links` use a composite FK.
 
 ### spot_kind_links
@@ -323,6 +325,7 @@ Single row (`id = true`). Platform defaults and limits, editable in the admin ar
 - `default_max_images`, `default_max_bytes`: quota for users without an override.
 - `db_capacity_bytes`, `blob_capacity_bytes`: the size of your database plan / storage bucket, entered by the admin. The app cannot resize the database itself; these values drive the usage bars and warnings.
 - `capacity_warn_pct`: warning threshold (default 80 %).
+- `default_max_kinds` (default 12, `CHECK BETWEEN 1 AND 64`): kinds per trip unless the trip has a `trips.max_kinds` override.
 - `uploads_enabled`, `signups_enabled`: kill switches. With uploads off, all uploads return 503. With signups off, unknown Discord accounts can't log in, except with a valid invite code.
 
 ### activity_events
@@ -340,15 +343,22 @@ What users do (“who is doing what”). The API writes one row per change **in 
 | `export` | `download` |
 | `quota` | `request` |
 | `comment` | `create`, `update`, `delete` |
-| `kind` | `create`, `update`, `reorder`, `delete` |
+| `kind` | `create`, `update`, `reorder`, `delete`, `limit_request` |
 
-For `kind` events the metadata holds the kind's `name`; `kind.delete` also records `movedTo` (the target kind's name) and `moved` (the number of spots moved). `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
+For `kind` events the metadata holds the kind's `name`; `kind.limit_request` instead records `count`, the number of kinds asked for (the event's `entity_id` is the request); `kind.delete` also records `movedTo` (the target kind's name) and `moved` (the number of spots moved). `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
 
 ### admin_audit_log
 Every admin write (quota change, suspend, role change, settings change, request decision) with `before` / `after` JSON and an optional reason. Kept permanently; cannot be edited through the app.
 
 ### quota_requests
 A user can ask for more images or bytes, with a message. At most one pending request per user. An admin approves (sets the user's override in the same transaction) or rejects, with an optional note. `decided_at` is set exactly when the status leaves `pending`.
+
+### kind_limit_requests
+A trip's owner or board admin asks the platform admin for a higher kind limit (step 29). Same lifecycle as `quota_requests`, with the shared `request_status` enum.
+- `requested_max` is 1 to 64 (`CHECK`); the API additionally requires it to be above the trip's current effective limit. `message` and `decision_note` are at most 500 characters.
+- At most one pending request per trip (partial unique index `kind_limit_requests_one_pending_idx`); `decided_at` is set exactly when the status leaves `pending` (`CHECK`).
+- `trip_id` is `ON DELETE CASCADE`; `requested_by` and `decided_by` are `ON DELETE SET NULL`. `kind_limit_requests_status_idx (status, created_at)` serves the admin list.
+- Approving sets `trips.max_kinds` (to the requested value or one the admin edits), rejecting leaves it. Each decision, its `admin_audit_log` row (`kind_limit_request.approve` / `.reject`) and the live notice to the trip are one transaction. A direct override by the admin writes `trip.kind_limit`.
 
 ### metrics_daily
 One row per day for the admin graphs: totals (users, trips, spots, plan entries, images, image bytes, database size) plus per-day numbers (new users, active users, events). Filled by `snapshot_daily_metrics(day)`, which is idempotent (upsert). Kept permanently; it's tiny. A job at 00:05 UTC snapshots yesterday. `pnpm db:metrics` fills any missing days from the earliest user or activity event through yesterday.
@@ -380,7 +390,9 @@ One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it
 | Role permissions (owner / admin / planner / visitor) | — | ✅ role guard on every route |
 | A spot has 1 or 2 kinds of its own trip, a home spot none | ✅ composite FKs + deferred trigger | ✅ validated before the write |
 | Kind names unique per trip, 1–30 characters | ✅ unique index + checks | ✅ `kind_name_taken` |
-| Kind limit (12), last kind, contrast and reserved colors | — | ✅ |
+| Kind limit (default 12, per-trip override, ceiling 64), last kind, contrast and reserved colors | ✅ ranges of `default_max_kinds` / `max_kinds` | ✅ `kind_limit` |
+| One kind per preset in a trip, symbols and presets from the catalog | ✅ partial unique index + checks | ✅ `kind_preset_taken` |
+| One pending kind limit request per trip | ✅ partial unique index | ✅ `request_pending` |
 | Invite only planner/visitor, ≤ 7 days | ✅ checks | ✅ |
 | Invite valid (not expired / revoked / used) | ✅ `used_at` check | ✅ on join, under the row lock |
 | Auto *Planned* category | ✅ `spots_view` | — |
@@ -465,6 +477,7 @@ UPDATE trip_invites SET used_at = now(), used_by = $2 WHERE code = $1;
 | `activity_events (created_at)`, `(actor_id, …)`, `(trip_id, …)`, `(action, …)` | Admin activity feed and its filters |
 | `users (created_at)`, `users (last_seen_at)` | Signup and active-user graphs |
 | `quota_requests (user_id) WHERE pending` unique | One open request per user |
+| `kind_limit_requests (trip_id) WHERE pending` unique, `(status, created_at)` | One open request per trip, admin list |
 
 Expected size is small (hundreds of spots per trip), so B-tree lat/lng is enough. PostGIS is not needed.
 

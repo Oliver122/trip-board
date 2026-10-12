@@ -12,6 +12,30 @@ const liveResources = new Set([
   'kind',
 ])
 
+export type TripNotice = {
+  tripId: string
+  resource: string
+  action: string
+  id?: string | null
+  actorId?: string | null
+}
+
+/** Live notice to a trip's open boards, without an activity row. */
+export async function notifyTrip(
+  tx: PoolClient,
+  notice: TripNotice,
+): Promise<void> {
+  const payload = JSON.stringify({
+    tripId: notice.tripId,
+    resource: notice.resource,
+    id: notice.id ?? null,
+    action: notice.action,
+    actorId: notice.actorId ?? null,
+    clientId: currentClientId(),
+  })
+  await tx.query(`SELECT pg_notify('trip_events', $1)`, [payload])
+}
+
 export type ActivityInput = {
   actor: string | null
   trip: string | null

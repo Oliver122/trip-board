@@ -5,12 +5,17 @@ import {
   adminStatsSchema,
   adminStorageSchema,
   adminTripDetailSchema,
+  adminKindLimitRequestListSchema,
+  adminKindLimitSchema,
   adminTripListSchema,
   adminUserDetailSchema,
   adminUserListSchema,
   appSettingsSchema,
   auditListSchema,
   auditQuerySchema,
+  kindLimitApproveSchema,
+  kindLimitPatchSchema,
+  kindLimitRejectSchema,
   quotaApproveSchema,
   quotaPatchSchema,
   quotaRejectSchema,
@@ -37,6 +42,12 @@ import { readStorage } from './storage.js'
 import { notifyQuotaRequest, reportCapacityWarnings } from './webhook.js'
 import { listAudit } from './log.js'
 import type { AdminHooks } from './hooks.js'
+import {
+  approveKindLimitRequest,
+  listKindLimitRequests,
+  rejectKindLimitRequest,
+  setKindLimitOverride,
+} from './kind-limits.js'
 import { decodeCursor, isInvalidCursor } from './page.js'
 import {
   approveQuotaRequest,
@@ -370,6 +381,87 @@ export function registerAdminRoutes(
     )
     if (!result.ok) return sendError(reply, result.status, result.error)
     return reply.code(204).send()
+  })
+
+  app.patch('/admin/trips/:id/kind-limit', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const body = kindLimitPatchSchema.safeParse(request.body)
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
+    const result = await setKindLimitOverride(
+      pool,
+      user.id,
+      params.id,
+      body.data,
+      hooks,
+    )
+    if (!result.ok) return sendError(reply, result.status, result.error)
+    return adminKindLimitSchema.parse(result.kindLimit)
+  })
+
+  app.get('/admin/kind-limit-requests', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    const query = requestListQuerySchema.safeParse(request.query)
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
+    try {
+      const result = await listKindLimitRequests(pool, query.data)
+      if ('error' in result) return sendError(reply, 400, 'invalid_request')
+      return adminKindLimitRequestListSchema.parse(result)
+    } catch (error) {
+      if (isInvalidCursor(error))
+        return sendError(reply, 400, 'invalid_request')
+      throw error
+    }
+  })
+
+  app.post('/admin/kind-limit-requests/:id/approve', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const body = kindLimitApproveSchema.safeParse(request.body ?? {})
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
+    const result = await approveKindLimitRequest(
+      pool,
+      user.id,
+      params.id,
+      body.data,
+      now(),
+      hooks,
+    )
+    if (!result.ok) return sendError(reply, result.status, result.error)
+    return { ok: true }
+  })
+
+  app.post('/admin/kind-limit-requests/:id/reject', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const body = kindLimitRejectSchema.safeParse(request.body ?? {})
+    if (!body.success) return sendError(reply, 400, 'invalid_request')
+    const result = await rejectKindLimitRequest(
+      pool,
+      user.id,
+      params.id,
+      body.data.note,
+      now(),
+      hooks,
+    )
+    if (!result.ok) return sendError(reply, result.status, result.error)
+    return { ok: true }
   })
 
   app.get('/admin/settings', async (request, reply) => {

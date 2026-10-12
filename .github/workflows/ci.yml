@@ -80,6 +80,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Check the texture manifest matches the atlas
+        run: git diff --exit-code apps/web/src/kinds/texture-manifest.json
       - run: pnpm check:bundle
 
   e2e:

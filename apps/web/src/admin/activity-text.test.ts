@@ -138,3 +138,21 @@ describe('kind activity sentences', () => {
     expect(activitySentence(input, 'de')).toContain('Maybe')
   })
 })
+
+describe('kind limit activity sentences', () => {
+  it('T-29-23 names the actor, count and trip for kind.limit_request in en and de', () => {
+    const input = {
+      action: 'kind.limit_request',
+      actorName: 'aiko',
+      tripName: 'Japan 2026',
+      metadata: { count: 20, trip: 'Japan 2026' },
+    }
+    expect(activitySentence(input, 'en')).toBe(
+      'aiko requested 20 kinds for Japan 2026',
+    )
+    expect(activitySentence(input, 'de')).toContain('20')
+    expect(activitySentence(input, 'de')).not.toBe(
+      activitySentence(input, 'en'),
+    )
+  })
+})

@@ -1,4 +1,9 @@
-import type { PlanEntryType, SpotKindRef, TripRole } from '@tripboard/shared'
+import type {
+  KindPreset,
+  PlanEntryType,
+  SpotKindRef,
+  TripRole,
+} from '@tripboard/shared'
 
 export type ExportLocale = 'en' | 'de'
 
@@ -38,9 +43,27 @@ const categories: Record<ExportLocale, Record<'planned' | 'home', string>> = {
   de: { planned: 'Geplant', home: 'Unterkunft' },
 }
 
-const presets: Record<ExportLocale, Record<'must_go' | 'maybe', string>> = {
-  en: { must_go: 'Must go', maybe: 'Maybe' },
-  de: { must_go: 'Muss hin', maybe: 'Vielleicht' },
+const presets: Record<ExportLocale, Record<KindPreset, string>> = {
+  en: {
+    must_go: 'Must go',
+    maybe: 'Maybe',
+    food: 'Food',
+    sights: 'Sights',
+    shopping: 'Shopping',
+    coffee: 'Coffee',
+    nature: 'Nature',
+    nightlife: 'Nightlife',
+  },
+  de: {
+    must_go: 'Muss hin',
+    maybe: 'Vielleicht',
+    food: 'Essen',
+    sights: 'Sehenswürdigkeiten',
+    shopping: 'Einkaufen',
+    coffee: 'Kaffee',
+    nature: 'Natur',
+    nightlife: 'Nachtleben',
+  },
 }
 
 /** A kind's display name: the custom name, or the preset label in the language. */

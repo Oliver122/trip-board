@@ -146,8 +146,10 @@ export const trips = pgTable(
     primaryHomeSpotId: uuid('primary_home_spot_id'),
     createdAt: timestamps.createdAt,
     updatedAt: timestamps.updatedAt,
+    maxKinds: integer('max_kinds'),
   },
   (table) => [
+    check('trips_max_kinds_check', sql`${table.maxKinds} BETWEEN 1 AND 64`),
     check(
       'trips_name_check',
       sql`char_length(btrim(${table.name})) BETWEEN 1 AND 100`,
@@ -326,7 +328,18 @@ export const spotKinds = pgTable(
       .notNull()
       .references(() => trips.id, { onDelete: 'cascade' }),
     name: text('name'),
-    preset: text('preset', { enum: ['must_go', 'maybe'] }),
+    preset: text('preset', {
+      enum: [
+        'must_go',
+        'maybe',
+        'food',
+        'sights',
+        'shopping',
+        'coffee',
+        'nature',
+        'nightlife',
+      ],
+    }),
     color: text('color').notNull(),
     symbol: text('symbol', {
       enum: [
@@ -342,6 +355,58 @@ export const spotKinds = pgTable(
         'nature',
         'temple',
         'cat',
+        'beer',
+        'wine',
+        'cocktail',
+        'pizza',
+        'soup',
+        'cake',
+        'ice_cream',
+        'fish',
+        'hotel',
+        'bed',
+        'tent',
+        'mountain',
+        'beach',
+        'water',
+        'flower',
+        'leaf',
+        'sun',
+        'snow',
+        'sunset',
+        'castle',
+        'church',
+        'building',
+        'train',
+        'bus',
+        'car',
+        'plane',
+        'ship',
+        'bike',
+        'walk',
+        'parking',
+        'fuel',
+        'music',
+        'theater',
+        'film',
+        'game',
+        'ticket',
+        'gift',
+        'book',
+        'shirt',
+        'store',
+        'market',
+        'money',
+        'hospital',
+        'info',
+        'wifi',
+        'bath',
+        'sparkles',
+        'dog',
+        'bird',
+        'flag',
+        'pin',
+        'bookmark',
       ],
     }).notNull(),
     sortOrder: integer('sort_order').notNull(),
@@ -356,7 +421,7 @@ export const spotKinds = pgTable(
     ),
     check(
       'spot_kinds_preset_check',
-      sql`${table.preset} IN ('must_go', 'maybe')`,
+      sql`${table.preset} IN ('must_go', 'maybe', 'food', 'sights', 'shopping', 'coffee', 'nature', 'nightlife')`,
     ),
     check('spot_kinds_color_check', sql`${table.color} ~ '^#[0-9A-F]{6}$'`),
     check('spot_kinds_sort_order_check', sql`${table.sortOrder} >= 0`),
@@ -605,6 +670,7 @@ export const appSettings = pgTable(
     capacityWarnPct: integer('capacity_warn_pct').notNull().default(80),
     uploadsEnabled: boolean('uploads_enabled').notNull().default(true),
     signupsEnabled: boolean('signups_enabled').notNull().default(true),
+    defaultMaxKinds: integer('default_max_kinds').notNull().default(12),
     updatedBy: uuid('updated_by').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -633,6 +699,10 @@ export const appSettings = pgTable(
     check(
       'app_settings_capacity_warn_pct_check',
       sql`${table.capacityWarnPct} BETWEEN 1 AND 100`,
+    ),
+    check(
+      'app_settings_default_max_kinds_check',
+      sql`${table.defaultMaxKinds} BETWEEN 1 AND 64`,
     ),
   ],
 )
@@ -807,3 +877,49 @@ export const userQuotaUsage = pgView('user_quota_usage', {
   usedImages: integer('used_images').notNull(),
   usedBytes: bigint('used_bytes', { mode: 'number' }).notNull(),
 }).existing()
+
+export const kindLimitRequests = pgTable(
+  'kind_limit_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tripId: uuid('trip_id')
+      .notNull()
+      .references(() => trips.id, { onDelete: 'cascade' }),
+    requestedBy: uuid('requested_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    requestedMax: integer('requested_max').notNull(),
+    message: text('message'),
+    status: requestStatus('status').notNull().default('pending'),
+    decidedBy: uuid('decided_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    decidedAt: timestamp('decided_at', { withTimezone: true, mode: 'date' }),
+    decisionNote: text('decision_note'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      'kind_limit_requests_requested_max_check',
+      sql`${table.requestedMax} BETWEEN 1 AND 64`,
+    ),
+    check(
+      'kind_limit_requests_message_check',
+      sql`char_length(${table.message}) <= 500`,
+    ),
+    check(
+      'kind_limit_requests_decision_note_check',
+      sql`char_length(${table.decisionNote}) <= 500`,
+    ),
+    check(
+      'kind_limit_requests_decided_at_check',
+      sql`(${table.status} = 'pending') = (${table.decidedAt} IS NULL)`,
+    ),
+    uniqueIndex('kind_limit_requests_one_pending_idx')
+      .on(table.tripId)
+      .where(sql`${table.status} = 'pending'`),
+    index('kind_limit_requests_status_idx').on(table.status, table.createdAt),
+  ],
+)

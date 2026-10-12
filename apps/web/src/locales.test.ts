@@ -1,4 +1,4 @@
-import { kindErrorCodes, kindSymbols } from '@tripboard/shared'
+import { kindErrorCodes, kindPresets, kindSymbols } from '@tripboard/shared'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de/common.json'
@@ -69,6 +69,74 @@ describe('locales', () => {
     expect(
       i18n.t('kinds.deleteUsed', { count: 3, name: 'Food', lng: 'en' }),
     ).toBe('3 spots use Food.')
+  })
+
+  it('T-29-24 has the step 29 keys in en and de', () => {
+    const newPresets = kindPresets.filter(
+      (preset) => preset !== 'must_go' && preset !== 'maybe',
+    )
+    const keys = [
+      ...kindSymbols.map((symbol) => `kinds.symbols.${symbol}`),
+      ...newPresets.map((preset) => `kinds.presets.${preset}`),
+      'kinds.addMenu',
+      'kinds.custom',
+      'kinds.count',
+      'kinds.limitReached',
+      'kinds.requestMore',
+      'kinds.symbolSearch',
+      'kinds.symbolNone',
+      'kinds.symbolGrid',
+      'kinds.preview',
+      'kinds.previewName',
+      'kinds.request.title',
+      'kinds.request.number',
+      'kinds.request.message',
+      'kinds.request.send',
+      'kinds.request.pending',
+      'kinds.request.approved',
+      'kinds.request.rejected',
+      'kinds.request.note',
+      'kinds.request.dismiss',
+      'kinds.request.invalidMax',
+      'kinds.request.loadError',
+      'kinds.errors.kind_preset_taken',
+      'kinds.errors.request_pending',
+      'kinds.errors.kind_limit',
+      'ui.chips.search',
+      'ui.chips.max',
+      'ui.chips.noMatch',
+      'ui.chips.all',
+      'ui.chips.clear',
+      'ui.chips.more',
+      'admin.settings.kinds',
+      'admin.settings.kindsPerTrip',
+      'admin.kindLimit.title',
+      'admin.kindLimit.effective',
+      'admin.kindLimit.default',
+      'admin.kindLimit.override',
+      'admin.kindLimit.field',
+      'admin.kindLimit.set',
+      'admin.kindLimit.clear',
+      'admin.requests.type',
+      'admin.requests.filterType',
+      'admin.requests.types.storage',
+      'admin.requests.types.kinds',
+      'admin.requests.kindSummary',
+      'admin.requests.maxKinds',
+      'admin.activity.actions.kind.limit_request',
+    ]
+    expect(kindSymbols).toHaveLength(64)
+    for (const lng of ['en', 'de'] as const) {
+      const missing = keys.filter((key) => !i18n.exists(key, { lng }))
+      expect({ lng, missing }).toEqual({ lng, missing: [] })
+    }
+    expect(i18n.t('kinds.symbols.cat', { lng: 'de' })).toBe('Katze')
+    expect(i18n.t('kinds.count', { count: 5, limit: 12, lng: 'en' })).toBe(
+      '5 of 12 kinds',
+    )
+    expect(
+      i18n.t('kinds.errors.kind_limit', { limit: 12, lng: 'de' }),
+    ).toContain('12')
   })
 
   it('keeps the suspended-account sentence in both languages', () => {

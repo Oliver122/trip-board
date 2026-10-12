@@ -6,7 +6,7 @@ import {
   type KindMark,
 } from '../components/category'
 import { hoverClass } from '../components/ui/hover'
-import { KindSymbolIcon } from '../kinds/symbols'
+import { SymbolMark, useSymbolTexture } from '../kinds/textures'
 import { cn } from '../lib/utils'
 
 export function Pin({
@@ -37,6 +37,9 @@ export function Pin({
 }) {
   const marks = category === 'kind' ? kinds.slice(0, 2) : []
   const [primary, second] = marks
+  // Hooks run for every pin; planned and home pins have no primary symbol.
+  const textured =
+    useSymbolTexture(primary?.symbol ?? 'dot') !== null && !!primary
   return (
     <button
       type="button"
@@ -78,9 +81,17 @@ export function Pin({
           />
         </span>
       ) : null}
-      <span className="relative inline-flex items-center justify-center">
-        <PinIcon category={category} primary={primary} filled={filled} />
-      </span>
+      {textured && primary ? (
+        <SymbolMark
+          symbol={primary.symbol}
+          ringColor={primary.color}
+          className={cn('absolute', second ? 'inset-1' : 'inset-0')}
+        />
+      ) : (
+        <span className="relative inline-flex items-center justify-center">
+          <PinIcon category={category} primary={primary} filled={filled} />
+        </span>
+      )}
       {unread ? (
         <span
           aria-hidden="true"
@@ -116,5 +127,5 @@ function PinIcon({
       />
     )
   }
-  return primary ? <KindSymbolIcon symbol={primary.symbol} /> : null
+  return primary ? <SymbolMark symbol={primary.symbol} /> : null
 }

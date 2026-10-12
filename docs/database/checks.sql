@@ -259,7 +259,7 @@ SELECT pg_temp.expect_error($$
   ('10000000-0000-0000-0000-000000000001', 'maybe', '#0F766E', 'dot', 3)$$, 'a preset kind exists once per trip');
 SELECT pg_temp.expect_error($$
   INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
-  ('10000000-0000-0000-0000-000000000001', 'Pizza', '#0F766E', 'pizza', 3)$$, 'unknown kind symbol rejected');
+  ('10000000-0000-0000-0000-000000000001', 'Pizza', '#0F766E', 'pizzaslice', 3)$$, 'unknown kind symbol rejected');
 SELECT pg_temp.expect_error($$
   INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order) VALUES
   ('10000000-0000-0000-0000-000000000001', 'Pizza', 'red', 'dot', 3)$$, 'kind color must be upper-case hex');
@@ -428,6 +428,51 @@ SELECT pg_temp.expect(
   NOT EXISTS (SELECT 1 FROM spot_comment_reads WHERE user_id = '00000000-0000-0000-0000-000000000004'),
   'deleting a user deletes their read rows');
 
+-- Kind catalog and limits (step 29) ---------------------------------------
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+  VALUES ('10000000-0000-0000-0000-000000000001', 'must_go', '#E5484D', 'exclamation', 5)$$,
+  'two kinds with the same preset in one trip rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+  VALUES ('10000000-0000-0000-0000-000000000001', 'party', '#E5484D', 'dot', 5)$$,
+  'unknown preset rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order)
+  VALUES ('10000000-0000-0000-0000-000000000001', 'Odd', '#E5484D', 'unicorn', 5)$$,
+  'unknown symbol rejected');
+INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+VALUES ('10000000-0000-0000-0000-000000000001', 'nightlife', '#A21CAF', 'bookmark', 5);
+SELECT pg_temp.expect(true, 'new preset and the last of the 64 symbols accepted');
+
+SELECT pg_temp.expect_error($$
+  UPDATE trips SET max_kinds = 0 WHERE id = '10000000-0000-0000-0000-000000000001'$$,
+  'trips.max_kinds = 0 rejected');
+SELECT pg_temp.expect_error($$
+  UPDATE trips SET max_kinds = 65 WHERE id = '10000000-0000-0000-0000-000000000001'$$,
+  'trips.max_kinds = 65 rejected');
+SELECT pg_temp.expect_error($$
+  UPDATE app_settings SET default_max_kinds = 0$$, 'default_max_kinds = 0 rejected');
+SELECT pg_temp.expect_error($$
+  UPDATE app_settings SET default_max_kinds = 65$$, 'default_max_kinds = 65 rejected');
+
+INSERT INTO kind_limit_requests (trip_id, requested_by, requested_max)
+VALUES ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 20);
+SELECT pg_temp.expect_error($$
+  INSERT INTO kind_limit_requests (trip_id, requested_max)
+  VALUES ('10000000-0000-0000-0000-000000000001', 21)$$,
+  'two pending kind limit requests for one trip rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO kind_limit_requests (trip_id, requested_max, status)
+  VALUES ('10000000-0000-0000-0000-000000000001', 21, 'approved')$$,
+  'decided kind limit request without decided_at rejected');
+SELECT pg_temp.expect_error($$
+  UPDATE kind_limit_requests SET requested_max = 65$$, 'requested_max = 65 rejected');
+UPDATE kind_limit_requests SET status = 'rejected', decided_at = now();
+INSERT INTO kind_limit_requests (trip_id, requested_max)
+VALUES ('10000000-0000-0000-0000-000000000001', 22);
+SELECT pg_temp.expect(true, 'a new request is allowed once the old one is decided');
+
 -- Cascades ----------------------------------------------------------------
 DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(
@@ -439,7 +484,8 @@ DELETE FROM trips WHERE id = '10000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(
   NOT EXISTS (SELECT 1 FROM spots WHERE trip_id = '10000000-0000-0000-0000-000000000001')
   AND NOT EXISTS (SELECT 1 FROM trip_members WHERE trip_id = '10000000-0000-0000-0000-000000000001')
-  AND (SELECT count(*) = 2 FROM blob_deletions),
+  AND (SELECT count(*) = 2 FROM blob_deletions)
+  AND NOT EXISTS (SELECT 1 FROM kind_limit_requests WHERE trip_id = '10000000-0000-0000-0000-000000000001'),
   'deleting trip cascades and queues all blobs');
 SELECT pg_temp.expect(
   (SELECT trip_id IS NULL AND metadata->>'trip' = 'Japan 2026' FROM activity_events WHERE action = 'spot.create'),

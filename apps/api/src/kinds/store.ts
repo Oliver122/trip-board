@@ -1,9 +1,14 @@
 import {
+  isKindPreset,
   isKindSymbol,
+  kindLimitRequestSchema,
   kindLimits,
+  presetKind,
   normalizeKindColor,
   spotKindSchema,
-  type CreateKindBody,
+  type KindLimitRequest,
+  type KindLimitRequestCreate,
+  type KindList,
   type KindPreset,
   type PatchKindBody,
   type SpotCategoryInput,
@@ -26,6 +31,14 @@ type KindRow = {
   spot_count: number
 }
 
+/** The body the schema lets through; the schema guarantees one complete shape. */
+export type ParsedCreateKind = {
+  name?: string
+  color?: string
+  symbol?: string
+  preset?: string
+}
+
 export type KindFailure =
   | { ok: false; status: 403 | 404 }
   | {
@@ -33,11 +46,18 @@ export type KindFailure =
       status: 400 | 409
       error: string
       fields?: Record<string, string>
+      extra?: Record<string, unknown>
     }
 
 const presetNames: Record<KindPreset, string> = {
   must_go: 'Must go',
   maybe: 'Maybe',
+  food: 'Food',
+  sights: 'Sights',
+  shopping: 'Shopping',
+  coffee: 'Coffee',
+  nature: 'Nature',
+  nightlife: 'Nightlife',
 }
 
 const kindSelect = `
@@ -96,10 +116,38 @@ export async function listKinds(
   db: Queryable,
   tripId: string,
   userId: string,
-): Promise<{ ok: true; kinds: SpotKind[] } | { ok: false; status: 403 | 404 }> {
+): Promise<
+  | ({ ok: true } & Pick<KindList, 'kinds' | 'limit' | 'count'>)
+  | {
+      ok: false
+      status: 403 | 404
+    }
+> {
   const access = await requireTripRole(db, tripId, userId, 'visitor')
   if (!access.ok) return access
-  return { ok: true, kinds: await loadKinds(db, tripId) }
+  const kinds = await loadKinds(db, tripId)
+  return {
+    ok: true,
+    kinds,
+    limit: await effectiveKindLimit(db, tripId),
+    count: kinds.length,
+  }
+}
+
+/** `COALESCE(trips.max_kinds, app_settings.default_max_kinds)`. */
+export async function effectiveKindLimit(
+  db: Queryable,
+  tripId: string,
+): Promise<number> {
+  const result = await db.query<{ limit: number }>(
+    `
+    SELECT COALESCE(t.max_kinds, s.default_max_kinds) AS "limit"
+    FROM trips t CROSS JOIN app_settings s
+    WHERE t.id = $1
+    `,
+    [tripId],
+  )
+  return Number(result.rows[0]?.limit ?? kindLimits.defaultPerTrip)
 }
 
 /** Serializes kind writes of one trip. */
@@ -126,7 +174,7 @@ export async function createKind(
   pool: Pool,
   userId: string,
   tripId: string,
-  input: CreateKindBody,
+  input: ParsedCreateKind,
 ): Promise<{ ok: true; kind: SpotKind } | KindFailure> {
   const symbol = input.symbol ?? 'dot'
   if (!isKindSymbol(symbol)) {
@@ -145,19 +193,50 @@ export async function createKind(
         [tripId],
       )
       const { total = 0, next = 0 } = stats.rows[0] ?? {}
-      if (total >= kindLimits.perTrip) {
-        return { ok: false as const, status: 409 as const, error: 'kind_limit' }
+      const limit = await effectiveKindLimit(tx, tripId)
+      if (total >= limit) {
+        return {
+          ok: false as const,
+          status: 409 as const,
+          error: 'kind_limit',
+          extra: { limit },
+        }
       }
-      const name = input.name.trim()
-      const inserted = await tx.query<{ id: string }>(
-        `
-        INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id
-        `,
-        [tripId, name, normalizeKindColor(input.color), symbol, next],
-      )
-      const id = inserted.rows[0]?.id
+      let id: string | undefined
+      let name: string
+      if (input.preset !== undefined) {
+        if (!isKindPreset(input.preset)) throw new Error('unknown preset')
+        const fixed = presetKind(input.preset)
+        name = presetNames[input.preset]
+        const inserted = await tx.query<{ id: string }>(
+          `
+          INSERT INTO spot_kinds (trip_id, preset, color, symbol, sort_order)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (trip_id, preset) WHERE preset IS NOT NULL DO NOTHING
+          RETURNING id
+          `,
+          [tripId, fixed.preset, fixed.color, fixed.symbol, next],
+        )
+        id = inserted.rows[0]?.id
+        if (!id) {
+          return {
+            ok: false as const,
+            status: 409 as const,
+            error: 'kind_preset_taken',
+          }
+        }
+      } else {
+        name = (input.name ?? '').trim()
+        const inserted = await tx.query<{ id: string }>(
+          `
+          INSERT INTO spot_kinds (trip_id, name, color, symbol, sort_order)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id
+          `,
+          [tripId, name, normalizeKindColor(input.color ?? ''), symbol, next],
+        )
+        id = inserted.rows[0]?.id
+      }
       if (!id) throw new Error('kind insert failed')
       await activity.record(tx, {
         actor: userId,
@@ -418,4 +497,103 @@ export async function replaceSpotKinds(
     `,
     [tripId, spotId, kindIds],
   )
+}
+
+const latestSelect = `
+SELECT id, trip_id, requested_by, requested_max, message, status,
+       decision_note, decided_at, created_at
+FROM kind_limit_requests
+`
+
+type LimitRequestRow = {
+  id: string
+  trip_id: string
+  requested_by: string | null
+  requested_max: number
+  message: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  decision_note: string | null
+  decided_at: Date | null
+  created_at: Date
+}
+
+function rowToLimitRequest(row: LimitRequestRow): KindLimitRequest {
+  return kindLimitRequestSchema.parse({
+    id: row.id,
+    tripId: row.trip_id,
+    requestedBy: row.requested_by,
+    requestedMax: row.requested_max,
+    message: row.message,
+    status: row.status,
+    decisionNote: row.decision_note,
+    decidedAt: row.decided_at ? row.decided_at.toISOString() : null,
+    createdAt: row.created_at.toISOString(),
+  })
+}
+
+/** R-29-09: a board admin or owner asks for a higher kind limit. */
+export async function createKindLimitRequest(
+  pool: Pool,
+  userId: string,
+  tripId: string,
+  input: KindLimitRequestCreate,
+): Promise<{ ok: true; request: KindLimitRequest } | KindFailure> {
+  try {
+    return await withTransaction(pool, async (tx) => {
+      const access = await requireTripRole(tx, tripId, userId, 'admin')
+      if (!access.ok) return access
+      await lockTrip(tx, tripId)
+      const limit = await effectiveKindLimit(tx, tripId)
+      if (input.requestedMax <= limit) {
+        return {
+          ok: false as const,
+          status: 400 as const,
+          error: 'invalid_request',
+          fields: { requestedMax: 'invalid' },
+        }
+      }
+      const inserted = await tx.query<LimitRequestRow>(
+        `
+        INSERT INTO kind_limit_requests (trip_id, requested_by, requested_max, message)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, trip_id, requested_by, requested_max, message, status,
+                  decision_note, decided_at, created_at
+        `,
+        [tripId, userId, input.requestedMax, input.message || null],
+      )
+      const row = inserted.rows[0]
+      if (!row) throw new Error('kind limit request insert failed')
+      await activity.record(tx, {
+        actor: userId,
+        trip: tripId,
+        action: 'kind.limit_request',
+        entityId: row.id,
+        metadata: { count: input.requestedMax },
+      })
+      return { ok: true as const, request: rowToLimitRequest(row) }
+    })
+  } catch (error) {
+    if (nameTaken(error)) {
+      return { ok: false, status: 409, error: 'request_pending' }
+    }
+    throw error
+  }
+}
+
+export async function latestKindLimitRequest(
+  db: Queryable,
+  tripId: string,
+  userId: string,
+): Promise<
+  | { ok: true; request: KindLimitRequest | null }
+  | { ok: false; status: 403 | 404 }
+> {
+  const access = await requireTripRole(db, tripId, userId, 'admin')
+  if (!access.ok) return access
+  const result = await db.query<LimitRequestRow>(
+    `${latestSelect} WHERE trip_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [tripId],
+  )
+  const row = result.rows[0]
+  return { ok: true, request: row ? rowToLimitRequest(row) : null }
 }

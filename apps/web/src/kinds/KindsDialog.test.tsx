@@ -8,7 +8,7 @@ import {
   within,
 } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
-import type { SpotKind } from '@tripboard/shared'
+import type { KindLimitRequest, SpotKind } from '@tripboard/shared'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/http'
@@ -52,17 +52,33 @@ const maybe = kind({
 })
 const food = kind({ id: 'k3', name: 'Food', symbol: 'food', sortOrder: 2 })
 
-function open(kinds = [mustGo, maybe, food]) {
-  setKinds(tripId, kinds)
+function list(kinds: SpotKind[], limit = 12) {
+  return { kinds, limit, count: kinds.length }
+}
+
+function open(
+  kinds = [mustGo, maybe, food],
+  limit = 12,
+  latest: KindLimitRequest | null = null,
+) {
+  setKinds(tripId, kinds, limit)
+  vi.mocked(client.listKinds).mockResolvedValue(list(kinds, limit))
+  vi.mocked(client.latestKindRequest).mockResolvedValue(latest)
   const onClose = vi.fn()
   render(<KindsDialog tripId={tripId} onClose={onClose} />)
   return onClose
 }
 
+function openCustomForm() {
+  fireEvent.click(screen.getByTestId('kind-add-menu'))
+  fireEvent.click(screen.getByTestId('kind-add-custom'))
+  return screen.getByRole('form', { name: i18n.t('kinds.addTitle') })
+}
+
 describe('spot kinds dialog', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en')
-    vi.mocked(client.listKinds).mockResolvedValue([mustGo, maybe, food])
+    vi.mocked(client.listKinds).mockResolvedValue(list([mustGo, maybe, food]))
   })
   afterEach(() => {
     cleanup()
@@ -126,7 +142,7 @@ describe('spot kinds dialog', () => {
     expect(client.updateKind).toHaveBeenCalledTimes(1)
   })
 
-  it('offers 10 color swatches and 12 symbols with translated names', () => {
+  it('offers 10 color swatches and 64 symbols with translated names', () => {
     open()
     fireEvent.click(
       screen.getByRole('button', { name: 'Color and symbol of Food' }),
@@ -134,7 +150,7 @@ describe('spot kinds dialog', () => {
     const row = screen.getAllByTestId('kind-row')[2]!
     expect(within(row).getAllByTestId('kind-color-swatch')).toHaveLength(10)
     const symbols = within(row).getAllByTestId('kind-symbol')
-    expect(symbols).toHaveLength(12)
+    expect(symbols).toHaveLength(64)
     expect(
       symbols.map((button) => button.getAttribute('aria-label')),
     ).toContain('Exclamation mark')
@@ -153,7 +169,7 @@ describe('spot kinds dialog', () => {
         color: '#0F766E',
       }),
     )
-    fireEvent.click(screen.getAllByRole('button', { name: 'Camera' })[0]!)
+    fireEvent.click(screen.getAllByRole('option', { name: 'Camera' })[0]!)
     await waitFor(() =>
       expect(client.updateKind).toHaveBeenCalledWith(tripId, 'k3', {
         symbol: 'camera',
@@ -182,11 +198,11 @@ describe('spot kinds dialog', () => {
   it('adds a kind with name, color and symbol', async () => {
     vi.mocked(client.createKind).mockResolvedValue(food)
     open()
-    const form = screen.getByRole('form', { name: 'New kind' })
+    const form = openCustomForm()
     fireEvent.change(within(form).getByLabelText('Name'), {
       target: { value: ' Temples ' },
     })
-    fireEvent.click(within(form).getByRole('button', { name: 'Temple' }))
+    fireEvent.click(within(form).getByRole('option', { name: 'Temple' }))
     fireEvent.click(within(form).getByRole('button', { name: 'Add kind' }))
     await waitFor(() =>
       expect(client.createKind).toHaveBeenCalledWith(tripId, {
@@ -202,7 +218,7 @@ describe('spot kinds dialog', () => {
       new ApiError(409, { error: 'kind_name_taken' }),
     )
     open()
-    const form = screen.getByRole('form', { name: 'New kind' })
+    const form = openCustomForm()
     fireEvent.change(within(form).getByLabelText('Name'), {
       target: { value: 'Food' },
     })
@@ -247,6 +263,121 @@ describe('spot kinds dialog', () => {
     expect(screen.queryByRole('button', { name: /^Delete/ })).toBeNull()
   })
 
+  it('T-29-09 lists the presets the trip lacks, then Custom kind', () => {
+    open([mustGo, maybe])
+    fireEvent.click(screen.getByRole('button', { name: 'Add kind' }))
+    const items = screen
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent)
+    expect(items).toEqual([
+      'Food',
+      'Sights',
+      'Shopping',
+      'Coffee',
+      'Nature',
+      'Nightlife',
+      'Custom kind…',
+    ])
+  })
+
+  it('T-29-09 creates a preset kind at once', async () => {
+    vi.mocked(client.createPresetKind).mockResolvedValue(food)
+    open([mustGo, maybe])
+    fireEvent.click(screen.getByRole('button', { name: 'Add kind' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Coffee' }))
+    await waitFor(() =>
+      expect(client.createPresetKind).toHaveBeenCalledWith(tripId, 'coffee'),
+    )
+  })
+
+  it('T-29-09 shows a pin preview that follows color and symbol', () => {
+    open()
+    const form = openCustomForm()
+    const pin = () => within(form).getByTestId('kind-preview-pin')
+    expect(pin().querySelector('[data-kind-colors]')).toHaveAttribute(
+      'data-kind-colors',
+      '#D9480F',
+    )
+    fireEvent.click(within(form).getByRole('button', { name: '#0F766E' }))
+    fireEvent.click(within(form).getByRole('option', { name: 'Camera' }))
+    const mark = pin().querySelector('[data-kind-colors]')!
+    expect(mark).toHaveAttribute('data-kind-colors', '#0F766E')
+    expect(mark.querySelector('[data-icon="camera"]')).not.toBeNull()
+  })
+
+  it('T-29-10 filters symbols umlaut-safe in German and shows the empty state', async () => {
+    await i18n.changeLanguage('de')
+    open()
+    const form = openCustomForm()
+    const search = within(form).getByRole('searchbox')
+    fireEvent.change(search, { target: { value: 'KAT' } })
+    expect(
+      within(form).getByRole('option', { name: 'Katze' }),
+    ).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'zzz' } })
+    expect(within(form).queryAllByRole('option')).toHaveLength(0)
+    expect(within(form).getByText('Kein Symbol passt')).toBeInTheDocument()
+  })
+
+  it('T-29-10 moves with arrow keys and picks with Enter', () => {
+    open()
+    const form = openCustomForm()
+    const options = within(form).getAllByRole('option')
+    options[0]!.focus()
+    fireEvent.keyDown(options[0]!, { key: 'ArrowRight' })
+    expect(options[1]).toHaveFocus()
+    fireEvent.click(options[1]!)
+    expect(options[1]).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('T-29-11 disables Add kind at the limit and sends a request', async () => {
+    vi.mocked(client.createKindRequest).mockResolvedValue({
+      id: 'r1',
+      tripId,
+      requestedBy: null,
+      requestedMax: 3,
+      message: null,
+      status: 'pending',
+      decisionNote: null,
+      decidedAt: null,
+      createdAt: '2026-10-11T10:00:00.000Z',
+    })
+    open([mustGo, maybe], 2)
+    expect(screen.getByRole('button', { name: 'Add kind' })).toBeDisabled()
+    expect(screen.getByText('Kind limit reached')).toBeInTheDocument()
+    expect(screen.getByTestId('kind-total')).toHaveTextContent('2 of 2 kinds')
+    fireEvent.click(await screen.findByRole('button', { name: 'Request more' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send request' }))
+    await waitFor(() =>
+      expect(client.createKindRequest).toHaveBeenCalledWith(tripId, {
+        requestedMax: 3,
+      }),
+    )
+    expect(
+      await screen.findByText('Request for 3 kinds pending'),
+    ).toBeInTheDocument()
+  })
+
+  it('T-29-11 shows a decided request once until dismissed', async () => {
+    open([mustGo, maybe, food], 12, {
+      id: 'r2',
+      tripId,
+      requestedBy: null,
+      requestedMax: 14,
+      message: null,
+      status: 'rejected',
+      decisionNote: 'Too many',
+      decidedAt: '2026-10-11T10:00:00.000Z',
+      createdAt: '2026-10-11T09:00:00.000Z',
+    })
+    expect(
+      await screen.findByText('Your request for 14 kinds was rejected.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Note: Too many')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByTestId('kind-request-result')).toBeNull()
+  })
+
   it('shows an error state with retry when the kinds cannot load', () => {
     cleanup()
     vi.mocked(client.listKinds).mockRejectedValue(new ApiError(500))
@@ -258,7 +389,7 @@ describe('spot kinds dialog', () => {
 describe('board menu', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en')
-    vi.mocked(client.listKinds).mockResolvedValue([mustGo, maybe])
+    vi.mocked(client.listKinds).mockResolvedValue(list([mustGo, maybe]))
     setKinds(tripId, [mustGo, maybe])
   })
   afterEach(() => {

@@ -96,7 +96,11 @@ test.describe('Aiko quota', () => {
 
       await login(page, sven)
       await page.goto('/admin')
-      await page.getByRole('link', { name: 'Requests 1' }).click()
+      // The sidebar count also includes pending kind limit requests (R-29-10).
+      await page.getByRole('link', { name: /^Requests \d+$/ }).click()
+      await page
+        .getByRole('combobox', { name: 'Filter by type' })
+        .selectOption('storage')
       await page.getByRole('button', { name: 'Approve' }).click()
       await expect(
         page.getByText('Approved', { exact: true }).first(),

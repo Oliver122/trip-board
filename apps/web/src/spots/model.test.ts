@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { emptyDraft, switchDecision, type Draft } from './model'
+import {
+  categoryCounts,
+  collapseLabels,
+  emptyDraft,
+  switchDecision,
+  type Draft,
+} from './model'
 
 const spotDraft: Draft = {
   ...emptyDraft,
@@ -57,5 +63,33 @@ describe('switchDecision', () => {
         saving: true,
       }),
     ).toBe('ignore')
+  })
+})
+
+describe('category filter helpers', () => {
+  it('T-29-13 counts spots per kind, planned and home', () => {
+    const spot = (
+      kinds: string[],
+      baseCategory: 'kind' | 'home',
+      displayCategory: 'kind' | 'planned' | 'home',
+    ) => ({
+      kinds: kinds.map((id) => ({ id })),
+      baseCategory,
+      displayCategory,
+    })
+    const counts = categoryCounts([
+      spot(['a', 'b'], 'kind', 'kind'),
+      spot(['a'], 'kind', 'planned'),
+      spot([], 'home', 'home'),
+    ] as never)
+    expect(counts).toEqual({ a: 2, b: 1, planned: 1, home: 1 })
+  })
+
+  it('T-29-13 collapses past three categories to "first +rest"', () => {
+    expect(collapseLabels(['A', 'B', 'C'], 3)).toBeNull()
+    expect(collapseLabels(['A', 'B', 'C', 'D'], 3)).toEqual({
+      first: 'A',
+      more: 3,
+    })
   })
 })

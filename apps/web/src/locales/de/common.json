@@ -36,7 +36,15 @@
     "close": "Schließen",
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
-    "menu": "Menü"
+    "menu": "Menü",
+    "chips": {
+      "search": "Optionen suchen",
+      "max": "Höchstens {{max}}",
+      "noMatch": "Keine Treffer",
+      "all": "Alle",
+      "clear": "Leeren",
+      "more": "{{first}} +{{count}}"
+    }
   },
   "confirm": {
     "discardTitle": "Änderungen verwerfen?",
@@ -474,7 +482,18 @@
         "pending": "Offen",
         "approved": "Genehmigt",
         "rejected": "Abgelehnt"
-      }
+      },
+      "type": "Typ",
+      "filterType": "Nach Typ filtern",
+      "allTypes": "Alle Typen",
+      "types": {
+        "storage": "Speicher",
+        "kinds": "Spot-Arten"
+      },
+      "kindSummary": "{{trip}}: {{requested}} Arten angefragt (Grenze {{current}}, {{count}} genutzt)",
+      "maxKinds": "Arten pro Reise",
+      "by": "Angefragt von {{name}}",
+      "allStatuses": "Alle Status"
     },
     "settings": {
       "quota": "Standardkontingent",
@@ -486,7 +505,9 @@
       "switches": "Schalter",
       "uploads": "Uploads aktiv",
       "signups": "Neue Anmeldungen aktiv",
-      "saved": "Gespeichert. Die neuen Werte gelten sofort."
+      "saved": "Gespeichert. Die neuen Werte gelten sofort.",
+      "kinds": "Spot-Arten",
+      "kindsPerTrip": "Arten pro Reise"
     },
     "audit": {
       "admin": "Admin-ID",
@@ -615,7 +636,8 @@
           "update": "{{actor}} hat die Art {{name}} in {{trip}} geändert",
           "reorder": "{{actor}} hat die Arten von {{trip}} neu sortiert",
           "delete": "{{actor}} hat die Art {{name}} aus {{trip}} gelöscht",
-          "deleteMoved": "{{actor}} hat die Art {{name}} aus {{trip}} gelöscht und {{moved}} Spots nach {{movedTo}} verschoben"
+          "deleteMoved": "{{actor}} hat die Art {{name}} aus {{trip}} gelöscht und {{moved}} Spots nach {{movedTo}} verschoben",
+          "limit_request": "{{actor}} hat {{count}} Arten für {{trip}} angefragt"
         }
       }
     },
@@ -645,6 +667,17 @@
     "spark": {
       "title": "Aktivität (30 Tage)",
       "view": "Alles in Aktivität ansehen"
+    },
+    "kindLimit": {
+      "title": "Spot-Arten",
+      "effective": "{{count}} von {{limit}} Arten",
+      "default": "Plattform-Standard",
+      "override": "Abweichung",
+      "field": "Arten für diese Reise",
+      "reason": "Grund (optional)",
+      "set": "Abweichung setzen",
+      "clear": "Standard verwenden",
+      "saved": "Grenze für Arten gespeichert."
     }
   },
   "live": {
@@ -744,7 +777,7 @@
     "movePick": "Art wählen",
     "errors": {
       "kind_name_taken": "Eine Art mit diesem Namen gibt es schon.",
-      "kind_limit": "Eine Reise kann höchstens 12 Arten haben.",
+      "kind_limit": "Diese Reise kann höchstens {{limit}} Arten haben.",
       "kind_last": "Die letzte Art kann nicht gelöscht werden.",
       "kind_symbol_unknown": "Wähle eines der angezeigten Symbole.",
       "kind_color_contrast": "Diese Farbe ist für ein weißes Symbol zu hell. Wähle eine dunklere.",
@@ -754,7 +787,9 @@
       "kind_move_same": "Wähle eine andere Art für die Spots.",
       "invalid_color": "Gib eine Farbe als #RRGGBB ein.",
       "invalid_name": "Gib einen Namen mit 1 bis 30 Zeichen ein.",
-      "generic": "Die Änderung konnte nicht gespeichert werden. Versuch es noch einmal."
+      "generic": "Die Änderung konnte nicht gespeichert werden. Versuch es noch einmal.",
+      "kind_preset_taken": "Diese Reise hat diese Art schon.",
+      "request_pending": "Es ist schon eine Anfrage offen."
     },
     "symbols": {
       "exclamation": "Ausrufezeichen",
@@ -768,7 +803,90 @@
       "shopping": "Einkaufen",
       "nature": "Natur",
       "temple": "Tempel",
-      "cat": "Katze"
+      "cat": "Katze",
+      "beer": "Bier",
+      "wine": "Wein",
+      "cocktail": "Cocktail",
+      "pizza": "Pizza",
+      "soup": "Suppe",
+      "cake": "Kuchen",
+      "ice_cream": "Eis",
+      "fish": "Fisch",
+      "hotel": "Hotel",
+      "bed": "Bett",
+      "tent": "Zelt",
+      "mountain": "Berg",
+      "beach": "Strand",
+      "water": "Wasser",
+      "flower": "Blume",
+      "leaf": "Blatt",
+      "sun": "Sonne",
+      "snow": "Schnee",
+      "sunset": "Sonnenuntergang",
+      "castle": "Burg",
+      "church": "Kirche",
+      "building": "Gebäude",
+      "train": "Zug",
+      "bus": "Bus",
+      "car": "Auto",
+      "plane": "Flugzeug",
+      "ship": "Schiff",
+      "bike": "Fahrrad",
+      "walk": "Spaziergang",
+      "parking": "Parkplatz",
+      "fuel": "Tankstelle",
+      "music": "Musik",
+      "theater": "Theater",
+      "film": "Kino",
+      "game": "Spiel",
+      "ticket": "Ticket",
+      "gift": "Geschenk",
+      "book": "Buch",
+      "shirt": "Kleidung",
+      "store": "Laden",
+      "market": "Markt",
+      "money": "Geld",
+      "hospital": "Krankenhaus",
+      "info": "Information",
+      "wifi": "WLAN",
+      "bath": "Bad",
+      "sparkles": "Glitzer",
+      "dog": "Hund",
+      "bird": "Vogel",
+      "flag": "Flagge",
+      "pin": "Ortsmarke",
+      "bookmark": "Lesezeichen"
+    },
+    "presets": {
+      "food": "Essen",
+      "sights": "Sehenswürdigkeiten",
+      "shopping": "Einkaufen",
+      "coffee": "Kaffee",
+      "nature": "Natur",
+      "nightlife": "Nachtleben"
+    },
+    "addMenu": "Art hinzufügen",
+    "custom": "Eigene Art…",
+    "count": "{{count}} von {{limit}} Arten",
+    "limitReached": "Grenze für Arten erreicht",
+    "requestMore": "Mehr anfragen",
+    "symbolSearch": "Symbole suchen",
+    "symbolNone": "Kein Symbol passt",
+    "symbolGrid": "Symbole",
+    "preview": "Vorschau",
+    "previewName": "Neue Art",
+    "request": {
+      "title": "Mehr Arten anfragen",
+      "number": "Anzahl Arten",
+      "message": "Nachricht (optional)",
+      "send": "Anfrage senden",
+      "pending": "Anfrage für {{count}} Arten offen",
+      "approved": "Deine Anfrage für {{count}} Arten wurde genehmigt.",
+      "rejected": "Deine Anfrage für {{count}} Arten wurde abgelehnt.",
+      "note": "Notiz: {{note}}",
+      "dismiss": "Schließen",
+      "invalidMax": "Gib eine Zahl über {{limit}} und höchstens 64 ein.",
+      "loadError": "Der Status der Anfrage konnte nicht geladen werden."
     }
   }
 }

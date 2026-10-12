@@ -22,7 +22,7 @@ test('T-07-01 planner adds a spot from address search', async ({ page }) => {
   await page
     .getByRole('option', { name: 'Fushimi Inari Taisha, Kyoto' })
     .click()
-  await page.getByRole('checkbox', { name: 'Must go' }).check()
+  await page.getByRole('button', { name: 'Must go', exact: true }).click()
   await page.getByLabel('Info').fill('Go early')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)

@@ -124,7 +124,7 @@ export const adminUserDetailSchema = z.object({
     z.object({
       id: z.string().uuid(),
       name: z.string(),
-      role: z.enum(['owner', 'planner', 'visitor']),
+      role: z.enum(['owner', 'admin', 'planner', 'visitor']),
     }),
   ),
   actions: z.array(adminActionSchema),
@@ -163,11 +163,12 @@ export const adminTripDetailSchema = z.object({
       id: z.string().uuid(),
       username: z.string(),
       displayName: z.string().nullable(),
-      role: z.enum(['owner', 'planner', 'visitor']),
+      role: z.enum(['owner', 'admin', 'planner', 'visitor']),
     }),
   ),
   actions: z.array(adminActionSchema),
   sparkline: z.array(z.number().int().nonnegative()).length(30),
+  kindLimit: z.lazy(() => adminKindLimitSchema),
 })
 
 export type AdminTripDetail = z.infer<typeof adminTripDetailSchema>
@@ -180,6 +181,8 @@ export const appSettingsSchema = z.object({
   capacityWarnPct: z.number().int().min(1).max(100),
   uploadsEnabled: z.boolean(),
   signupsEnabled: z.boolean(),
+  /** R-29-07: kinds per trip unless the trip has an override. */
+  defaultMaxKinds: z.number().int().min(1).max(64),
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -440,3 +443,68 @@ export function daySpan(from: string, to: string): number | null {
   if (new Date(end).toISOString().slice(0, 10) !== to) return null
   return Math.round((end - start) / 86_400_000)
 }
+
+/** R-29-07: a trip's kind limit as the admin trip detail shows it. */
+export const adminKindLimitSchema = z.object({
+  /** `COALESCE(override, default)`. */
+  effective: z.number().int().min(1).max(64),
+  /** `trips.max_kinds`; null means the platform default applies. */
+  override: z.number().int().min(1).max(64).nullable(),
+  default: z.number().int().min(1).max(64),
+  /** The trip's current number of kinds (may exceed `effective`). */
+  count: z.number().int().nonnegative(),
+})
+export type AdminKindLimit = z.infer<typeof adminKindLimitSchema>
+
+/** `PATCH /admin/trips/:id/kind-limit`; null clears the override. */
+export const kindLimitPatchSchema = z
+  .object({
+    maxKinds: z.number().int().min(1).max(64).nullable(),
+    reason: reasonSchema.optional(),
+  })
+  .strict()
+export type KindLimitPatch = z.infer<typeof kindLimitPatchSchema>
+
+/** One row of `GET /admin/kind-limit-requests`. */
+export const adminKindLimitRequestSchema = z.object({
+  id: z.string().uuid(),
+  tripId: z.string().uuid(),
+  tripName: z.string(),
+  requestedBy: z.string().uuid().nullable(),
+  requestedByName: z.string().nullable(),
+  requestedMax: z.number().int().min(1).max(64),
+  /** Effective limit now (after approval: the approved value). */
+  currentLimit: z.number().int().min(1).max(64),
+  kindCount: z.number().int().nonnegative(),
+  message: z.string().nullable(),
+  status: z.enum(['pending', 'approved', 'rejected']),
+  decisionNote: z.string().nullable(),
+  decidedBy: z.string().uuid().nullable(),
+  decidedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+})
+export type AdminKindLimitRequest = z.infer<typeof adminKindLimitRequestSchema>
+
+export const adminKindLimitRequestListSchema = z.object({
+  requests: z.array(adminKindLimitRequestSchema),
+  pendingCount: z.number().int().nonnegative(),
+  nextCursor: z.string().nullable(),
+})
+export type AdminKindLimitRequestList = z.infer<
+  typeof adminKindLimitRequestListSchema
+>
+
+/** Approve sets `trips.max_kinds`; default = the requested value. */
+export const kindLimitApproveSchema = z
+  .object({
+    maxKinds: z.number().int().min(1).max(64).optional(),
+    note: reasonSchema.optional(),
+  })
+  .strict()
+export type KindLimitApprove = z.infer<typeof kindLimitApproveSchema>
+
+export const kindLimitRejectSchema = z
+  .object({
+    note: reasonSchema.optional(),
+  })
+  .strict()

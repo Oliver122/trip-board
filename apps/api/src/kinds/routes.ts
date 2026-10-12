@@ -1,6 +1,9 @@
 import {
   createKindSchema,
+  kindLimitRequestCreateSchema,
+  kindLimitRequestSchema,
   kindListSchema,
+  latestKindLimitRequestSchema,
   patchKindSchema,
   reorderKindsSchema,
 } from '@tripboard/shared'
@@ -14,7 +17,10 @@ import { idParams, parseParams } from '../http/params.js'
 import { deny, fieldErrors, parseBody } from '../http/validate.js'
 import {
   createKind,
+  createKindLimitRequest,
   deleteKind,
+  effectiveKindLimit,
+  latestKindLimitRequest,
   listKinds,
   reorderKinds,
   updateKind,
@@ -56,6 +62,7 @@ function kindFailure(reply: FastifyReply, result: KindFailure) {
   if ('error' in result) {
     return sendError(reply, result.status, result.error, {
       ...(result.fields ? { fields: result.fields } : {}),
+      ...(result.extra ?? {}),
     })
   }
   return deny(reply, result.status)
@@ -75,7 +82,11 @@ export function registerKindRoutes(
     if (!params) return
     const result = await listKinds(pool, params.id, user.id)
     if (!result.ok) return deny(reply, result.status)
-    return kindListSchema.parse({ kinds: result.kinds })
+    return kindListSchema.parse({
+      kinds: result.kinds,
+      limit: result.limit,
+      count: result.count,
+    })
   })
 
   app.post('/trips/:id/kinds', async (request, reply) => {
@@ -110,7 +121,12 @@ export function registerKindRoutes(
     if (!input) return
     const result = await reorderKinds(pool, user.id, params.id, input.ids)
     if (!result.ok) return kindFailure(reply, result)
-    return kindListSchema.parse({ kinds: result.kinds })
+    const limit = await effectiveKindLimit(pool, params.id)
+    return kindListSchema.parse({
+      kinds: result.kinds,
+      limit,
+      count: result.kinds.length,
+    })
   })
 
   app.patch('/trips/:id/kinds/:kindId', async (request, reply) => {
@@ -157,5 +173,35 @@ export function registerKindRoutes(
     )
     if (!result.ok) return kindFailure(reply, result)
     return reply.code(204).send()
+  })
+
+  app.post('/trips/:id/kind-limit-requests', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const input = parseBody(
+      kindLimitRequestCreateSchema,
+      request.body,
+      reply,
+      knownMessages,
+    )
+    if (!input) return
+    const result = await createKindLimitRequest(pool, user.id, params.id, input)
+    if (!result.ok) return kindFailure(reply, result)
+    return reply.code(201).send(kindLimitRequestSchema.parse(result.request))
+  })
+
+  app.get('/trips/:id/kind-limit-requests/latest', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const result = await latestKindLimitRequest(pool, params.id, user.id)
+    if (!result.ok) return deny(reply, result.status)
+    return latestKindLimitRequestSchema.parse({ request: result.request })
   })
 }

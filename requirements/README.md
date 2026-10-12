@@ -49,6 +49,10 @@ flowchart LR
     S26 --> S27[27 Stable cleanup e2e tests]
     S13 --> S28[28 Board admins, spot kinds, single-use invites]
     S26 --> S28
+    S16 --> S29[29 Kind catalog, limits, chip filters, textures]
+    S28 --> S29
+    S21 --> S30[30 Core specs, change steps, generated index]
+    S29 --> S30
 ```
 
 | # | Step | Result you can check |
@@ -80,6 +84,8 @@ flowchart LR
 | 26 | [Menu cleanup & core hardening](./26-menu-cleanup-core-hardening.md) | All dialogs, menus, confirms and selects share one component; one web error/request path and one API role/param/error helper; guards fail CI on duplicates |
 | 27 | [Stable cleanup e2e tests](./27-e2e-stability.md) | `e2e/cleanup.spec.ts` passes every test in 10 repeats and next to the full suite; root causes written down; prettier and report gaps closed |
 | 28 | [Board admins, custom spot kinds, single-use invites](./28-custom-spot-kinds.md) | Owner makes a member board admin; they add “Food” in orange with a food symbol; a spot that is Food and Must go shows a half-orange, half-red pin; an invite link lets in only one person |
+| 29 | [Kind catalog, kind limits, chip filters, texture map](./29-kind-catalog-filters-textures.md) | “Add kind” offers Coffee in one click and 64 searchable symbols; at the limit a board admin requests more and the platform admin approves; the filter uses color chips; `pnpm textures:template` writes the 8×8 PNG for the artist, and filled cells show as round textured pins |
+| 30 | [Core specs, change steps, generated index](./30-core-specs-and-changes.md) | Open `requirements/core/kinds.md` and read how spot kinds work today, which steps changed them and which tests prove it; `pnpm req:build` writes `INDEX.md`, and CI fails when it is stale |
 
 Steps on parallel branches of the graph (e.g. 08, 09, 13) can be built in any order. Step 16 can come before 15.
 

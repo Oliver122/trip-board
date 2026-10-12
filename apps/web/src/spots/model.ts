@@ -190,3 +190,26 @@ function formatWallClock(value: string, locale: AppLocale): string {
   )
   return `${formatDate(date, locale)} ${formatTime(date, locale)}`
 }
+
+/** Spots per filter token: each kind id, `planned` and `home`. */
+export function categoryCounts(
+  spots: readonly Pick<Spot, 'kinds' | 'baseCategory' | 'displayCategory'>[],
+): Record<string, number> {
+  const counts: Record<string, number> = { planned: 0, home: 0 }
+  for (const spot of spots) {
+    for (const kind of spot.kinds) counts[kind.id] = (counts[kind.id] ?? 0) + 1
+    if (spot.displayCategory === 'planned') counts.planned! += 1
+    if (spot.baseCategory === 'home') counts.home! += 1
+  }
+  return counts
+}
+
+/** The toolbar label of the selected categories: "Food", or "Food +3" past `limit`. */
+export function collapseLabels(
+  labels: readonly string[],
+  limit: number,
+): { first: string; more: number } | null {
+  const [first] = labels
+  if (first == null || labels.length <= limit) return null
+  return { first, more: labels.length - 1 }
+}

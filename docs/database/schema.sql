@@ -103,6 +103,7 @@ CREATE TABLE trips (
   primary_home_spot_id  uuid,       -- FK added after spots exists
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now(),
+  max_kinds             integer     CHECK (max_kinds BETWEEN 1 AND 64),  -- kind limit override; NULL = app_settings.default_max_kinds
   CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date),
   CHECK (bbox_min_lng <= bbox_max_lng AND bbox_min_lat <= bbox_max_lat)
 );
@@ -254,11 +255,18 @@ CREATE TABLE spot_kinds (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id     uuid        NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
   name        text        CHECK (char_length(btrim(name)) BETWEEN 1 AND 30),
-  preset      text        CHECK (preset IN ('must_go', 'maybe')),
+  preset      text        CHECK (preset IN (
+                'must_go', 'maybe', 'food', 'sights', 'shopping', 'coffee', 'nature', 'nightlife')),
   color       text        NOT NULL CHECK (color ~ '^#[0-9A-F]{6}$'),
   symbol      text        NOT NULL CHECK (symbol IN (
-                'exclamation', 'question', 'dot', 'star', 'heart', 'food',
-                'coffee', 'camera', 'shopping', 'nature', 'temple', 'cat')),
+                'exclamation', 'question', 'dot', 'star', 'heart', 'food', 'coffee', 'camera',
+                'shopping', 'nature', 'temple', 'cat', 'beer', 'wine', 'cocktail', 'pizza', 'soup',
+                'cake', 'ice_cream', 'fish', 'hotel', 'bed', 'tent', 'mountain', 'beach', 'water',
+                'flower', 'leaf', 'sun', 'snow', 'sunset', 'castle', 'church', 'building', 'train',
+                'bus', 'car', 'plane', 'ship', 'bike', 'walk', 'parking', 'fuel', 'music',
+                'theater', 'film', 'game', 'ticket', 'gift', 'book', 'shirt', 'store', 'market',
+                'money', 'hospital', 'info', 'wifi', 'bath', 'sparkles', 'dog', 'bird', 'flag',
+                'pin', 'bookmark')),
   sort_order  integer     NOT NULL CHECK (sort_order >= 0),
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
@@ -487,7 +495,8 @@ CREATE TABLE app_settings (
   uploads_enabled       boolean     NOT NULL DEFAULT true,
   signups_enabled       boolean     NOT NULL DEFAULT true,
   updated_by            uuid        REFERENCES users(id) ON DELETE SET NULL,
-  updated_at            timestamptz NOT NULL DEFAULT now()
+  updated_at            timestamptz NOT NULL DEFAULT now(),
+  default_max_kinds     integer     NOT NULL DEFAULT 12 CHECK (default_max_kinds BETWEEN 1 AND 64)
 );
 INSERT INTO app_settings DEFAULT VALUES;
 
@@ -551,6 +560,24 @@ CREATE TABLE quota_requests (
 
 CREATE UNIQUE INDEX quota_requests_one_pending_idx ON quota_requests (user_id) WHERE status = 'pending';
 CREATE INDEX quota_requests_status_idx ON quota_requests (status, created_at);
+
+-- A board admin or owner asks the platform admin for a higher kind limit (step 29).
+CREATE TABLE kind_limit_requests (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id        uuid           NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  requested_by   uuid           REFERENCES users(id) ON DELETE SET NULL,
+  requested_max  integer        NOT NULL CHECK (requested_max BETWEEN 1 AND 64),
+  message        text           CHECK (char_length(message) <= 500),
+  status         request_status NOT NULL DEFAULT 'pending',
+  decided_by     uuid           REFERENCES users(id) ON DELETE SET NULL,
+  decided_at     timestamptz,
+  decision_note  text           CHECK (char_length(decision_note) <= 500),
+  created_at     timestamptz    NOT NULL DEFAULT now(),
+  CONSTRAINT kind_limit_requests_decided_at_check CHECK ((status = 'pending') = (decided_at IS NULL))
+);
+
+CREATE UNIQUE INDEX kind_limit_requests_one_pending_idx ON kind_limit_requests (trip_id) WHERE status = 'pending';
+CREATE INDEX kind_limit_requests_status_idx ON kind_limit_requests (status, created_at);
 
 -- One row per day for the admin graphs; filled by snapshot_daily_metrics().
 CREATE TABLE metrics_daily (

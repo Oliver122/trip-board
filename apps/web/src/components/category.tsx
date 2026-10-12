@@ -2,6 +2,7 @@ import type { SpotKindRef } from '@tripboard/shared'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { KindSymbolIcon } from '../kinds/symbols'
+import { SymbolMark, useSymbolTexture } from '../kinds/textures'
 import { kindLabel } from '../kinds/label'
 import { cn } from '../lib/utils'
 
@@ -45,17 +46,7 @@ export function CategoryDot({
   kind?: KindMark
 }) {
   if (kind) {
-    return (
-      <span
-        data-testid="category-dot"
-        data-kind-colors={kind.color}
-        className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold leading-none text-white"
-        style={{ backgroundColor: kind.color }}
-        aria-hidden="true"
-      >
-        <KindSymbolIcon symbol={kind.symbol} className="size-2.5" />
-      </span>
-    )
+    return <KindDot kind={kind} />
   }
   return (
     <span
@@ -64,6 +55,30 @@ export function CategoryDot({
       style={{ backgroundColor: categoryColor(category ?? 'planned') }}
       aria-hidden="true"
     />
+  )
+}
+
+/** A kind's 16 px dot: the texture with a color ring when its cell is filled. */
+function KindDot({ kind }: { kind: KindMark }) {
+  const textured = useSymbolTexture(kind.symbol) !== null
+  return (
+    <span
+      data-testid="category-dot"
+      data-kind-colors={kind.color}
+      className="inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold leading-none text-white"
+      style={{ backgroundColor: kind.color }}
+      aria-hidden="true"
+    >
+      {textured ? (
+        <SymbolMark
+          symbol={kind.symbol}
+          ringColor={kind.color}
+          className="size-4"
+        />
+      ) : (
+        <KindSymbolIcon symbol={kind.symbol} className="size-2.5" />
+      )}
+    </span>
   )
 }
 

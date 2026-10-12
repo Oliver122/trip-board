@@ -20,6 +20,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
+import { ChipGroup } from '../components/ui/chip-group'
 import { hoverClass } from '../components/ui/hover'
 import { Select } from '../components/ui/select'
 import { useListFollowsMap } from '../list-follows-map'
@@ -30,6 +31,7 @@ import { CategoryDot } from '../components/category'
 import { BoardMenu } from '../kinds/BoardMenu'
 import { kindLabel } from '../kinds/label'
 import { useTripKinds } from '../kinds/store'
+import { categoryCounts, collapseLabels } from './model'
 
 const ImportDialog = lazy(() =>
   import('../import/ImportDialog').then((mod) => ({
@@ -86,6 +88,10 @@ export function SpotToolbar({
   const sortId = useId()
   const { kinds } = useTripKinds(tripId)
   const chips = filterChips(query, members, entries, kinds ?? [], t, onQuery)
+  const filterItems = categoryFilters(kinds ?? [], t)
+  const filterTokens = filterItems.map((item) => item.token)
+  const counts = categoryCounts(existingSpots)
+  const moreId = useId()
 
   useEffect(() => {
     if (!open) return
@@ -210,7 +216,7 @@ export function SpotToolbar({
           className="m-0 flex list-none flex-wrap gap-1 px-3 pb-2"
         >
           {chips.map((chip) => (
-            <li key={chip.key}>
+            <li key={chip.key} className="group relative">
               <button
                 type="button"
                 className={cn(
@@ -218,12 +224,26 @@ export function SpotToolbar({
                   'inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-background px-3 text-sm text-foreground',
                 )}
                 style={chip.color ? { borderColor: chip.color } : undefined}
-                aria-label={t('board.removeFilter', { label: chip.label })}
+                aria-label={t('board.removeFilter', {
+                  label: chip.full ?? chip.label,
+                })}
+                aria-describedby={
+                  chip.full ? `${moreId}-${chip.key}` : undefined
+                }
                 onClick={chip.remove}
               >
                 <span>{chip.label}</span>
                 <X aria-hidden="true" className="size-3" />
               </button>
+              {chip.full ? (
+                <span
+                  id={`${moreId}-${chip.key}`}
+                  role="tooltip"
+                  className="absolute left-0 top-full z-10 mt-1 hidden w-max max-w-64 rounded-[8px] border border-border bg-card px-3 py-2 text-sm text-foreground shadow-panel group-focus-within:block group-hover:block"
+                >
+                  {chip.full}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -254,32 +274,44 @@ export function SpotToolbar({
           aria-label={t('board.filter')}
           className="mx-3 mb-2 max-h-[70vh] overflow-auto rounded-card border border-border bg-card p-3 shadow-panel"
         >
-          <fieldset className="m-0 border-0 p-0">
-            <legend className="mb-2 text-sm font-semibold">
+          <div>
+            <p aria-hidden="true" className="mb-2 text-sm font-semibold">
               {t('board.category')}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {categoryFilters(kinds ?? [], t).map((item) => (
-                <label
-                  key={item.token}
-                  data-testid={`filter-cat-${item.token}`}
-                  className="inline-flex min-h-11 items-center gap-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={query.cat.includes(item.token)}
-                    onChange={() => onQuery(toggleCategory(query, item.token))}
-                  />
-                  {item.kind ? (
-                    <CategoryDot kind={item.kind} />
-                  ) : (
-                    <CategoryDot category={item.system} />
-                  )}
-                  {item.label}
-                </label>
-              ))}
+            </p>
+            <div className="mb-2 flex gap-2">
+              <Button
+                variant="outline"
+                className="min-h-9 px-3"
+                onClick={() => onQuery({ ...query, cat: filterTokens })}
+              >
+                {t('ui.chips.all')}
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-9 px-3"
+                disabled={query.cat.length === 0}
+                onClick={() => onQuery({ ...query, cat: [] })}
+              >
+                {t('ui.chips.clear')}
+              </Button>
             </div>
-          </fieldset>
+            <ChipGroup
+              testId="filter-categories"
+              label={t('board.category')}
+              options={filterItems.map((item) => ({
+                value: item.token,
+                label: item.label,
+                count: counts[item.token] ?? 0,
+                mark: item.kind ? (
+                  <CategoryDot kind={item.kind} />
+                ) : (
+                  <CategoryDot category={item.system} />
+                ),
+              }))}
+              value={query.cat}
+              onChange={(cat) => onQuery({ ...query, cat })}
+            />
+          </div>
           <fieldset className="m-0 mt-3 border-0 p-0">
             <legend className="mb-2 text-sm font-semibold">
               {t('board.status')}
@@ -432,6 +464,18 @@ export function SpotToolbar({
   )
 }
 
+/** More selected categories than this collapse into one "Food +3" chip. */
+const maxCategoryChips = 3
+
+type FilterChip = {
+  key: string
+  label: string
+  color?: string
+  /** Every name behind a collapsed chip, for the tooltip and accessible name. */
+  full?: string
+  remove: () => void
+}
+
 type CategoryFilterItem = {
   token: string
   label: string
@@ -473,13 +517,8 @@ function filterChips(
   kinds: readonly SpotKind[],
   t: TFunction,
   onQuery: (query: SpotListQuery) => void,
-): { key: string; label: string; color?: string; remove: () => void }[] {
-  const chips: {
-    key: string
-    label: string
-    color?: string
-    remove: () => void
-  }[] = []
+): FilterChip[] {
+  const chips: FilterChip[] = []
   const trimmed = query.q.trim()
   if (trimmed.length > 0) {
     const label = t('board.searchChip', { q: trimmed })
@@ -489,19 +528,36 @@ function filterChips(
       remove: () => onQuery({ ...query, q: '' }),
     })
   }
-  for (const category of query.cat) {
-    const known = categoryFilters(kinds, t).find(
-      (item) => item.token === category,
+  const known = query.cat
+    .map((category) =>
+      // A kind that is gone or not loaded yet has no name to show.
+      categoryFilters(kinds, t).find((item) => item.token === category),
     )
-    // A kind that is gone or not loaded yet has no name to show.
-    if (!known) continue
-    const label = known.label
+    .filter((item): item is CategoryFilterItem => item != null)
+  const collapsed = collapseLabels(
+    known.map((item) => item.label),
+    maxCategoryChips,
+  )
+  if (collapsed) {
     chips.push({
-      key: category,
-      label,
-      color: known.kind?.color,
-      remove: () => onQuery(toggleCategory(query, category)),
+      key: 'cat',
+      label: t('ui.chips.more', {
+        first: collapsed.first,
+        count: collapsed.more,
+      }),
+      color: known[0]?.kind?.color,
+      full: known.map((item) => item.label).join(', '),
+      remove: () => onQuery({ ...query, cat: [] }),
     })
+  } else {
+    for (const item of known) {
+      chips.push({
+        key: item.token,
+        label: item.label,
+        color: item.kind?.color,
+        remove: () => onQuery(toggleCategory(query, item.token)),
+      })
+    }
   }
   if (query.status !== 'all') {
     const label = t(

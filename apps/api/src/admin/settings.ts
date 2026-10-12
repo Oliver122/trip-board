@@ -12,6 +12,7 @@ type SettingsRow = {
   capacity_warn_pct: number
   uploads_enabled: boolean
   signups_enabled: boolean
+  default_max_kinds: number
 }
 
 export type SettingsInput = {
@@ -22,6 +23,7 @@ export type SettingsInput = {
   capacityWarnPct?: number
   uploadsEnabled?: boolean
   signupsEnabled?: boolean
+  defaultMaxKinds?: number
 }
 
 function toSettings(row: SettingsRow) {
@@ -33,12 +35,13 @@ function toSettings(row: SettingsRow) {
     capacityWarnPct: num(row.capacity_warn_pct),
     uploadsEnabled: row.uploads_enabled,
     signupsEnabled: row.signups_enabled,
+    defaultMaxKinds: num(row.default_max_kinds),
   }
 }
 
 const settingsSql = `
   SELECT default_max_images, default_max_bytes, db_capacity_bytes, blob_capacity_bytes,
-         capacity_warn_pct, uploads_enabled, signups_enabled
+         capacity_warn_pct, uploads_enabled, signups_enabled, default_max_kinds
   FROM app_settings
   WHERE id = true
 `
@@ -72,7 +75,8 @@ export async function updateSettings(
           capacity_warn_pct = $5,
           uploads_enabled = $6,
           signups_enabled = $7,
-          updated_by = $8
+          default_max_kinds = $8,
+          updated_by = $9
       WHERE id = true
       `,
       [
@@ -83,6 +87,7 @@ export async function updateSettings(
         after.capacityWarnPct,
         after.uploadsEnabled,
         after.signupsEnabled,
+        after.defaultMaxKinds,
         adminId,
       ],
     )

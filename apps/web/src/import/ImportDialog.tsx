@@ -8,6 +8,8 @@ import {
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../components/ui/button'
+import { ChipGroup } from '../components/ui/chip-group'
+import { CategoryDot } from '../components/category'
 import { hoverClass } from '../components/ui/hover'
 import { Modal } from '../components/ui/modal'
 import { cn } from '../lib/utils'
@@ -281,47 +283,48 @@ export function ImportDialog({
 
           {stage.name === 'preview' || stage.name === 'importing' ? (
             <>
-              <fieldset className="m-0 border-0 p-0">
-                <legend className="mb-2 text-sm font-semibold">
+              <div>
+                <p aria-hidden="true" className="mb-2 text-sm font-semibold">
                   {t('board.category')}
-                </legend>
-                {(kinds ?? []).map((kind) => {
-                  const picked = !pick.home && effective.includes(kind.id)
-                  return (
-                    <label
-                      key={kind.id}
-                      className="flex min-h-11 items-center gap-2"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={picked}
-                        disabled={
-                          !pick.home &&
-                          !picked &&
-                          effective.length >= kindLimits.perSpot
-                        }
-                        onChange={() =>
-                          setPick(
-                            togglePick(pick, effective, kinds ?? [], kind.id),
-                          )
-                        }
-                      />
-                      {kindLabel(t, kind)}
-                    </label>
-                  )
-                })}
-                <label className="flex min-h-11 items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={pick.home}
-                    onChange={() => setPick({ home: true, kindIds: [] })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <ChipGroup
+                    label={t('board.category')}
+                    options={(kinds ?? []).map((kind) => ({
+                      value: kind.id,
+                      label: kindLabel(t, kind),
+                      mark: <CategoryDot kind={kind} />,
+                    }))}
+                    value={pick.home ? [] : effective}
+                    max={kindLimits.perSpot}
+                    maxHint={t('kinds.atMostTwo')}
+                    onChange={(next) => {
+                      const toggled = [...next, ...effective].find(
+                        (id) => next.includes(id) !== effective.includes(id),
+                      )
+                      if (toggled)
+                        setPick(
+                          togglePick(pick, effective, kinds ?? [], toggled),
+                        )
+                    }}
                   />
-                  {t('category.home')}
-                </label>
-                {!pick.home && effective.length >= kindLimits.perSpot ? (
-                  <p className="text-sm text-muted">{t('kinds.atMostTwo')}</p>
-                ) : null}
-              </fieldset>
+                  <ChipGroup
+                    label={t('category.home')}
+                    options={[
+                      {
+                        value: 'home',
+                        label: t('category.home'),
+                        mark: <CategoryDot category="home" />,
+                      },
+                    ]}
+                    value={pick.home ? ['home'] : []}
+                    onChange={(next) => {
+                      if (next.includes('home'))
+                        setPick({ home: true, kindIds: [] })
+                    }}
+                  />
+                </div>
+              </div>
               <ul className="m-0 mt-3 list-none space-y-2 p-0">
                 {rows.map((row) => (
                   <li

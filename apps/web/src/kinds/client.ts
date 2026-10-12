@@ -1,7 +1,13 @@
 import {
+  kindLimitRequestSchema,
   kindListSchema,
+  latestKindLimitRequestSchema,
   spotKindSchema,
   type CreateKindBody,
+  type KindLimitRequest,
+  type KindLimitRequestCreate,
+  type KindList,
+  type KindPreset,
   type PatchKindBody,
   type SpotKind,
 } from '@tripboard/shared'
@@ -10,11 +16,37 @@ import { request, requestJson } from '../api/http'
 export async function listKinds(
   tripId: string,
   signal?: AbortSignal,
-): Promise<SpotKind[]> {
-  const body = await requestJson(`/api/trips/${tripId}/kinds`, kindListSchema, {
-    signal,
-  })
-  return body.kinds
+): Promise<KindList> {
+  return requestJson(`/api/trips/${tripId}/kinds`, kindListSchema, { signal })
+}
+
+export async function createPresetKind(
+  tripId: string,
+  preset: KindPreset,
+): Promise<SpotKind> {
+  return createKind(tripId, { preset })
+}
+
+/** The trip's newest kind limit request, or null when there is none. */
+export async function latestKindRequest(
+  tripId: string,
+): Promise<KindLimitRequest | null> {
+  const body = await requestJson(
+    `/api/trips/${tripId}/kind-limit-requests/latest`,
+    latestKindLimitRequestSchema,
+  )
+  return body.request
+}
+
+export async function createKindRequest(
+  tripId: string,
+  body: KindLimitRequestCreate,
+): Promise<KindLimitRequest> {
+  return requestJson(
+    `/api/trips/${tripId}/kind-limit-requests`,
+    kindLimitRequestSchema,
+    { method: 'POST', body: JSON.stringify(body) },
+  )
 }
 
 export async function createKind(

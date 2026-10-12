@@ -22,9 +22,12 @@ test('T-09-06 filtering to Must go hides other pins and cards', async ({
   await expect(page.getByTestId(`pin-${fushimi}`)).toBeVisible()
   await expect(page.getByTestId(`card-${nara}`)).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
-  await page.getByRole('checkbox', { name: 'Must go' }).click()
+  const mustGoChip = page
+    .getByRole('region', { name: 'Filter' })
+    .getByRole('button', { name: /^Must go/ })
+  await mustGoChip.click()
   await expect(page).toHaveURL(/cat=[0-9a-f-]{36}/)
-  await expect(page.getByRole('checkbox', { name: 'Must go' })).toBeChecked()
+  await expect(mustGoChip).toHaveAttribute('aria-pressed', 'true')
   await expect(
     page.getByRole('button', { name: 'Remove Must go' }),
   ).toBeVisible()
@@ -50,7 +53,10 @@ test('T-09-07 a shared filter URL reproduces the chips and results', async ({
 }) => {
   await page.goto(japanTrip)
   await page.getByRole('button', { name: 'Filter' }).click()
-  await page.getByRole('checkbox', { name: 'Home' }).click()
+  await page
+    .getByRole('region', { name: 'Filter' })
+    .getByRole('button', { name: /^Home/ })
+    .click()
   await expect(page).toHaveURL(/cat=home/)
   await expect(page.getByTestId(`card-${hotel}`)).toBeVisible()
   await expect(page.getByTestId(`card-${fushimi}`)).toHaveCount(0)
