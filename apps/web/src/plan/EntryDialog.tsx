@@ -4,6 +4,7 @@ import {
   type PlanDraft,
   type PlanEntryType,
 } from '@tripboard/shared'
+import { Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldError } from '../components/notice'
@@ -47,6 +48,17 @@ export function EntryDialog({
   const [endTime, setEndTime] = useState(initial.endTime ?? '')
   const [info, setInfo] = useState(initial.info ?? '')
   const [confirming, setConfirming] = useState(false)
+  const deleteRef = useRef<HTMLDivElement>(null)
+  const refocusDelete = useRef(false)
+
+  useEffect(() => {
+    if (!confirming && refocusDelete.current) {
+      refocusDelete.current = false
+      deleteRef.current
+        ?.querySelector<HTMLButtonElement>('[data-testid="entry-delete"]')
+        ?.focus()
+    }
+  }, [confirming])
 
   const draft = normalizePlanDraft({
     type,
@@ -76,7 +88,7 @@ export function EntryDialog({
   return (
     <Dialog title={heading} closeLabel={t('board.close')} onClose={onClose}>
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
-        <div className="min-h-0 flex-1 space-y-3 overflow-auto px-4 py-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto overscroll-contain px-4 py-4">
           <label htmlFor={titleId} className="block">
             {t('schedule.fieldTitle')}
           </label>
@@ -164,44 +176,68 @@ export function EntryDialog({
             </p>
           ) : null}
         </div>
-        <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+        <div ref={deleteRef} className="border-t border-border px-4 py-3">
           {confirming ? (
-            <>
-              <p>{t('schedule.confirmDelete')}</p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setConfirming(false)}>
-                  {t('schedule.cancel')}
-                </Button>
-                <Button
-                  variant="dangerSolid"
-                  onClick={onDelete}
-                  disabled={saving}
-                >
-                  {t('schedule.delete')}
-                </Button>
-              </div>
-            </>
+            <div
+              data-testid="entry-delete-confirm"
+              className="flex flex-wrap items-center justify-end gap-2"
+            >
+              <p className="min-w-0 basis-full">
+                {t('schedule.confirmDelete')}
+              </p>
+              <Button
+                variant="outline"
+                className="whitespace-nowrap"
+                onClick={() => {
+                  refocusDelete.current = true
+                  setConfirming(false)
+                }}
+              >
+                {t('schedule.cancel')}
+              </Button>
+              <Button
+                variant="dangerSolid"
+                className="whitespace-nowrap"
+                onClick={onDelete}
+                disabled={saving}
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+                {t('schedule.delete')}
+              </Button>
+            </div>
           ) : (
-            <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
               {mode === 'edit' && onDelete ? (
-                <Button variant="danger" onClick={() => setConfirming(true)}>
-                  {t('schedule.delete')}
+                <Button
+                  variant="danger"
+                  size="icon"
+                  aria-label={t('schedule.deleteEntry')}
+                  title={t('schedule.deleteEntry')}
+                  data-testid="entry-delete"
+                  onClick={() => setConfirming(true)}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
                 </Button>
               ) : (
                 <span />
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={onClose}
+                >
                   {t('schedule.cancel')}
                 </Button>
                 <Button
                   type="submit"
+                  className="whitespace-nowrap"
                   disabled={saving || Object.keys(errors).length > 0}
                 >
                   {t('schedule.save')}
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </form>

@@ -18,9 +18,15 @@ export const buttonVariants = cva(
         dangerSolid:
           'border border-transparent bg-danger-solid text-white hover:bg-danger-solid-hover active:bg-danger-solid-pressed disabled:hover:bg-danger-solid disabled:active:bg-danger-solid',
       },
+      size: {
+        default: '',
+        /** Square, icon-only: at least 44 × 44 px (R-31-08). */
+        icon: 'size-11 shrink-0 px-0',
+      },
     },
     defaultVariants: {
       variant: 'default',
+      size: 'default',
     },
   },
 )
@@ -28,6 +34,7 @@ export const buttonVariants = cva(
 export function Button({
   className,
   variant,
+  size,
   type = 'button',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> &
@@ -35,7 +42,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={cn(buttonVariants({ variant }), className)}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   )

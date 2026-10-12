@@ -149,10 +149,10 @@ export function SpotList({
       data-testid="spot-list"
       data-sheet={phone ? snap : 'docked'}
       className={cn(
-        'flex min-h-0 shrink-0 flex-col bg-card',
+        'flex min-h-0 flex-col bg-card',
         phone
           ? 'fixed inset-x-0 bottom-0 z-30 overflow-hidden rounded-t-card border border-border shadow-panel'
-          : 'w-full border-t border-border sm:w-[280px] sm:border-t-0 sm:border-l lg:w-[360px]',
+          : 'w-full flex-1 border-t border-border sm:w-[280px] sm:border-t-0 sm:border-l lg:w-[360px]',
       )}
       style={
         phone
@@ -209,8 +209,10 @@ export function SpotList({
         onAuthError={onAuthError}
       />
       <ul
+        data-testid="spot-list-items"
         className={cn(
-          'm-0 min-h-0 flex-1 list-none overflow-auto p-0',
+          // Keeps room for the list when an open filter panel fills the column.
+          'm-0 min-h-24 flex-1 list-none overflow-auto overscroll-contain p-0',
           phone && snap === 'peek' && dragHeight == null && 'hidden',
         )}
       >

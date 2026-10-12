@@ -120,7 +120,7 @@ function TripWorkspace() {
   return (
     <div
       className={cn(
-        'relative flex min-h-0 flex-1 flex-col',
+        'relative flex min-h-0 flex-1 flex-col overflow-hidden',
         schedule ? 'lg:flex-row' : 'sm:flex-row',
       )}
     >

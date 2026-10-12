@@ -170,4 +170,31 @@ describe('modal', () => {
     expect(screen.queryByTestId('modal-backdrop')).toBeNull()
     expect(document.body.style.overflow).toBe('')
   })
+
+  it('T-31-05 the center body contains overscroll', () => {
+    const { container } = render(
+      <Modal title="Center" onClose={() => undefined}>
+        x
+      </Modal>,
+    )
+    const body = container.ownerDocument.querySelector('[data-modal-body]')
+    expect(body).toHaveClass('overscroll-contain')
+  })
+
+  it('T-31-02 side modal forwards header wheel to its body and prevents it', () => {
+    render(
+      <Modal title="Side" variant="side" onClose={() => undefined}>
+        <div data-modal-body>x</div>
+      </Modal>,
+    )
+    const body = document.querySelector<HTMLElement>('[data-modal-body]')!
+    const scrollBy = vi.fn()
+    body.scrollBy = scrollBy as unknown as typeof body.scrollBy
+    const header = screen.getByRole('heading', { name: 'Side' })
+    expect(fireEvent.wheel(header, { deltaY: 120 })).toBe(false)
+    expect(scrollBy).toHaveBeenCalledWith({ top: 120 })
+    scrollBy.mockClear()
+    expect(fireEvent.wheel(body, { deltaY: 50 })).toBe(true)
+    expect(scrollBy).not.toHaveBeenCalled()
+  })
 })

@@ -62,7 +62,7 @@ export function AppShell() {
   }, [i18n.language, i18n.resolvedLanguage])
 
   return (
-    <div className="flex h-dvh flex-col bg-background text-foreground">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <Header
         news={
           schedule?.params.id || board?.params.id ? (

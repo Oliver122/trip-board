@@ -143,7 +143,7 @@ test('T-24-15 authors edit and delete their own comments; the owner deletes any'
   await expect(page.getByTestId('comment')).toContainText('Go very early')
   await expect(page.getByTestId('comment')).toContainText('edited')
 
-  await discussion.getByRole('button', { name: 'Delete', exact: true }).click()
+  await discussion.getByRole('button', { name: 'Delete comment' }).click()
   await answerConfirm(page, 'accept')
   await expect(page.getByTestId('comment')).toHaveCount(0)
   await expect(page.getByTestId('discussion-empty')).toBeVisible()
@@ -170,7 +170,9 @@ test('T-24-15 the owner sees Delete on a visitor comment but not Edit', async ({
     sven.page.getByTestId('comment').getByRole('button', { name: 'Edit' }),
   ).toHaveCount(0)
   await expect(
-    sven.page.getByTestId('comment').getByRole('button', { name: 'Delete' }),
+    sven.page
+      .getByTestId('comment')
+      .getByRole('button', { name: 'Delete comment' }),
   ).toBeVisible()
   await closeAll(tom, sven, aiko)
 })

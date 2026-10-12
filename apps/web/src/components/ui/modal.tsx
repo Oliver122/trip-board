@@ -129,6 +129,28 @@ export function Modal({
     }
   }, [side])
 
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!side || !panel) return
+    // Header and footer have nothing to scroll: hand the wheel to the body so
+    // the page and map behind never move (R-31-02).
+    const onWheel = (event: WheelEvent) => {
+      const body = panel.querySelector<HTMLElement>('[data-modal-body]')
+      if (!body) return
+      if (event.target instanceof Node && body.contains(event.target)) return
+      event.preventDefault()
+      const unit =
+        event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? body.clientHeight
+            : 1
+      body.scrollBy({ top: event.deltaY * unit })
+    }
+    panel.addEventListener('wheel', onWheel, { passive: false })
+    return () => panel.removeEventListener('wheel', onWheel)
+  }, [side])
+
   const header = (
     <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
       <h2 id={titleId} className="text-lg font-semibold">
@@ -199,7 +221,12 @@ export function Modal({
         )}
       >
         {header}
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        <div
+          data-modal-body
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        >
+          {children}
+        </div>
         {footer ? <ModalFooter>{footer}</ModalFooter> : null}
       </div>
     </div>

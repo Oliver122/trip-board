@@ -359,7 +359,10 @@ export function SchedulePage() {
   }
 
   return (
-    <main className="flex min-h-0 w-full flex-1 flex-col overflow-auto border-b border-border lg:border-r lg:border-b-0">
+    <main
+      data-testid="schedule-scroll"
+      className="flex min-h-0 w-full flex-1 flex-col overflow-auto overscroll-contain border-b border-border lg:border-r lg:border-b-0"
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
         <h1 className="mr-auto text-xl font-semibold">{t('schedule.title')}</h1>
         {canEdit ? (
