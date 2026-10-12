@@ -2,6 +2,9 @@
 
 **Goal:** the four top-right toolbar buttons (search, filter, sort, export placeholder) work on list and map together.
 **Depends on:** 07 (plan-related filters are wired up in 11)
+**Result:** Toolbar works; “scheduled first” sort; URL state
+**Core:** C-LIST-01, C-LIST-02, C-LIST-03, C-LIST-04, C-LIST-05, C-LIST-07, C-LIST-08, C-LIST-09, C-LIST-10, C-LIST-11, C-LIST-14, C-LIST-15
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: toolbar UI, server-side filtering via query params, URL state, active filter chips, “scheduled first” default sort.

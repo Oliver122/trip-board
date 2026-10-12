@@ -2,6 +2,9 @@
 
 **Goal:** planners upload photos to spots; storage cannot be flooded.
 **Depends on:** 07
+**Result:** Upload photos to a spot; limits enforced
+**Core:** C-IMG-01, C-IMG-02, C-IMG-03, C-IMG-04, C-IMG-05, C-IMG-06, C-IMG-07, C-IMG-08, C-IMG-09, C-IMG-10, C-IMG-11, C-IMG-12
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: upload endpoint, `sharp` processing, S3-compatible storage (MinIO locally), per-user quota, gallery in the panel, delete image, blob cleanup worker, quota display in panel and account page.

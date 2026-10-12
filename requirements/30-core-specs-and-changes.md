@@ -2,6 +2,9 @@
 
 **Goal:** anyone can read how a feature works *today* in one core file per area, see which step changed it and which tests prove it, and `pnpm req:build` writes one aggregated index that CI keeps honest.
 **Depends on:** 21, 29
+**Result:** Open `requirements/core/kinds.md` and read how spot kinds work today, which steps changed them and which tests prove it; `pnpm req:build` writes `INDEX.md`, and CI fails when it is stale
+**Core:** C-OPS-38, C-OPS-39, C-OPS-40, C-OPS-41, C-OPS-42
+**Status:** integrated 2026-10-12
 
 ## Scope
 - In: `requirements/core/<area>.md` files backfilled from the current behavior of steps 00–29; a “Core changes” section in every step file from now on (a step becomes a *change* to the core); an “integrate” stage at the end of a step that applies its core changes; `pnpm req:build` that parses core and step files and writes `requirements/INDEX.md`; `pnpm req:check` in CI; updated `/req-new`, `/req-implement` and `/req-test-report` commands; README conventions rewritten for the new flow; steps 24 and 25 added to the README graph and table.
@@ -59,7 +62,11 @@
 ## Core changes
 | Core ID | Change | From |
 | --- | --- | --- |
-| C-OPS-01 … C-OPS-NN | add | R-30-01 to R-30-15 (the requirements process itself is an `ops` rule set: core files, change flow, index, check) |
+| C-OPS-38 | add | R-30-01, R-30-03, R-30-04 |
+| C-OPS-39 | add | R-30-02, R-30-05 |
+| C-OPS-40 | add | R-30-06, R-30-07, R-30-08, R-30-09 |
+| C-OPS-41 | add | R-30-10, R-30-11, R-30-12 |
+| C-OPS-42 | add | R-30-13, R-30-14, R-30-15 |
 
 ## Definition of Done
 | ID | Type | Covers | Test |

@@ -2,6 +2,9 @@
 
 **Goal:** after `pnpm dev:local`, a developer opens `http://127.0.0.1:5180/login`, clicks “Sven (admin)” and lands in the app as a platform admin, without Discord.
 **Depends on:** 02, 03, 16
+**Result:** `pnpm dev:local`, click “Sven (admin)” on the login page, land in the admin area without Discord
+**Core:** C-ADMIN-02, C-ADMIN-20, C-AUTH-05, C-AUTH-08, C-AUTH-14, C-AUTH-15, C-AUTH-16, C-AUTH-17, C-OPS-03, C-OPS-07, C-OPS-28, C-OPS-29
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: a `DEV_LOGIN` env flag, a `pnpm dev:local` script on the standard ports (web `5180`, API `4080`), `GET /auth/dev/users` and `POST /auth/dev/login` for the seeded users, a dev login block on the login page, startup and deploy guards that keep the flag off any public server, README section.

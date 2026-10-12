@@ -1,0 +1,63 @@
+# Core — App
+
+The web shell that every page shares: routes, header, design tokens, theme, English/German strings and formatting, responsive layout, keyboard and screen-reader support, hover and error styling, and the shared building blocks (modal, menu, confirm dialog, select, states, toast, notices) with the single path web code uses to call the API. Login and sessions are in [auth](./auth.md), the trip pages in [trips](./trips.md), the map in [map](./map.md), server-side hardening and error shapes in [ops](./ops.md), and the members dialog that the header avatars open in [members](./members.md).
+
+## Routes, header and preferences
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-APP-01 | The web routes are `/` (a placeholder with the API and database status), `/login`, `/join/:code`, `/trips`, `/trips/:id` (board), `/trips/:id/schedule`, `/trips/:id/settings`, `/account` and `/admin/*`; every route except `/`, `/login`, `/join/:code` and the 404 page requires a session and otherwise redirects to `/login?next=<path>`. Any other URL shows a translated 404 page with a link home. <!-- R-03-03, R-18-27, R-02-07 --> | active | 02 | 03, 18 | T-03-07, T-02-09 |
+| C-APP-02 | The root page `/` shows the app name, a short placeholder and the health of the API (“ok”, “database down” on a `503`, or “unreachable” after 20 retries 300 ms apart); the dev server proxies `/api/*` to the API so the browser uses one origin. <!-- R-00-04 --> | active | 00 | — | T-00-04 |
+| C-APP-03 | The header shows the logo link to `/trips`, inside a trip the *Board*, *Schedule* and *Settings* tabs, the *News* button and the member avatars, a “Dev login” badge when the dev login is on, the theme switch and the avatar menu. It has no trip switcher and no language switch, and outside a trip the members slot is empty. At 375 px the header wraps cleanly without horizontal overflow. <!-- R-03-02, R-18-18, R-20-16, R-20-21, R-20-24 --> | active | 03 | 18, 20 | T-18-09, T-20-11, T-20-15 |
+| C-APP-04 | Inside a trip the header shows the members as overlapping round avatars (32 px, at most 4 circles: with more than 4 members the first 3 and a `+N` circle) that form one button opening the members dialog. Its accessible name lists the members (“Members: Sven, Aiko, Tom and 2 more”), avatars show names as tooltips, members without a Discord avatar show their initial, and the group updates live when members join, leave or are removed. <!-- R-20-17, R-20-18, R-20-19, R-20-20, R-20-22, R-20-23 --> | active | 20 | — | T-20-12, T-20-13, T-20-14 |
+| C-APP-05 | The avatar menu (a menu button with the user's avatar and name) offers *Account & settings*, *Admin* (admins only) and *Log out*, which posts the logout and returns to `/login`. <!-- R-02-07, R-16-03, R-18-19, R-26-03 --> | active | 02 | 16, 18, 26 | T-02-09, T-16-15, T-26-04 |
+| C-APP-06 | The theme can be light, dark or system (default), set with a switch in the header and in *Account & settings*, stored in `localStorage` (`theme`) and applied as the `dark` class on `<html>`; the system choice follows `prefers-color-scheme` live. <!-- R-03-07, R-18-19 --> | active | 03 | 18 | T-03-06 |
+| C-APP-07 | The UI is available in English and German. The language is the user's profile language, else the first supported browser language, else English; `<html lang>` follows it. <!-- R-03-04 --> | active | 03 | — | T-03-01 |
+| C-APP-08 | Strings live in namespaced `common.json` files for `en` and `de` that must have identical key sets, a lint rule rejects JSX text that is not a translation call, and the shared labels for cancel, confirm, close and menu exist in both languages. <!-- R-03-04, R-26-14, R-27-06 --> | active | 03 | 26, 27 | T-03-01, T-03-02, T-26-16, T-27-06 |
+| C-APP-09 | Changing the language (in *Account & settings*, or the small switch on the login and join pages) updates the UI without reload and, when logged in, saves it with `PATCH /me {locale: "en"\|"de"}`; any other value is `400`, and the change is recorded as `user.locale_update`. <!-- R-03-05, R-18-18, R-18-19, R-18-20, R-18-21 --> | active | 03 | 18 | T-03-03, T-03-04, T-18-09, T-18-10 |
+| C-APP-10 | Dates and times are formatted with `Intl` in the active language through the helper in `lib/format.ts` (`13 Apr 2026` in English, `13. Apr. 2026` in German). <!-- R-03-06 --> | active | 03 | — | T-03-05 |
+
+## Design system
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-APP-11 | Colors, radius, shadows and the Inter font are CSS variables mapped into the Tailwind theme, with light and dark values: a neutral palette, the category colors, the `--hover` background and the red danger tokens (`--danger` `#b91c1c` / `#f87171`, `--danger-soft`, `--danger-border`, `--danger-solid`). Text and icon colors keep at least 4.5:1 contrast in both themes. <!-- R-03-01, R-20-02, R-20-10 --> | active | 03 | 20 | T-03-09, T-20-06 |
+| C-APP-12 | `LoadingState`, `EmptyState` and `ErrorState` (with a *Retry* button) render translated default texts, and a shared `PanelSkeleton` (busy, with a hidden label) is the loading placeholder for the board and schedule panels. <!-- R-03-08, R-26-06 --> | active | 03 | 26 | T-03-08, T-26-08 |
+| C-APP-13 | `CategoryDot`, `CategoryBadge` and `CategoryStrip` draw a spot's kinds or its *Planned* / *Home* category from the design tokens; two kinds are shown half and half. <!-- R-03-09, R-28-14 --> | active | 03 | 28 | T-03-08, T-28-26 |
+| C-APP-14 | Every clickable control has a visible hover state, `cursor: pointer` and a pressed state taken from shared classes (`buttonVariants` for default, outline, ghost and danger, plus `hoverClass` for tabs, list items, cards, links and avatars); disabled controls show no hover and use `cursor: not-allowed`. Hover only applies on devices that support hover, never replaces the focus outline, and transitions last 150 ms (none with `prefers-reduced-motion`). <!-- R-20-01, R-20-02, R-20-03, R-20-04, R-20-05, R-20-06, R-20-07, R-20-08, R-20-09 --> | active | 20 | — | T-20-01, T-20-02, T-20-03, T-20-04, T-20-05 |
+| C-APP-15 | Errors are red and never color alone: `FieldError` (text with an alert icon under a field, linked with `aria-describedby`, field gets `aria-invalid` and a red border) and `ErrorNotice` (a tinted block with icon, `role="alert"`) replace hand-written error paragraphs on every form and page. <!-- R-20-11, R-20-12, R-20-15 --> | active | 20 | — | T-20-07, T-20-08, T-20-16 |
+| C-APP-16 | Destructive buttons use the `danger` variant: red text and border for the first step, a filled `--danger-solid` button for the final confirm in a dialog. <!-- R-20-14 --> | active | 20 | — | T-20-10 |
+| C-APP-17 | A shared toast shows errors in `--danger-solid` with an alert icon, `role="alert"`, a close button and 6 seconds, and info messages (such as “Deleted by Aiko”) in the neutral look with `role="status"` for 4 seconds; board and schedule use the same component. <!-- R-20-13 --> | active | 20 | — | T-20-09 |
+| C-APP-18 | `docs/DESIGN.md` has a “Components” section listing the shared pieces (button, modal, menu, confirm, select, notice, toast, states, skeleton, avatar group, category badge) with when to use each and a rule that new features reuse them first. <!-- R-26-13 --> | active | 26 | — | T-26-17 |
+
+## Shared dialogs, menus and selects
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-APP-19 | Every dialog is built on one `Modal` (`components/ui/modal.tsx`) with backdrop, focus trap, Escape, focus restore, `aria-modal`, a labelled title and body scroll lock, on one z-index scale (`panel` 20, `modal` 40, `top` 50). Below 640 px it is full-screen, above that centered with a `sm`, `md` or `lg` maximum width, and the spot panel uses its side-panel variant. <!-- R-26-01, R-26-02 --> | active | 26 | — | T-26-01, T-26-02, T-26-15 |
+| C-APP-20 | `Menu` (`components/ui/menu.tsx`) is a trigger plus popover with `aria-haspopup` and `aria-expanded` that closes on Escape or an outside click, moves with the arrow keys, Home and End, and returns focus to the trigger. <!-- R-26-03 --> | active | 26 | — | T-26-03, T-26-04 |
+| C-APP-21 | `useConfirm()` and `ConfirmDialog` replace `window.confirm` everywhere: title, message, confirm and cancel labels, and a `danger` flag that styles the confirm button red and focuses *Cancel* first. <!-- R-26-04 --> | active | 26 | — | T-26-05, T-26-06 |
+| C-APP-22 | `Select` wraps the native `<select>` with the shared border, focus ring, disabled style and chevron plus a visible or visually hidden `label`; native keyboard and mobile picker behavior is kept. <!-- R-26-05 --> | active | 26 | — | T-26-07, T-26-08 |
+| C-APP-23 | A guard test fails when `apps/web/src` contains `window.confirm`, `fixed inset-0` outside the modal, a raw `<select` outside `Select`, `fetch(` outside `api/` and a short allow-list (session, locale, login, dev login), or a checkbox rendering the trip's kinds in the toolbar, spot panel or import preview. <!-- R-26-12, R-29-15 --> | active | 26 | 29 | T-26-14, T-29-15 |
+
+## Responsive layout and accessibility
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-APP-24 | From 640 to 1023 px the list column is narrower (280 px) and the spot panel is a right-side sheet that leaves the list visible. <!-- R-15-01 --> | active | 15 | — | T-15-01 |
+| C-APP-25 | Below 640 px the map is full-screen, the list is a draggable bottom sheet with three snaps (peek, half, full), the panel and dialogs are full-screen and the toolbar collapses into one *Filters* button. <!-- R-15-02 --> | active | 15 | — | T-15-02 |
+| C-APP-26 | Every action works by keyboard, focus rings are visible, and axe finds no serious or critical issue on any page (login, trips, board with the panel open, schedule, members, export, join, account) in both themes. <!-- R-15-09 --> | active | 15 | — | T-15-09, T-15-10 |
+| C-APP-27 | User content is always rendered as text, never as HTML, and links to saved URLs use `rel="noopener noreferrer"`. <!-- R-15-06 --> | active | 15 | — | T-15-06 |
+
+## Web error path
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-APP-28 | All web API calls go through `request` in `api/http.ts`, which sends credentials and JSON headers, parses the standard error body and throws a single `ApiError {status, code, fields, body}` (`status` 0 for a network failure). The helpers `isAuth`, `isNotFound`, `isConflict` and `isInvalid` replace `instanceof` checks, and a `409` keeps `current` and `updatedBy` in `body` for the conflict dialog. <!-- R-26-07, R-26-08 --> | active | 26 | — | T-26-09, T-26-10 |
+| C-APP-29 | Pages treat a `401` from the API as an expired session and reload it, so `RequireAuth` sends the user to `/login`; when the session endpoint itself fails, an error state with *Retry* replaces the page. <!-- R-02-07, R-26-07 --> | active | 02 | 26 | T-26-10 |
+
+## Known gaps
+
+- C-APP-07: R-03-04 says the strings live in `public/locales/{en,de}/common.json`; the app imports them from `apps/web/src/locales/` and `apps/web/public/locales/` is a mirror that `apps/web/src/locales.test.ts` keeps identical. The rule describes the code.
+- C-APP-14: R-20-09 also lists `role="menuitem"` and `role="option"`, but `apps/web/src/hover-lint.ts` only inspects `<button>`, `<a>`, `<Link>` and `<NavLink>` tags; the rule describes the code.
+- C-APP-18: T-26-17 is manual and checked by T-27-10; nothing automated verifies that `docs/DESIGN.md` still lists every shared component.

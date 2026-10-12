@@ -2,6 +2,9 @@
 
 **Goal:** remove the small annoyances people hit every day on the board and the schedule.
 **Depends on:** 07, 11, 15
+**Result:** Forgiving links, list independent of zoom, icon reorder with feedback, language in settings, new spot from schedule
+**Core:** C-APP-01, C-APP-03, C-APP-05, C-APP-06, C-APP-09, C-LIST-12, C-LIST-13, C-LIST-15, C-MAP-01, C-MAP-14, C-MAP-15, C-MAP-16, C-MAP-17, C-PLAN-13, C-PLAN-14, C-PLAN-15, C-SPOT-06, C-SPOT-15, C-SPOT-20
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: forgiving spot links, list that does not follow the map unless you want it to, icon reorder buttons with visual feedback, language switch moved into settings, creating a spot from the schedule, one map that stays loaded and moves smoothly between board and schedule.

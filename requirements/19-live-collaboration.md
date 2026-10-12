@@ -2,6 +2,9 @@
 
 **Goal:** when two people plan the same trip at the same time, each sees the other’s changes within a second or two, without reloading and without losing their own unsaved input.
 **Depends on:** 13, 15, 18
+**Result:** Two people on one trip see each other’s changes without reload; conflicts are detected
+**Core:** C-ADMIN-28, C-AUTH-12, C-LIVE-01, C-LIVE-02, C-LIVE-03, C-LIVE-04, C-LIVE-05, C-LIVE-06, C-LIVE-07, C-LIVE-08, C-LIVE-09, C-LIVE-10, C-LIVE-11, C-LIVE-12, C-LIVE-13, C-LIVE-14, C-LIVE-15, C-LIVE-16, C-LIVE-17, C-LIVE-18, C-LIVE-19, C-LIVE-20, C-LIVE-21, C-MEMB-10, C-OPS-14, C-PLAN-09, C-SPOT-08, C-SPOT-09, C-SPOT-21, C-TRIP-05, C-TRIP-06, C-TRIP-12
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: server → browser change notifications per trip, automatic refresh of board, list, schedule and members, conflict detection when two people save the same spot or entry, reconnect handling.

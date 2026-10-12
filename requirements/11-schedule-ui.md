@@ -2,6 +2,9 @@
 
 **Goal:** plan the trip visually — buckets and single dates — and connect plans to the board.
 **Depends on:** 07, 10
+**Result:** Plan the trip in the schedule view
+**Core:** C-LIST-01, C-LIST-03, C-LIST-08, C-LIST-10, C-MAP-14, C-PLAN-10, C-PLAN-11, C-PLAN-12, C-PLAN-14, C-PLAN-16, C-PLAN-17, C-PLAN-18, C-PLAN-19, C-SPOT-18
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: Schedule tab (`/trips/:id/schedule`), create/edit bucket & single dialogs, add spots to entries (from the schedule and from the spot panel), drag to reorder, per-visit date/time/info, map zoom to entry, “In plans” section in the spot panel, plan-entry filter in the toolbar.

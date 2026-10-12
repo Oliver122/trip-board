@@ -575,6 +575,7 @@ describe('spot comments', () => {
 
   // ── T-24-11 ───────────────────────────────────────────────────────────
 
+  // T-24-10
   it('T-24-11 answers the 21st comment in a minute with 429 and Retry-After', async () => {
     const limitedClock = new Date('2026-06-01T10:00:00.000Z')
     const limitedApp = await buildApp(db.pool, {

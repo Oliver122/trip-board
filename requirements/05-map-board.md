@@ -2,6 +2,9 @@
 
 **Goal:** the trip page shows a styled OpenStreetMap map limited to the trip's region, with the board layout from the sketch.
 **Depends on:** 04
+**Result:** Trip opens on a styled map limited to its region
+**Core:** C-MAP-01, C-MAP-02, C-MAP-03, C-MAP-04, C-MAP-05, C-MAP-06, C-MAP-07, C-MAP-08, C-MAP-11, C-MAP-15
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: MapLibre via `react-map-gl/maplibre`, custom minimal light/dark style on OpenFreeMap tiles, OSM attribution, board layout (map + right list column + “Add new” button), max bounds from trip bbox, zoom/locate controls, pin component (static demo data until 07).

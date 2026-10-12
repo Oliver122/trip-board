@@ -4,6 +4,8 @@ import { expect, test, type Page } from './fixtures'
 import type { Route } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
+// T-27-08: this whole file must pass 10 repeats on Chromium and next to the full suite.
+// T-27-09: this whole file must pass on Firefox and WebKit (tests tagged @chromium excepted).
 const sven = '100000000000000001'
 
 const modalNames = [
@@ -329,6 +331,7 @@ test('T-26-10 a save over someone else still opens the conflict dialog and use m
   await context.close()
 })
 
+// T-27-05 (repeat-run target: -g "401")
 test('T-26-10 a 401 from the API sends the user to the login page', async ({
   page,
 }) => {
@@ -443,6 +446,7 @@ test('T-26-15 the confirm dialog has no serious a11y issues', async ({
   await answerConfirm(page, 'dismiss')
 })
 
+// T-27-06
 test('T-26-16 shared step 26 labels exist in en and de', () => {
   const load = (locale: string) =>
     JSON.parse(

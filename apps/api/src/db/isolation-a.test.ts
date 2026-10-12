@@ -18,6 +18,7 @@ afterAll(async () => {
   await db?.drop()
 })
 
+// T-01-05 (runs in parallel with isolation-b.test.ts, same IDs)
 it.skipIf(!hasDb)('writes the shared ids in its own database', async () => {
   const result = await db?.pool.query<{ username: string }>(
     'SELECT username FROM users WHERE id = $1',

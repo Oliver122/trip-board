@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
 
+// T-02-09
 test('logged-out trips page returns after test login', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/trips')
@@ -39,6 +40,7 @@ test('logged-out trips page returns after test login', async ({ page }) => {
   await expectNoSeriousViolations(page)
 })
 
+// T-02-10
 test('a cancelled Discord login shows the translated error', async ({
   page,
 }) => {

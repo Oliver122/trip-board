@@ -2,6 +2,9 @@
 
 **Goal:** `e2e/cleanup.spec.ts` passes 17 of 17 on every run, alone and with the full suite in parallel, and the cause of the flakiness is found and written down instead of hidden behind longer timeouts.
 **Depends on:** 26
+**Result:** `e2e/cleanup.spec.ts` passes every test in 10 repeats and next to the full suite; root causes written down; prettier and report gaps closed
+**Core:** C-APP-08, C-OPS-31, C-OPS-32, C-OPS-35
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: find the root cause of the flaky step 26 browser tests (T-26-04, the three T-26-06 tests, the T-26-10 401 test); fix the tests, the shared test helpers or, if the cause is a real app bug, the app; any other spec that makes the full suite fail for the same reason (found during this step: `import`, `comments` and `map-board` stored German on seeded users, and `admin` assumed Aiko is on the first page of a user list that every run grows); close the step 26 report gaps (T-26-16 ID, prettier on `.claude/**/*.md`, Firefox and WebKit run, DESIGN.md check).

@@ -2,6 +2,9 @@
 
 **Goal:** the complete schema from [`docs/database`](../docs/database/DATABASE.md), as migrations, with seed data.
 **Depends on:** 00
+**Result:** Migrations build the full schema; rule checks pass
+**Core:** C-OPS-08, C-OPS-09, C-OPS-10, C-OPS-11
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: Drizzle schema for all tables, a hand-written migration for triggers/views/trigram index, seed script, DB test helpers.

@@ -2,6 +2,9 @@
 
 **Goal:** download the full list or the current filtered view as CSV, PDF or iCal.
 **Depends on:** 09, 11
+**Result:** Download CSV, PDF and calendar file
+**Core:** C-EXP-01, C-EXP-02, C-EXP-03, C-EXP-05, C-EXP-06, C-EXP-07, C-EXP-08, C-EXP-09, C-EXP-10, C-EXP-11, C-EXP-12, C-LIST-06
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: export dialog, `GET /trips/:id/export`, CSV, PDF (server-rendered), `.ics`. Uses the same filter params as the list.

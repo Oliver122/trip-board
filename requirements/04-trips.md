@@ -2,6 +2,9 @@
 
 **Goal:** create, list, rename and delete trips; the creator is owner.
 **Depends on:** 02, 03
+**Result:** Create “Japan 2026”, see it in My trips
+**Core:** C-ADMIN-20, C-EXP-04, C-MEMB-01, C-MEMB-22, C-TRIP-01, C-TRIP-02, C-TRIP-03, C-TRIP-04, C-TRIP-05, C-TRIP-06, C-TRIP-07, C-TRIP-09, C-TRIP-10, C-TRIP-11, C-TRIP-12, C-TRIP-13
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: trips API, role guard middleware, activity log service, My trips page, create-trip dialog with region search (uses a minimal geocode search; full geocoding in step 06), trip settings (name, dates).

@@ -2,6 +2,9 @@
 
 **Goal:** admins can open the admin area, manage users, and extend storage per user or for everyone. Users can request more storage.
 **Depends on:** 08 (quotas), 13 (members). Activity events have been written since step 04.
+**Result:** Admin manages users, extends storage, handles requests, settings, audit log
+**Core:** C-ADMIN-01, C-ADMIN-02, C-ADMIN-03, C-ADMIN-04, C-ADMIN-05, C-ADMIN-06, C-ADMIN-07, C-ADMIN-08, C-ADMIN-09, C-ADMIN-10, C-ADMIN-11, C-ADMIN-12, C-ADMIN-18, C-ADMIN-19, C-APP-05, C-AUTH-05
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: admin role and bootstrap, `/admin` layout, users table + detail, trips table + detail, quota override (“extend storage”), quota requests (user + admin side), suspend/unsuspend, make/remove admin, log out everywhere, settings page, audit log page.

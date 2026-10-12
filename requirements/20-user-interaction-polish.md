@@ -2,6 +2,9 @@
 
 **Goal:** the app reacts visibly to the pointer, errors are clearly red, and the header shows the people on the trip instead of placeholders.
 **Depends on:** 13, 15, 18, 19
+**Result:** Every button reacts on hover, errors are red, header shows member avatars instead of placeholders
+**Core:** C-APP-03, C-APP-04, C-APP-11, C-APP-14, C-APP-15, C-APP-16, C-APP-17, C-MEMB-21, C-MEMB-22, C-TRIP-03, C-TRIP-10, C-TRIP-13
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: hover (and pressed) states for every clickable control, a red danger color for error notices, toasts and destructive buttons, removing the static *Trip* label from the header, a stacked member avatar group with a visible maximum instead of the *Members* text.

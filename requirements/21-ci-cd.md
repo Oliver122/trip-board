@@ -2,6 +2,9 @@
 
 **Goal:** every pull request is tested on Chromium, Firefox and WebKit (Safari) and leaves a downloadable test report, `main` only accepts pull requests whose checks are all green, and every merge to `main` deploys with `scripts/deploy.sh`.
 **Depends on:** 00, 15
+**Result:** Pull requests run e2e on Chromium, Firefox and WebKit with a downloadable report; merge needs a green `ci-passed`; each merge to `main` deploys
+**Core:** C-OPS-03, C-OPS-07, C-OPS-17, C-OPS-18, C-OPS-19, C-OPS-20, C-OPS-21, C-OPS-22, C-OPS-23, C-OPS-24, C-OPS-25, C-OPS-26, C-OPS-27, C-OPS-30, C-OPS-31, C-OPS-33, C-OPS-34
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: splitting `.github/workflows/ci.yml` into jobs, a Firefox Playwright project, a merged Playwright HTML report as artifact, one required status check plus a ruleset on `main`, a deploy job that runs `scripts/deploy.sh` with a GitHub environment `production`, documentation of every variable in the README, repairing the tests that keep the pipeline red (see Findings).

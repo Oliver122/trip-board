@@ -2,6 +2,9 @@
 
 **Goal:** release-ready: works on tablet and phone (simple), is secure, accessible and robust.
 **Depends on:** 08, 12, 13, 14
+**Result:** Works on tablet/phone, rate limits, audit passes
+**Core:** C-APP-24, C-APP-25, C-APP-26, C-APP-27, C-LIST-16, C-OPS-12, C-OPS-13, C-OPS-14, C-OPS-15, C-OPS-17, C-OPS-21
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: tablet/phone layouts from `docs/DESIGN.md` §3.7, security headers, rate limits, housekeeping jobs, error tracking hooks, performance budget, full a11y pass, WebKit e2e.

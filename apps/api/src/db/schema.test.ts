@@ -30,6 +30,7 @@ describe.skipIf(!hasDb)('migrated schema', () => {
     await reference?.drop()
   })
 
+  // T-01-02
   it('matches docs/database/schema.sql', async () => {
     const migratedDump = normalizeSchemaDump(await dumpSchema(migrated.url))
     const referenceDump = normalizeSchemaDump(await dumpSchema(reference.url))
@@ -37,6 +38,7 @@ describe.skipIf(!hasDb)('migrated schema', () => {
     expect(migratedDump).toBe(referenceDump)
   })
 
+  // T-01-01; checks.sql also holds the T-24-01 (spot_comments constraints) and T-24-18 (spot_comment_reads cascade and trip match) checks
   it('passes checks.sql', async () => {
     await expect(runChecks(migrated.url)).resolves.toBeUndefined()
     expect(expectedCheckCount).toBe(74)

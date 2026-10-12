@@ -2,6 +2,9 @@
 
 **Goal:** buckets and single entries with spots, through the API; spots become *Planned* automatically.
 **Depends on:** 06
+**Result:** Buckets/singles via API; auto *Planned*
+**Core:** C-PLAN-01, C-PLAN-02, C-PLAN-03, C-PLAN-04, C-PLAN-05, C-PLAN-06, C-PLAN-07, C-PLAN-08, C-PLAN-10, C-SPOT-03
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: plan entries CRUD, adding/removing/reordering spots in entries (many-to-many), per-link visit date/time/info, auto *Planned* via `spots_view`.
