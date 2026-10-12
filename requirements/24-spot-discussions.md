@@ -2,6 +2,9 @@
 
 **Goal:** every member of *Japan 2026* can open “Fushimi Inari”, read what the others wrote about it, and add a comment such as “I'd go, but only early in the morning”; the others see it without reload, and anyone who was away finds it under “News” and as an unread badge on the spot.
 **Depends on:** 07, 13, 17, 19
+**Result:** Open “Fushimi Inari”, read and add comments that others see without reload; anyone who was away finds them under “News” and as an unread badge on the spot
+**Core:** C-ADMIN-21, C-DISC-01, C-DISC-02, C-DISC-03, C-DISC-04, C-DISC-05, C-DISC-06, C-DISC-07, C-DISC-08, C-DISC-09, C-DISC-10, C-DISC-11, C-DISC-12, C-DISC-13, C-DISC-14, C-DISC-15, C-DISC-16, C-DISC-17, C-DISC-18, C-DISC-19, C-DISC-20, C-DISC-21, C-DISC-22, C-DISC-23, C-DISC-24, C-DISC-25, C-LIVE-04, C-LIVE-14, C-MEMB-10, C-SPOT-02, C-SPOT-16, C-TRIP-03, C-TRIP-10
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: one discussion thread per spot, shown in the spot panel; plain-text comments that any trip member can post, including visitors; editing and deleting your own comments; the owner removing any comment; a comment count on list cards; unread tracking per user and spot; a “News” panel in the trip header with unread badges on list cards, pins, My trips cards and the browser tab title; `spot_comments` and `spot_comment_reads` tables; comment and news routes; `comment.*` activity events; live updates; admin feed text.

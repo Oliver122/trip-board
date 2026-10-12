@@ -2,6 +2,9 @@
 
 **Goal:** a planner on *Japan 2026* right-clicks a point on the board map and the add panel opens with a pin there; with “Fushimi Inari” open and unchanged, a click on the “Kiyomizu-dera” pin opens that spot at once, without closing the panel first.
 **Depends on:** 07
+**Result:** Right-click the board map to start a spot there; with a spot open and unchanged, a click on another pin or card opens it at once
+**Core:** C-MAP-13, C-SPOT-22, C-SPOT-23, C-SPOT-24
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: right-click on the board map to start a new spot at that point; switching between spots by pin or card while the panel is open; one unsaved-changes prompt for every switch, list cards included.

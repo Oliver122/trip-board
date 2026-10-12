@@ -2,6 +2,9 @@
 
 **Goal:** share a trip via a Discord-friendly invite link; owner, planner and visitor permissions everywhere.
 **Depends on:** 04 (role guard). Can be built any time after 04.
+**Result:** Invite a friend via Discord link; roles enforced
+**Core:** C-MEMB-03, C-MEMB-05, C-MEMB-06, C-MEMB-07, C-MEMB-08, C-MEMB-09, C-MEMB-10, C-MEMB-11, C-MEMB-12, C-MEMB-14, C-MEMB-15, C-MEMB-16, C-MEMB-17, C-MEMB-18, C-MEMB-19, C-MEMB-20
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: members dialog, role change, remove member, leave trip, transfer ownership, invites (create with role, default visitor, 7-day expiry, revoke), join page, expired page.

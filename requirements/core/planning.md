@@ -1,0 +1,38 @@
+# Core — Planning
+
+The trip's plan: entries that are either a *bucket* (a date range such as “Tokyo, 12–16 Apr”) or a *single* (one date and time), the spots linked into them with optional visit date, time and info, the rule that makes a spot *Planned* automatically, and the schedule page where planners build and reorder the plan. Spots are in [spots](./spots.md), the home shown per entry in [home](./home.md), the plan entry filter in [list](./list.md), and live updates and the shared map in [live](./live.md) and [map](./map.md).
+
+## Plan API
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-PLAN-01 | `GET /trips/:id/plan` (any member) returns the plan entries in chronological order (start date, start time, sort order), each with its spots in order, its resolved `home` and `outsideTripDates: true` when it lies outside the trip's dates (if the trip has any). <!-- R-10-01, R-10-09 --> | active | 10 | — | T-10-02, T-10-10 |
+| C-PLAN-02 | `POST /trips/:id/plan` (planner, board admin, owner) creates a bucket `{title, startDate, endDate, startTime?, endTime?, info?}` or a single `{title, date, startTime?, endTime?, info?}` → 201. A bucket needs an end date that is not before its start, a single may not span days, an end time needs a start time (and follows it for a single), times are `HH:MM`, and the title is 1–120 and the info up to 2000 characters, otherwise 400 with `fields`. <!-- R-10-02 --> | active | 10 | — | T-10-01 |
+| C-PLAN-03 | `PATCH /plan/:id` and `DELETE /plan/:id` (planner and up; delete → 204) change or remove an entry, and deleting an entry never deletes its spots. Shrinking a bucket clears the visit dates that now lie outside its range and the response reports `clearedVisitDates`. <!-- R-10-03, R-10-06 --> | active | 10 | — | T-10-06, T-10-07 |
+| C-PLAN-04 | `POST /plan/:id/spots {spotId, visitDate?, visitTime?, info?}` (planner and up) links a spot into an entry → 201; the same spot may be in many entries and more than once in one bucket (for example on two days), a spot of another trip is 404, and a visit time needs a visit date. <!-- R-10-04 --> | active | 10 | — | T-10-03, T-10-04, T-10-09 |
+| C-PLAN-05 | `PATCH /plan/:id/spots/:linkId` changes a visit's date, time and info, `DELETE /plan/:id/spots/:linkId` removes it, and `PUT /plan/:id/spots/order {linkIds}` must list every link of the entry exactly once (a link of another entry, a repeat or a missing link is 400) and persists the new order. <!-- R-10-05 --> | active | 10 | — | T-10-05, T-10-08 |
+| C-PLAN-06 | A `visitDate` must lie inside the entry's range (a single's date, a bucket's start to end); otherwise the write is 400 with `fields.visitDate = "outside_range"` and the message “Visit date must be inside the plan entry range”. <!-- R-10-06 --> | active | 10 | — | T-10-06 |
+| C-PLAN-07 | Plan writes need planner or higher (visitors 403, non-members 404), reads need any member, and a spot from another trip cannot be linked. <!-- R-10-02, R-10-03, R-10-04, R-10-05 --> | active | 10 | — | T-10-09 |
+| C-PLAN-08 | A spot is *Planned* automatically: with at least one link its `displayCategory` is `planned` and `planCount` counts the links (a home spot stays `home`), and `firstScheduledAt` is the earliest visit date and time, falling back to the entry's start. Removing the last link or deleting the entry brings the base category back at once. <!-- R-10-07 --> | active | 10 | — | T-10-03, T-10-05, T-10-07 |
+| C-PLAN-09 | `PATCH` and `DELETE` of a plan entry accept the `updatedAt` the client last saw (`expectedUpdatedAt` or `If-Unmodified-Since`) and answer 409 with the current version when it changed; a reorder within a bucket is last-write-wins on the whole order, and requests without the value stay last-write-wins. <!-- R-19-15, R-19-17, R-19-18 --> | active | 19 | — | T-19-09 |
+
+## Schedule page
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-PLAN-10 | The Schedule tab (`/trips/:id/schedule`) lists the entries chronologically: buckets are collapsible groups with date range, info and their spots, singles show date and time, and an entry outside the trip's dates is flagged. <!-- R-11-01, R-10-09 --> | active | 10 | 11 | T-11-01, T-11-09 |
+| C-PLAN-11 | Planners, board admins and owners get “+ Bucket” and “+ Single” dialogs with a date (range) picker, optional times and info; visitors see the schedule read-only, without those buttons, drag handles or remove buttons. <!-- R-11-02, R-11-09 --> | active | 11 | — | T-11-01, T-11-07 |
+| C-PLAN-12 | Inside an entry “Add spot” opens a searchable spot picker, and each added visit can get a date (the picker disables days outside the bucket's range), a time and an info text. <!-- R-11-03 --> | active | 11 | — | T-11-01, T-11-08 |
+| C-PLAN-13 | The picker's list ends with “Create new spot ‘<search text>’” (also when no spot exists; hidden for visitors), which opens the spot panel on the schedule page with the title prefilled and the location set by address search or by clicking the map. After saving, the new spot is selected in the form so the user only picks date, time and confirms; cancelling returns to the form with the search text kept, and the spot also appears on the schedule map and the board without a reload. If adding it to the plan fails the spot stays created and is shown selected with an error, so the user can retry. <!-- R-18-22, R-18-23, R-18-24, R-18-25, R-18-26 --> | active | 18 | — | T-18-11, T-18-12 |
+| C-PLAN-14 | Spots in a bucket are reordered by drag and drop (the dragged row is dimmed and a drop line shows where it lands) or with chevron icon buttons for move up and move down, which keep translated labels and tooltips and are disabled, not hidden, on the first and last row. <!-- R-11-04, R-18-11, R-18-12, R-18-16 --> | active | 11 | 18 | T-11-03, T-18-06, T-11-09 |
+| C-PLAN-15 | After a move the row animates to its place and is highlighted for about a second (only the highlight with reduced motion), keyboard focus stays on the same button so the same spot can be moved again, and an `aria-live="polite"` region announces the new position. The order updates optimistically and a failed request restores the old order with an error toast. <!-- R-18-13, R-18-14, R-18-15, R-18-17 --> | active | 18 | — | T-18-07, T-18-08 |
+| C-PLAN-16 | Selecting an entry zooms the schedule's side map to its spots and highlights them. <!-- R-11-05 --> | active | 11 | — | T-11-04 |
+| C-PLAN-17 | The spot panel's “In plans” section lists the spot's entries with remove buttons and “+ Add to plan” (choose an entry, optional date and time); adding switches the spot's badge to *Planned* at once. <!-- R-11-06, R-11-08 --> | active | 11 | — | T-11-02 |
+| C-PLAN-18 | Editing a bucket's range warns, before saving, how many visit dates will be cleared (“1 visit date will be cleared”). <!-- R-11-11 --> | active | 11 | — | T-11-06 |
+| C-PLAN-19 | An empty schedule shows “Nothing planned yet — create a bucket like ‘Tokyo, 12–16 Apr’”. <!-- R-11-10 --> | active | 11 | — | — |
+
+## Known gaps
+
+- C-PLAN-19: no DoD test covers the empty schedule message (R-11-10).
+- C-PLAN-01: R-10-01 does not mention `home`, which `packages/shared/src/plans.ts` adds to every entry (see [home](./home.md)); `outsideTripDates` is proven by T-10-10 only for an entry before the trip start.
+- C-PLAN-17: R-11-06 says the panel's category dropdown stays editable after adding; since step 28/29 that field is a chip group (see [kinds](./kinds.md)), so the rule only covers the badge.

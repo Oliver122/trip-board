@@ -2,6 +2,9 @@
 
 **Goal:** the owner of *Japan 2026* makes `aiko` a board admin; she adds a kind “Food” in orange next to *Must go* and *Maybe*, and a planner can then pick “Food” for “Ichiran Ramen”, whose pin, list strip and filter chip show orange; a spot can also be both “Food” and *Must go*, and then its pin is half orange, half red. An invite link lets exactly one person join; a second person who opens it is told it was already used.
 **Depends on:** 13, 26
+**Result:** Owner makes a member board admin; they add “Food” in orange with a food symbol; a spot that is Food and Must go shows a half-orange, half-red pin; an invite link lets in only one person
+**Core:** C-APP-13, C-EXP-07, C-EXP-10, C-IMP-12, C-IMP-14, C-IMP-16, C-KIND-01, C-KIND-02, C-KIND-03, C-KIND-05, C-KIND-06, C-KIND-07, C-KIND-08, C-KIND-10, C-KIND-13, C-KIND-14, C-KIND-15, C-KIND-16, C-KIND-18, C-KIND-19, C-KIND-20, C-KIND-25, C-LIST-04, C-LIST-05, C-LIST-10, C-LIVE-04, C-LIVE-14, C-MAP-07, C-MAP-09, C-MEMB-01, C-MEMB-02, C-MEMB-03, C-MEMB-05, C-MEMB-06, C-MEMB-09, C-MEMB-11, C-MEMB-12, C-MEMB-13, C-MEMB-14, C-MEMB-15, C-MEMB-17, C-MEMB-18, C-MEMB-19, C-MEMB-20, C-SPOT-01, C-TRIP-01, C-TRIP-05, C-TRIP-07
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: a new trip role `admin` (board admin) between planner and owner; per-trip spot kinds (name, color, order) that replace the fixed *Must go* / *Maybe* categories; a “Spot kinds” dialog for board admins and the owner; using kinds in the spot panel, pins, list, filter, sort, export, import and live updates; migrating existing spots; invite codes that are used up after one join.

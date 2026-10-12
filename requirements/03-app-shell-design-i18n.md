@@ -2,6 +2,9 @@
 
 **Goal:** the empty app looks like the final product: layout, design tokens, components, EN/DE, light/dark.
 **Depends on:** 00 (can run in parallel with 01–02)
+**Result:** Styled empty app, EN/DE switch, light/dark
+**Core:** C-APP-01, C-APP-03, C-APP-06, C-APP-07, C-APP-08, C-APP-09, C-APP-10, C-APP-11, C-APP-12, C-APP-13
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: Tailwind + shadcn/ui setup, design tokens from `docs/DESIGN.md` §1 / Stitch guide, header layout, routing skeleton, `react-i18next` with `en`/`de`, theme switch, shared state components (loading, empty, error).

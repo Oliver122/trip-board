@@ -2,6 +2,9 @@
 
 **Goal:** the core of the sketch — add, view, edit and delete spots on the board; list and map stay in sync.
 **Depends on:** 05, 06
+**Result:** Add/edit/delete spots in the UI; list follows the map
+**Core:** C-KIND-14, C-KIND-16, C-LIST-12, C-LIST-13, C-LIST-15, C-MAP-07, C-MAP-08, C-MAP-12, C-SPOT-13, C-SPOT-14, C-SPOT-15, C-SPOT-16, C-SPOT-17, C-SPOT-18, C-SPOT-19
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: pins from real data, “Things to do” list, viewport filtering (“only visible on map”), hover/select sync, spot panel (add/edit/view-only), address search + click-on-map, copy address, delete confirm, optimistic updates.

@@ -18,6 +18,7 @@ describe.skipIf(!hasDb)('view helpers', () => {
     await db?.drop()
   })
 
+  // T-01-04
   it('returns planned for a bucket spot and kind for an unplanned kind spot', async () => {
     const planned = await getSpotDisplay(db.pool, seedIds.spots.shibuya)
     const kind = await getSpotDisplay(db.pool, seedIds.spots.nara)

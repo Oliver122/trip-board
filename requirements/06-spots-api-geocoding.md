@@ -2,6 +2,9 @@
 
 **Goal:** spots can be created, read, updated and deleted through the API; addresses can be searched and reverse-geocoded.
 **Depends on:** 04
+**Result:** Spots can be created via API; address search works
+**Core:** C-SPOT-01, C-SPOT-02, C-SPOT-03, C-SPOT-04, C-SPOT-05, C-SPOT-07, C-SPOT-10, C-SPOT-11, C-SPOT-12
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: spots CRUD, map scope auto-expand, geocode proxy with cache and rate limit, shared Zod schemas.

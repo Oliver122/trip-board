@@ -2,6 +2,9 @@
 
 **Goal:** menus and dialogs look and behave the same everywhere, the API/web core has one clean way to do each repeated job, and the duplicated pieces are replaced by shared components before new features land.
 **Depends on:** 23 (steps 24 and 25 are on their own branches; merge them first, then re-check the inventory below)
+**Result:** All dialogs, menus, confirms and selects share one component; one web error/request path and one API role/param/error helper; guards fail CI on duplicates
+**Core:** C-APP-05, C-APP-08, C-APP-12, C-APP-18, C-APP-19, C-APP-20, C-APP-21, C-APP-22, C-APP-23, C-APP-28, C-APP-29, C-LIVE-19, C-LIVE-21, C-MEMB-01, C-MEMB-04, C-OPS-16, C-TRIP-08
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: one shared dialog/modal, one shared menu/popover, one shared confirm dialog (replaces `window.confirm`), one shared select, one shared skeleton; one API error class and one request helper on the web side; one `parseRole` and one param-parsing helper on the API side; lint and test guards so the duplicates do not come back; a written component inventory in `docs/DESIGN.md`.

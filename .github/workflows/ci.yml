@@ -52,6 +52,7 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm db:check
       - run: pnpm lint
+      - run: pnpm req:check
       - run: pnpm typecheck
       - name: Start MinIO
         run: |

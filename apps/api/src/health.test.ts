@@ -5,6 +5,7 @@ import type { Pool } from 'pg'
 import { buildApp } from './app.js'
 import { createPool } from './db.js'
 
+// T-00-01: 200 with db ok, 503 with db down
 describe('health', () => {
   const pools: Pool[] = []
   const apps: FastifyInstance[] = []
@@ -45,6 +46,7 @@ describe('health', () => {
   })
 })
 
+// T-00-03 (api side; the web side is apps/web/src/health-schema.test.ts)
 describe('shared health schema', () => {
   it('accepts the shared sample', () => {
     expect(healthResponseSchema.parse(healthResponseSample)).toEqual(

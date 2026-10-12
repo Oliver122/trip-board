@@ -2,6 +2,9 @@
 
 **Goal:** log in with Discord, stay logged in, log out.
 **Depends on:** 01
+**Result:** Log in with Discord, see your name, log out
+**Core:** C-APP-01, C-APP-05, C-APP-29, C-AUTH-01, C-AUTH-02, C-AUTH-03, C-AUTH-04, C-AUTH-06, C-AUTH-07, C-AUTH-08, C-AUTH-09, C-AUTH-10, C-AUTH-11, C-AUTH-12, C-AUTH-13, C-AUTH-18
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: Discord OAuth2 (authorization code + PKCE, scope `identify`), sessions, `/me`, login page, protected routes, `next` redirect.

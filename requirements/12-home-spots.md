@@ -2,6 +2,9 @@
 
 **Goal:** home spots with optional stay periods, a primary home base, and the right home shown for each part of the trip.
 **Depends on:** 11
+**Result:** Stay periods, primary home base, home per bucket
+**Core:** C-HOME-01, C-HOME-02, C-HOME-03, C-HOME-04, C-HOME-05, C-HOME-06, C-HOME-07, C-HOME-08, C-HOME-09, C-LIST-05, C-MAP-07
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: stay from/to fields for home spots, “Primary home base” toggle, home resolution per plan entry (`plan_entry_home` view), home shown in schedule and on the map, overlap warning.

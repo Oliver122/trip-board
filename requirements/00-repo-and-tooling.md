@@ -2,6 +2,9 @@
 
 **Goal:** an empty but runnable monorepo with linting, tests and CI, so every later step only adds features.
 **Depends on:** —
+**Result:** `pnpm dev` starts web + api, CI is green
+**Core:** C-APP-02, C-OPS-01, C-OPS-02, C-OPS-03, C-OPS-04, C-OPS-05, C-OPS-06, C-OPS-07, C-OPS-18
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: pnpm workspaces (`apps/web`, `apps/api`, `packages/shared`), TypeScript, ESLint + Prettier, Vitest, Playwright, Docker Compose (Postgres 16 + MinIO), CI pipeline, `.env.example`.

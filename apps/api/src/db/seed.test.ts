@@ -18,6 +18,7 @@ describe.skipIf(!hasDb)('seed', () => {
     await db?.drop()
   })
 
+  // T-01-03
   it('is idempotent and leaves the seed row counts', async () => {
     const counts = await db.pool.query<{
       users: string

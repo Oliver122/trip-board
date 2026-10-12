@@ -2,6 +2,9 @@
 
 **Goal:** a board admin on *Japan 2026* opens “Add kind”, picks the ready-made “Coffee” or searches 64 symbols for a custom kind, and when the trip reaches its kind limit, asks the platform admin for more right from the dialog. The filter and the spot panel pick kinds with color chips instead of a long list of checkboxes. `pnpm textures:template` writes an 8×8 PNG grid that you can send to an artist. Each cell they fill later shows as a round texture in the pins of that symbol, and empty cells are never loaded.
 **Depends on:** 16, 28
+**Result:** “Add kind” offers Coffee in one click and 64 searchable symbols; at the limit a board admin requests more and the platform admin approves; the filter uses color chips; `pnpm textures:template` writes the 8×8 PNG for the artist, and filled cells show as round textured pins
+**Core:** C-ADMIN-10, C-ADMIN-14, C-ADMIN-15, C-ADMIN-16, C-ADMIN-17, C-ADMIN-18, C-APP-23, C-IMP-12, C-KIND-01, C-KIND-02, C-KIND-03, C-KIND-04, C-KIND-08, C-KIND-09, C-KIND-10, C-KIND-11, C-KIND-12, C-KIND-16, C-KIND-17, C-KIND-19, C-KIND-21, C-KIND-22, C-KIND-23, C-KIND-24, C-KIND-25, C-LIST-08, C-LIST-11, C-MAP-10, C-OPS-03, C-OPS-20, C-OPS-36, C-OPS-37, C-TRIP-01
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: the symbol catalog grows from 12 to 64; more preset kinds (new trips start with 4, the others are one click away in the “Add kind” menu); a per-trip kind limit with a platform default in admin Settings, a per-trip override, and a request / approve flow; one shared chip toggle group that replaces the kind checkboxes in the filter popover, the spot panel and the import preview; a symbol picker with search and a live pin preview; a texture template PNG plus artist brief, a build-time manifest of filled cells, and round textured pins for filled symbols.

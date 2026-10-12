@@ -2,6 +2,9 @@
 
 **Goal:** admins see at a glance how the platform is used, who is doing what, and how much database and image storage is used.
 **Depends on:** 16
+**Result:** Graphs, “who is doing what” feed, database & storage usage with warnings
+**Core:** C-ADMIN-05, C-ADMIN-10, C-ADMIN-13, C-ADMIN-21, C-ADMIN-22, C-ADMIN-23, C-ADMIN-24, C-ADMIN-25, C-ADMIN-26, C-ADMIN-27, C-ADMIN-28, C-ADMIN-29, C-ADMIN-30, C-ADMIN-31, C-ADMIN-32, C-ADMIN-33, C-OPS-12
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: dashboard KPIs and graphs, `metrics_daily` job, activity feed with filters and CSV export, per-user and per-trip activity graphs, storage page (DB size, table sizes, blob usage, forecast), capacity warnings, activity retention job.

@@ -2,6 +2,9 @@
 
 **Goal:** a planner exports the list “Kyoto” from Google Maps, drops the file on the board, checks a preview, and the list's places appear as spots of the trip in one step.
 **Depends on:** 07, 17, 19
+**Result:** Drop a Google Takeout list CSV on the board, check the preview, and its places appear as spots
+**Core:** C-ADMIN-21, C-IMP-01, C-IMP-02, C-IMP-03, C-IMP-04, C-IMP-05, C-IMP-06, C-IMP-07, C-IMP-08, C-IMP-09, C-IMP-10, C-IMP-11, C-IMP-12, C-IMP-13, C-IMP-14, C-IMP-15, C-IMP-16, C-IMP-17, C-IMP-18, C-IMP-19, C-LIVE-04
+**Status:** integrated 2026-10-11
 
 ## Scope
 - In: an “Import” action in the board toolbar for planners and owners, file parsing in the browser for the Google Takeout list CSV, the Takeout `Saved Places.json` (GeoJSON) and a Google My Maps KML, coordinates from the file or from the existing geocode route, a preview with duplicates and rows that were not found, `POST /trips/:id/spots/import`, one `spot.import` activity event, live update for other members, admin feed text.
