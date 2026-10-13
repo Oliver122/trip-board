@@ -1,8 +1,10 @@
 import {
+  googleMapsUrlIn,
   normalizeSpotLink,
   parseSpotListQuery,
   spotListSearchParams,
   spotSchema,
+  type PlaceFromLink,
   type Spot,
   type SpotDetail,
   type SpotKind,
@@ -13,7 +15,12 @@ import { Plus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useParams, useSearchParams } from 'react-router'
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router'
 import { Toast, type ToastMessage } from '../components/Toast'
 import { ErrorState, PanelSkeleton } from '../components/states'
 import { useConfirm } from '../components/ui/confirm'
@@ -26,6 +33,8 @@ import { boundsForPoints, type LngLatBounds } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
 import { addPlanSpot, listPlan, removePlanSpot } from '../plan/client'
 import { useSession } from '../session'
+import { sendQueuedPhotos, queueFailureMessage } from '../images/queue'
+import { rememberLastBoard } from '../share/last-board'
 import {
   createSpot,
   deleteSpot,
@@ -37,12 +46,14 @@ import {
 import {
   draftFromSpot,
   draftsEqual,
+  draftWithPlace,
   categoryBody,
   draftKinds,
   newDraft,
   switchDecision,
   type Draft,
 } from '../spots/model'
+import { placeLinkError, resolvePlaceLink } from '../spots/place-link'
 import { SpotList } from '../spots/SpotList'
 import { SpotPanel } from '../spots/SpotPanel'
 import { onCommentsChanged } from '../comments/bus'
@@ -63,6 +74,8 @@ type Panel = {
   spot: Spot | null
   plans: SpotPlan[]
   focusDiscussion?: boolean
+  /** A link lookup found no point: show the note until a pin is set (R-33-07). */
+  unplaced?: boolean
 }
 
 export function BoardPage() {
@@ -86,6 +99,27 @@ export function BoardPage() {
   const [params, setParams] = useSearchParams()
   const { kinds } = useTripKinds(id)
   const location = useLocation()
+  const navigate = useNavigate()
+  const dialogParam = params.get('dialog')
+  const tripRole = trip.role
+
+  // The old board menu link: admins and the owner now manage kinds in the
+  // trip settings; for everyone else the parameter is simply dropped.
+  useEffect(() => {
+    if (dialogParam !== 'kinds') return
+    if (tripRole === 'admin' || tripRole === 'owner') {
+      navigate(`/trips/${trip.id}/settings#kinds`, { replace: true })
+      return
+    }
+    setParamsRef.current(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.delete('dialog')
+        return next
+      },
+      { replace: true },
+    )
+  }, [dialogParam, tripRole, trip.id, navigate])
   const linkedSpotId = params.get('spot')
   const paramKey = params.toString()
   const urlQuery = useMemo(
@@ -98,6 +132,9 @@ export function BoardPage() {
   queryRef.current = query
   const setParamsRef = useRef(setParams)
   setParamsRef.current = setParams
+  useEffect(() => {
+    rememberLastBoard(trip.id)
+  }, [trip.id])
   const followsRef = useRef(listFollowsMap)
   followsRef.current = listFollowsMap
   const tRef = useRef(t)
@@ -359,6 +396,105 @@ export function BoardPage() {
     })
   }
 
+  // A place from a Google Maps link opens a fresh add panel, whether it came
+  // by paste or by /share (R-33-05, R-33-08).
+  async function openFromLink(input: { url?: string; text?: string }) {
+    if (!canEdit) return
+    if (!(await mayLeavePanel())) return
+    setToast(t('places.looking'), 'info')
+    let place: PlaceFromLink
+    try {
+      place = await resolvePlaceLink(tripId, input)
+    } catch (error) {
+      if (isAuth(error)) {
+        reload()
+        return
+      }
+      setToast(placeLinkError(error, t))
+      return
+    }
+    setToast('')
+    const baseline = newDraft(kinds)
+    setSelectedId(null)
+    setLinkError(null)
+    setFormError(null)
+    setPanel({
+      mode: 'add',
+      draft: draftWithPlace(baseline, place, false),
+      baseline,
+      spot: null,
+      plans: [],
+      unplaced: !place.placed,
+    })
+    flyToPlace(place)
+  }
+
+  function flyToPlace(place: PlaceFromLink) {
+    if (!place.placed || place.lat == null || place.lng == null) return
+    setFlyTo({
+      token: `link-${Date.now()}`,
+      lng: place.lng,
+      lat: place.lat,
+    })
+  }
+
+  // The panel's *Google Maps link* field fills the open add draft.
+  function fillFromLink(place: PlaceFromLink) {
+    setLinkError(null)
+    setFormError(null)
+    setPanel((current) =>
+      current && current.mode === 'add'
+        ? {
+            ...current,
+            draft: draftWithPlace(current.draft, place, true),
+            unplaced: !place.placed && current.draft.lat == null,
+          }
+        : current,
+    )
+    flyToPlace(place)
+  }
+
+  const openFromLinkRef = useRef(openFromLink)
+  openFromLinkRef.current = openFromLink
+
+  useEffect(() => {
+    if (!canEdit) return
+    const onPaste = (event: ClipboardEvent) => {
+      if (event.defaultPrevented) return
+      if (isEditable(document.activeElement) || isEditable(event.target)) return
+      if (otherModalOpen()) return
+      const text = event.clipboardData?.getData('text/plain') ?? ''
+      if (!googleMapsUrlIn({ text })) return
+      event.preventDefault()
+      void openFromLinkRef.current({ text })
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [canEdit])
+
+  // /share ends here as ?addFrom=<url>&text=<text>; the parameters go either way.
+  const addFromParam = params.get('addFrom')
+  const handledAddFrom = useRef<string | null>(null)
+  useEffect(() => {
+    if (addFromParam == null || handledAddFrom.current === addFromParam) return
+    handledAddFrom.current = addFromParam
+    const text = params.get('text')
+    setParamsRef.current(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        next.delete('addFrom')
+        next.delete('text')
+        return next
+      },
+      { replace: true },
+    )
+    if (!canEdit) return
+    void openFromLinkRef.current({
+      url: addFromParam || undefined,
+      text: text || undefined,
+    })
+  }, [addFromParam, canEdit, params])
+
   function openSpot(spotId: string, focusDiscussion = false) {
     const spot = spots.find((item) => item.id === spotId)
     if (!spot) return
@@ -526,6 +662,7 @@ export function BoardPage() {
     const fullSnapshot = allSpots
     const mode = panel.mode
     const existing = panel.spot
+    let createdId: string | null = null
     setSaving(true)
     setLinkError(null)
     setFormError(null)
@@ -546,6 +683,7 @@ export function BoardPage() {
         const saved = await createSpot(tripId, body)
         changeSpots((current) => placeSaved(current, saved, tempId))
         setSelectedId(saved.id)
+        createdId = saved.id
       } else if (existing) {
         const spotId = existing.id
         changeSpots((current) =>
@@ -560,6 +698,9 @@ export function BoardPage() {
         changeSpots((current) => placeSaved(current, saved, spotId))
       }
       setPanel(null)
+      if (createdId && draft.photos.length > 0) {
+        void sendPhotos(createdId, draft.photos)
+      }
     } catch (error) {
       if (isAuth(error)) {
         reload()
@@ -587,6 +728,17 @@ export function BoardPage() {
     }
     try {
       setTrip(await getTrip(tripId))
+    } catch (error) {
+      if (isAuth(error)) reload()
+    }
+  }
+
+  // The spot stays whatever happens to its photos (R-34-13).
+  async function sendPhotos(spotId: string, photos: Draft['photos']) {
+    try {
+      const result = await sendQueuedPhotos(spotId, photos, t)
+      const message = queueFailureMessage(result, t)
+      if (message) setToast(message)
     } catch (error) {
       if (isAuth(error)) reload()
     }
@@ -727,7 +879,6 @@ export function BoardPage() {
           spots={spots}
           existingSpots={allSpots}
           canImport={canEdit}
-          role={trip.role}
           total={total}
           bounds={bounds}
           query={query}
@@ -757,6 +908,8 @@ export function BoardPage() {
           plans={panel.plans}
           entries={entries ?? []}
           onDraft={changeDraft}
+          onLinkPlace={fillFromLink}
+          linkUnplaced={Boolean(panel.unplaced) && panel.draft.lat == null}
           onClose={() => void requestClose()}
           onSubmit={() => {
             void save()
@@ -885,6 +1038,21 @@ function spotConflictRows(
   return pairs
     .filter(([, left, right]) => left !== right)
     .map(([label, left, right]) => ({ label, mine: left, theirs: right }))
+}
+
+function isEditable(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.closest('input, textarea, select, [contenteditable]') != null ||
+      target.isContentEditable)
+  )
+}
+
+/** Any dialog but the spot panel, which a paste may still replace. */
+function otherModalOpen(): boolean {
+  return Array.from(
+    document.querySelectorAll('[role="dialog"], [role="alertdialog"]'),
+  ).some((dialog) => !dialog.querySelector('[data-testid="spot-panel-body"]'))
 }
 
 function onlyPlaced(draft: Draft, baseline: Draft): boolean {

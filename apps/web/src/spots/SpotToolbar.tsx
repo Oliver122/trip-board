@@ -6,7 +6,6 @@ import {
   type Spot,
   type SpotKind,
   type SpotListQuery,
-  type TripRole,
 } from '@tripboard/shared'
 import {
   ArrowUpDown,
@@ -28,7 +27,6 @@ import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { ExportDialog } from './ExportDialog'
 import { CategoryDot } from '../components/category'
-import { BoardMenu } from '../kinds/BoardMenu'
 import { kindLabel } from '../kinds/label'
 import { useTripKinds } from '../kinds/store'
 import { categoryCounts, collapseLabels } from './model'
@@ -52,7 +50,6 @@ export function SpotToolbar({
   entries = [],
   existingSpots,
   canImport,
-  role,
   searchDraft,
   onSearchDraft,
   onQuery,
@@ -68,8 +65,6 @@ export function SpotToolbar({
   entries?: { id: string; title: string }[]
   existingSpots: Spot[]
   canImport: boolean
-  /** The viewer's role; the board menu only shows when it is known. */
-  role?: TripRole
   searchDraft: string
   onSearchDraft: (value: string) => void
   onQuery: (query: SpotListQuery) => void
@@ -211,7 +206,6 @@ export function SpotToolbar({
             <Upload aria-hidden="true" className="size-4" />
           </Button>
         ) : null}
-        {role ? <BoardMenu tripId={tripId} role={role} /> : null}
       </div>
       {chips.length > 0 ? (
         <ul

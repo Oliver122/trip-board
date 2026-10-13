@@ -6,6 +6,7 @@ import type { ObjectStorage } from '../images/storage.js'
 
 export const inviteRetentionDays = 90
 export const geocodeRetentionDays = 30
+export const commonsRetentionDays = 7
 export const activityRetentionDays = 180
 
 export async function deleteExpiredSessions(
@@ -40,6 +41,20 @@ export async function deleteStaleGeocode(
     `
     DELETE FROM geocode_cache
     WHERE created_at < $1::timestamptz - interval '30 days'
+    `,
+    [now],
+  )
+  return result.rowCount ?? 0
+}
+
+export async function deleteStaleCommons(
+  pool: Pool,
+  now: Date,
+): Promise<number> {
+  const result = await pool.query(
+    `
+    DELETE FROM commons_cache
+    WHERE created_at < $1::timestamptz - interval '7 days'
     `,
     [now],
   )
@@ -86,6 +101,10 @@ export function startHousekeeping(
     ),
     setInterval(
       () => run('geocode', () => deleteStaleGeocode(pool, now())),
+      dayMs,
+    ),
+    setInterval(
+      () => run('commons', () => deleteStaleCommons(pool, now())),
       dayMs,
     ),
     setInterval(

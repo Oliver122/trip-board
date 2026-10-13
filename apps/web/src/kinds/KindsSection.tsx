@@ -1,6 +1,5 @@
 import {
   kindErrorCodes,
-  kindSwatches,
   presetKinds,
   type KindPreset,
   type KindSymbol,
@@ -27,6 +26,7 @@ import {
   updateKind,
 } from './client'
 import { kindLabel } from './label'
+import { ColorSwatches } from './ColorSwatches'
 import { KindPreview } from './KindPreview'
 import { LimitRequest } from './LimitRequest'
 import { reloadKinds, setKinds, useTripKinds } from './store'
@@ -40,14 +40,9 @@ const defaultColor = '#D9480F'
 
 type Move = { id: string; dir: 'up' | 'down' }
 
-export function KindsDialog({
-  tripId,
-  onClose,
-}: {
-  tripId: string
-  onClose: () => void
-}) {
+export function KindsSection({ tripId }: { tripId: string }) {
   const { t } = useTranslation()
+  const headingId = useId()
   const { reload: reloadSession } = useSession()
   const {
     kinds,
@@ -105,11 +100,10 @@ export function KindsDialog({
     }
   }
 
-  /** A lost session closes the dialog; true when it did. */
+  /** A lost session reloads the session; true when it did. */
   function handleAuth(caught: unknown): boolean {
     if (!isAuth(caught)) return false
     reloadSession()
-    onClose()
     return true
   }
 
@@ -204,15 +198,23 @@ export function KindsDialog({
   }
 
   return (
-    <>
-      <Modal
-        title={t('kinds.title')}
-        size="lg"
-        testId="kinds-dialog"
-        onClose={onClose}
+    <section
+      id="kinds"
+      data-testid="kinds-section"
+      aria-labelledby={headingId}
+      className="mt-8"
+    >
+      <h2
+        id={headingId}
+        tabIndex={-1}
+        className="text-base font-semibold focus:outline-none"
       >
-        <div className="p-4">{content}</div>
-      </Modal>
+        {t('kinds.sectionTitle')}
+      </h2>
+      <p className="mb-3 mt-1 text-sm text-muted">
+        {t('kinds.sectionDescription')}
+      </p>
+      {content}
       {deleting && kinds ? (
         <DeleteKind
           kind={deleting}
@@ -228,7 +230,7 @@ export function KindsDialog({
           error={error}
         />
       ) : null}
-    </>
+    </section>
   )
 }
 
@@ -286,7 +288,7 @@ function KindRow({
         >
           <KindSymbolIcon symbol={kind.symbol} />
         </span>
-        <div className="min-w-32 flex-1">
+        <div className="min-w-40 flex-1">
           <label htmlFor={nameId} className="sr-only">
             {t('kinds.rename', { name: label })}
           </label>
@@ -429,30 +431,7 @@ function StylePicker({
   return (
     <div className="flex flex-col gap-3">
       <div role="group" aria-label={t('kinds.colorOf', { name })}>
-        <div className="flex flex-wrap gap-2">
-          {kindSwatches.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              aria-label={swatch}
-              aria-pressed={swatch === color.toUpperCase()}
-              disabled={busy}
-              data-testid="kind-color-swatch"
-              onClick={() => onColor(swatch)}
-              className={cn(
-                hoverClass.pin,
-                'inline-flex size-11 items-center justify-center rounded-full border-2 border-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
-                swatch === color.toUpperCase() && 'border-foreground',
-              )}
-            >
-              <span
-                aria-hidden="true"
-                className="size-7 rounded-full"
-                style={{ backgroundColor: swatch }}
-              />
-            </button>
-          ))}
-        </div>
+        <ColorSwatches value={color} disabled={busy} onPick={onColor} />
         <label htmlFor={hexId} className="mb-1 mt-2 block text-sm">
           {t('kinds.hex')}
         </label>

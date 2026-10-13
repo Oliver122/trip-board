@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   categoryCounts,
   collapseLabels,
+  draftWithPlace,
   emptyDraft,
   switchDecision,
   type Draft,
@@ -91,5 +92,41 @@ describe('category filter helpers', () => {
       first: 'A',
       more: 3,
     })
+  })
+})
+
+describe('draftWithPlace', () => {
+  const place = {
+    title: 'Kinkaku-ji',
+    address: 'Kita Ward, Kyoto',
+    lat: 35.0394,
+    lng: 135.7292,
+    link: 'https://maps.app.goo.gl/abc',
+    placed: true,
+  }
+
+  it('T-33-06 fills a fresh draft and marks it as from a link', () => {
+    const draft = draftWithPlace(emptyDraft, place, false)
+    expect(draft).toMatchObject({
+      title: 'Kinkaku-ji',
+      address: 'Kita Ward, Kyoto',
+      lat: 35.0394,
+      lng: 135.7292,
+      link: place.link,
+      fromLink: true,
+    })
+  })
+
+  it('T-33-06 keeps a typed title from the field and an unset pin when unplaced', () => {
+    const typed = { ...emptyDraft, title: 'Golden Pavilion' }
+    const draft = draftWithPlace(
+      typed,
+      { ...place, lat: null, lng: null, placed: false },
+      true,
+    )
+    expect(draft.title).toBe('Golden Pavilion')
+    expect(draft.lat).toBeNull()
+    expect(draft.link).toBe(place.link)
+    expect(draftWithPlace(emptyDraft, place, true).title).toBe('Kinkaku-ji')
   })
 })

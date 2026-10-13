@@ -6,6 +6,7 @@ import {
   deleteExpiredSessions,
   deleteOldActivity,
   deleteOldInvites,
+  deleteStaleCommons,
   deleteStaleGeocode,
 } from './jobs.js'
 
@@ -82,6 +83,14 @@ describe.skipIf(!hasDb)('housekeeping', () => {
     )
     await db.pool.query(
       `
+      INSERT INTO commons_cache (point_key, response, created_at)
+      VALUES
+        ('old', '{"suggestions":[]}'::jsonb, '2026-05-20T00:00:00Z'),
+        ('new', '{"suggestions":[]}'::jsonb, '2026-05-28T00:00:00Z')
+      `,
+    )
+    await db.pool.query(
+      `
       INSERT INTO activity_events (action, created_at)
       VALUES
         ('spot.create', '2025-11-01T00:00:00Z'),
@@ -109,6 +118,7 @@ describe.skipIf(!hasDb)('housekeeping', () => {
     expect(await deleteExpiredSessions(db.pool, now)).toBe(1)
     expect(await deleteOldInvites(db.pool, now)).toBe(2)
     expect(await deleteStaleGeocode(db.pool, now)).toBe(1)
+    expect(await deleteStaleCommons(db.pool, now)).toBe(1) // T-34-06
     expect(await deleteOldActivity(db.pool, now)).toBe(1)
 
     const sessions = await db.pool.query('SELECT id FROM sessions ORDER BY id')
@@ -126,6 +136,11 @@ describe.skipIf(!hasDb)('housekeeping', () => {
       'SELECT query_key FROM geocode_cache ORDER BY query_key',
     )
     expect(geocode.rows.map((row) => row.query_key)).toEqual(['new'])
+
+    const commons = await db.pool.query(
+      'SELECT point_key FROM commons_cache ORDER BY point_key',
+    )
+    expect(commons.rows.map((row) => row.point_key)).toEqual(['new'])
 
     const activity = await db.pool.query(
       'SELECT action FROM activity_events ORDER BY action',

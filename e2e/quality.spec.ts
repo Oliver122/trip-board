@@ -24,7 +24,7 @@ test('T-18-03 an invalid link stays in the open panel, and a failed save keeps t
   await page
     .getByRole('option', { name: 'Fushimi Inari Taisha, Kyoto' })
     .click()
-  await page.getByLabel('Link').fill('javascript:x')
+  await page.getByLabel('Link', { exact: true }).fill('javascript:x')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByTestId('link-error')).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
@@ -43,12 +43,14 @@ test('T-18-03 an invalid link stays in the open panel, and a failed save keeps t
     }
     return route.continue()
   })
-  await page.getByLabel('Link').fill('https://hotel.example')
+  await page.getByLabel('Link', { exact: true }).fill('https://hotel.example')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByTestId('form-error')).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'New spot' })).toBeVisible()
   await expect(titleField(page)).toHaveValue('Keep title')
-  await expect(page.getByLabel('Link')).toHaveValue('https://hotel.example')
+  await expect(page.getByLabel('Link', { exact: true })).toHaveValue(
+    'https://hotel.example',
+  )
 })
 
 test('T-18-04 the list ignores the map until List follows map is on', async ({

@@ -31,10 +31,12 @@ test('T-08-11 planner drops two images, sees progress, and opens the lightbox', 
   const seen = progress.waitFor({ state: 'visible' })
   await dropImages(page)
   await seen
-  await expect(page.getByRole('button', { name: 'Photo' })).toHaveCount(2)
+  await expect(
+    page.getByRole('button', { name: 'Photo', exact: true }),
+  ).toHaveCount(2)
   await expect(page.getByTestId('quota-counter')).not.toHaveText(before)
 
-  await page.getByRole('button', { name: 'Photo' }).first().click()
+  await page.getByRole('button', { name: 'Photo', exact: true }).first().click()
   await expect(page.getByTestId('lightbox')).toBeVisible()
   await expect(
     page.getByTestId('lightbox').getByRole('img', { name: 'Photo' }),

@@ -748,11 +748,12 @@
   },
   "kinds": {
     "title": "Spot-Arten",
+    "sectionTitle": "Ortsarten",
+    "sectionDescription": "Die Kategorien, die diese Reise für ihre Orte nutzt: Name, Farbe, Symbol und Reihenfolge.",
     "field": "Arten",
     "atMostTwo": "Höchstens 2 Arten",
     "both": "{{first}} und {{second}}",
     "pinLabel": "{{title}}, {{kinds}}",
-    "boardMenu": "Board-Menü",
     "loadError": "Spot-Arten konnten nicht geladen werden.",
     "list": "Spot-Arten dieser Reise",
     "spotCount_one": "{{count}} Spot",
@@ -889,6 +890,72 @@
       "dismiss": "Schließen",
       "invalidMax": "Gib eine Zahl über {{limit}} und höchstens 64 ein.",
       "loadError": "Der Status der Anfrage konnte nicht geladen werden."
+    }
+  },
+  "places": {
+    "looking": "Ort wird gesucht…",
+    "linkField": "Google-Maps-Link",
+    "fillIn": "Übernehmen",
+    "unplaced": "Der Ort konnte nicht auf der Karte gesetzt werden. Klicke auf die Karte, um den Pin zu setzen.",
+    "errors": {
+      "link_not_google_maps": "Das ist kein Google-Maps-Link.",
+      "link_resolve_failed": "Der Link konnte nicht geöffnet werden. Prüfe ihn und versuche es erneut.",
+      "rate_limited": "Zu viele Suchanfragen. Warte eine Minute und versuche es erneut.",
+      "generic": "Der Ort konnte nicht gefunden werden. Versuche es erneut."
+    }
+  },
+  "images": {
+    "webFindOnGoogle": "Bilder bei Google suchen",
+    "webNotAnImage": "Das ist kein Bild und kein Bildlink",
+    "webPasteHint": "Du kannst auch ein Bild oder einen Bildlink einfügen.",
+    "webSource": "Quelle: {{host}}",
+    "webCredit": "Foto: {{artist}} · {{license}} · Wikimedia Commons",
+    "suggestionsTitle": "Fotovorschläge",
+    "suggestionsLoading": "Vorschläge werden geladen",
+    "suggestionsEmpty": "Keine freien Fotos in der Nähe dieses Orts gefunden",
+    "suggestionsError": "Die Vorschläge konnten nicht geladen werden.",
+    "suggestionsRetry": "Nochmal versuchen",
+    "suggestionsFooter": "Von Wikimedia Commons",
+    "suggestionsBy": "{{artist}} · {{license}}",
+    "suggestionsAdd": "Hinzufügen",
+    "suggestionsAdding": "Wird hinzugefügt…",
+    "suggestionsAddLabel": "Bild von {{artist}} hinzufügen",
+    "draftTitle": "Fotos",
+    "queueRemove": "{{label}} entfernen",
+    "queueFull": "Zu einem neuen Ort lassen sich höchstens {{max}} Fotos gleichzeitig hinzufügen.",
+    "queueFailed_one": "Ort hinzugefügt. 1 Foto konnte nicht hinzugefügt werden: {{details}}",
+    "queueFailed_other": "Ort hinzugefügt. {{count}} Fotos konnten nicht hinzugefügt werden: {{details}}",
+    "errors": {
+      "url_not_allowed": "Dieser Link zeigt auf eine Adresse, die nicht genutzt werden kann.",
+      "fetch_failed": "Das Bild konnte von diesem Link nicht geladen werden.",
+      "commons_failed": "Wikimedia Commons hat nicht geantwortet.",
+      "license_not_allowed": "Die Lizenz dieses Fotos erlaubt die Nutzung hier nicht.",
+      "already_added": "Dieses Foto ist schon beim Ort.",
+      "too_large": "Das Bild ist größer als 10 MB.",
+      "unsupported_type": "Dieser Bildtyp wird nicht unterstützt.",
+      "rate_limited": "Zu viele Uploads, versuch es gleich nochmal.",
+      "invalid_url": "Das ist kein gültiger Bildlink."
+    }
+  },
+  "share": {
+    "title": "Ort hinzufügen",
+    "pickTrip": "Zu welcher Reise hinzufügen?",
+    "continue": "Weiter",
+    "noTrips": "Du hast keine Reise, zu der du Orte hinzufügen kannst",
+    "toTrips": "Zu meinen Reisen",
+    "loadError": "Deine Reisen konnten nicht geladen werden.",
+    "account": {
+      "title": "Orte aus Google Maps senden",
+      "intro": "Gib einen Ort aus Google Maps an ein Reise-Board weiter: Der Link füllt das Hinzufügen-Fenster mit Titel, Adresse und Pin.",
+      "bookmarklet": "An TripBoard senden",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "desktop": "Am Computer",
+      "desktopHow": "Ziehe „An TripBoard senden“ in deine Lesezeichenleiste. Öffne einen Ort in Google Maps und klicke auf das Lesezeichen. Oder kopiere den Code und füge ihn als Adresse eines neuen Lesezeichens ein.",
+      "android": "Auf Android",
+      "androidHow": "Installiere TripBoard über das Browsermenü (Zum Startbildschirm hinzufügen). Wähle dann in Google Maps Teilen, dann TripBoard, und such die Reise aus.",
+      "iphone": "Auf dem iPhone",
+      "iphoneHow": "Safari kann nicht an Web-Apps teilen. Wähle in Google Maps Teilen, dann Kopieren, und füge den Link in das Feld „Google-Maps-Link“ im Hinzufügen-Fenster ein."
     }
   }
 }

@@ -26,6 +26,7 @@ const envSchema = z.object({
     .string()
     .min(1)
     .default('TripBoard/0.1 (local development)'),
+  COMMONS_BASE_URL: z.string().url().default('https://commons.wikimedia.org'),
   S3_ENDPOINT: z.string().url().default('http://localhost:9000'),
   S3_BUCKET: z.string().min(1).default('tripboard'),
   S3_ACCESS_KEY: z.string().min(1).default('tripboard'),

@@ -85,7 +85,7 @@ test('T-20-08 link and trip-name errors are red with an alert icon', async ({
   await page
     .getByRole('option', { name: 'Fushimi Inari Taisha, Kyoto' })
     .click()
-  await page.getByLabel('Link').fill('javascript:x')
+  await page.getByLabel('Link', { exact: true }).fill('javascript:x')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   const linkError = page.getByTestId('link-error')
   await expect(linkError).toBeVisible()

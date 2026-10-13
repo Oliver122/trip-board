@@ -9,12 +9,16 @@ import { registerAuthRoutes } from './auth/routes.js'
 import { registerExportRoutes } from './export/routes.js'
 import { loadConfig, type AppConfig } from './config.js'
 import { pingDatabase } from './db.js'
+import { NominatimClient } from './geocode/nominatim.js'
 import { registerGeocodeRoutes } from './geocode/routes.js'
+import { createGeocodeService } from './geocode/store.js'
 import { applySecurityHeaders, blobOrigin } from './http/headers.js'
 import { RequestLimiter } from './http/limit.js'
 import { TripHub } from './live/hub.js'
 import { isLiveEvents, registerLiveRoutes } from './live/routes.js'
 import { registerImageRoutes } from './images/routes.js'
+import type { WebFetchOptions } from './images/web-fetch.js'
+import { registerPlaceRoutes } from './places/routes.js'
 import { registerPlanRoutes } from './plan/routes.js'
 import { UploadLimiter } from './images/limit.js'
 import { createS3Storage, type ObjectStorage } from './images/storage.js'
@@ -30,6 +34,12 @@ export type BuildAppOptions = {
   config?: AppConfig
   now?: () => Date
   geocodeFetch?: typeof fetch
+  /** Follows Google Maps short links (step 33). */
+  placeLinkFetch?: typeof fetch
+  /** Downloads photos from the web (step 34). */
+  webFetch?: WebFetchOptions
+  /** Talks to the Wikimedia Commons API (step 34). */
+  commonsFetch?: typeof fetch
   storage?: ObjectStorage
   beforeImageInsert?: () => Promise<void>
   beforeAdminCommit?: () => Promise<void>
@@ -120,11 +130,24 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
   registerLiveRoutes(app, { pool, config, now, hub })
   registerPlanRoutes(app, { pool, config, now })
   registerExportRoutes(app, { pool, config, now })
-  registerGeocodeRoutes(app, {
+  // One service, so the board's search and the place links share Nominatim's
+  // one-request-per-second gate and the cache.
+  const geocode = createGeocodeService(
+    pool,
+    new NominatimClient({
+      fetch: options.geocodeFetch ?? globalThis.fetch,
+      baseUrl: config.NOMINATIM_BASE_URL,
+      userAgent: config.NOMINATIM_USER_AGENT,
+      referer: config.WEB_ORIGIN,
+    }),
+  )
+  registerGeocodeRoutes(app, { pool, config, now, service: geocode })
+  registerPlaceRoutes(app, {
     pool,
     config,
     now,
-    fetch: options.geocodeFetch,
+    geocode,
+    fetch: options.placeLinkFetch,
   })
   await registerImageRoutes(app, {
     pool,
@@ -133,6 +156,8 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     storage: options.storage ?? createS3Storage(config),
     limiter: new UploadLimiter(),
     beforeImageInsert: options.beforeImageInsert,
+    webFetch: options.webFetch,
+    commonsFetch: options.commonsFetch,
   })
 
   if (config.NODE_ENV === 'test') {

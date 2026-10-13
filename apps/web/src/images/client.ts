@@ -1,8 +1,10 @@
 import {
   imageListSchema,
   imageSchema,
+  photoSuggestionListSchema,
   quotaSchema,
   type ImageList,
+  type PhotoSuggestion,
   type Quota,
   type SpotImage,
 } from '@tripboard/shared'
@@ -68,4 +70,39 @@ export function uploadImage(
 
 export async function deleteImage(imageId: string): Promise<void> {
   await request(`/api/images/${imageId}`, { method: 'DELETE' })
+}
+
+export function addImageFromUrl(
+  spotId: string,
+  url: string,
+): Promise<SpotImage> {
+  return requestJson(`/api/spots/${spotId}/images/from-url`, imageSchema, {
+    method: 'POST',
+    body: JSON.stringify({ url }),
+  })
+}
+
+export function addImageFromCommons(
+  spotId: string,
+  fileTitle: string,
+): Promise<SpotImage> {
+  return requestJson(`/api/spots/${spotId}/images/from-commons`, imageSchema, {
+    method: 'POST',
+    body: JSON.stringify({ fileTitle }),
+  })
+}
+
+export async function listPhotoSuggestions(
+  tripId: string,
+  lat: number,
+  lng: number,
+  signal?: AbortSignal,
+): Promise<PhotoSuggestion[]> {
+  const query = new URLSearchParams({ lat: String(lat), lng: String(lng) })
+  const list = await requestJson(
+    `/api/trips/${tripId}/photo-suggestions?${query}`,
+    photoSuggestionListSchema,
+    { signal },
+  )
+  return list.suggestions
 }

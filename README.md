@@ -141,6 +141,16 @@ Rows without coordinates are looked up one at a time through `GET /geocode/searc
 
 `POST /trips/:id/spots/import` (planner+) takes up to 500 spots and writes them in one transaction: one multi-row insert, one trip bbox expansion, and one `spot.import` activity event (not one `spot.create` per spot). The import parser and dialog load only when the dialog opens, in a separate bundle chunk.
 
+## Send a place from Google Maps
+
+Planners can hand a place from Google Maps to a board by its link. Paste the link on the board (Ctrl/Cmd+V), or type it into the _Google Maps link_ field of the add panel; the panel opens with title, address, pin and link filled in. `POST /trips/:id/places/from-link` follows short links (`maps.app.goo.gl`) with `HEAD` requests to Google hosts only and matches the place through Nominatim; it never reads a Google page. At most 20 requests per user per minute.
+
+- **Desktop:** on the account page, drag _Send to TripBoard_ to the bookmarks bar and click it on a Google Maps place.
+- **Android:** install TripBoard from the browser menu, then Google Maps → _Share_ → _TripBoard_ and pick the trip (`/share`, a Web Share Target).
+- **iPhone:** Safari has no share targets; use _Share → Copy_ in Google Maps and paste into the _Google Maps link_ field.
+
+The installable app is `apps/web/public/manifest.webmanifest` plus a pass-through service worker (`sw.js`, production builds only; it caches nothing).
+
 ## Live updates
 
 `GET /trips/:id/events` is a Server-Sent Events stream for members of that trip. Each API process keeps one Postgres connection on `LISTEN trip_events`. A write notifies that channel in the same transaction as its `activity_events` row, so a rollback sends nothing. The payload is ids only: trip, resource (`spot`, `image`, `plan`, `home`, `member`, `trip`), entity id, action, actor, and the tab’s `X-Client-Id`. The browser opens one stream per trip tab, ignores its own client id, and refetches the affected list after a short pause. Map position, open dialogs, scroll, and selection stay put.
@@ -227,6 +237,7 @@ Set these on **Settings → Environments → production**. Optional keys that ar
 | `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`      | variable | no           | Default to the server’s MinIO                                                                                      |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY`             | secret   | no           | Same                                                                                                               |
 | `NOMINATIM_BASE_URL`, `NOMINATIM_USER_AGENT` | variable | no           | Use a user agent with a contact address                                                                            |
+| `COMMONS_BASE_URL`                           | variable | no           | Wikimedia Commons API for photo suggestions; defaults to `https://commons.wikimedia.org`                           |
 | `WEB_PORT`, `API_PORT`                       | variable | no           | Keep `WEB_PORT` at `5180`; nginx and the server health check expect it                                             |
 
 `pnpm push` from a laptop still works with a local `deploy.env` (copy `deploy.env.example`). Do not set `DEV_LOGIN` for a deploy. The script never copies that key, and it stops before restart when the server `.env` already has `DEV_LOGIN=1`.

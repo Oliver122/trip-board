@@ -564,6 +564,9 @@ export const images = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .notNull()
       .defaultNow(),
+    sourceUrl: text('source_url'),
+    credit: text('credit'),
+    license: text('license'),
   },
   (table) => [
     unique('images_storage_key_key').on(table.storageKey),
@@ -575,6 +578,12 @@ export const images = pgTable(
     check('images_bytes_check', sql`${table.bytes} > 0`),
     check('images_width_check', sql`${table.width} BETWEEN 1 AND 2048`),
     check('images_height_check', sql`${table.height} BETWEEN 1 AND 2048`),
+    check(
+      'images_source_url_check',
+      sql`char_length(${table.sourceUrl}) <= 2000`,
+    ),
+    check('images_credit_check', sql`char_length(${table.credit}) <= 300`),
+    check('images_license_check', sql`char_length(${table.license}) <= 100`),
     index('images_spot_idx').on(table.spotId, table.sortOrder),
     index('images_uploaded_by_idx').on(table.uploadedBy),
   ],
@@ -651,6 +660,18 @@ export const geocodeCache = pgTable(
       .defaultNow(),
   },
   (table) => [index('geocode_cache_created_at_idx').on(table.createdAt)],
+)
+
+export const commonsCache = pgTable(
+  'commons_cache',
+  {
+    pointKey: text('point_key').primaryKey(),
+    response: jsonb('response').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index('commons_cache_created_at_idx').on(table.createdAt)],
 )
 
 export const appSettings = pgTable(

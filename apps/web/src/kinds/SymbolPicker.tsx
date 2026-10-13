@@ -3,6 +3,7 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
+import { selectedRing, SelectedCheck } from './selection'
 import { SymbolMark } from './textures'
 
 /** Lower case without diacritics, so "kat" finds "Katze" and "ubung" finds "Übung". */
@@ -131,8 +132,8 @@ export function SymbolPicker({
               data-symbol={key}
               className={cn(
                 hoverClass.secondary,
-                'inline-flex size-11 items-center justify-center rounded-[8px] text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
-                key === symbol && 'border-foreground bg-hover',
+                'relative inline-flex size-11 items-center justify-center rounded-[8px] text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground',
+                key === symbol && ['bg-hover', selectedRing],
               )}
               onClick={() => onPick(key)}
             >
@@ -142,6 +143,7 @@ export function SymbolPicker({
               >
                 <SymbolMark symbol={key} />
               </span>
+              {key === symbol && <SelectedCheck />}
             </button>
           ))}
         </div>

@@ -1,35 +1,54 @@
 import type { Quota, SpotImage } from '@tripboard/shared'
 import { X } from 'lucide-react'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ApiError } from '../api/http'
 import { ErrorNotice } from '../components/notice'
 import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 import {
+  addImageFromCommons,
+  addImageFromUrl,
   deleteImage,
   getQuota,
   imageSrc,
   listImages,
   uploadImage,
 } from './client'
+import type { Dropped } from './drop'
+import { DropZone, onPasteImage } from './DropZone'
 import { megabytes } from './format'
+import { photoErrorMessage } from './reasons'
+import { Suggestions } from './Suggestions'
 
 export function Gallery({
   spotId,
   canEdit,
   revision = 0,
+  tripId,
+  title = '',
+  address = '',
+  lat,
+  lng,
 }: {
   spotId: string
   canEdit: boolean
   revision?: number
+  /** Step 34: for *Find images on Google* and the suggestions (R-34-01, R-34-10). */
+  tripId?: string
+  title?: string
+  address?: string
+  lat?: number
+  lng?: number
 }) {
   const { t } = useTranslation()
-  const inputId = useId()
   const [images, setImages] = useState<SpotImage[]>([])
   const [quota, setQuota] = useState<Quota | null>(null)
   const [uploadsEnabled, setUploadsEnabled] = useState(true)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  /** 0..1 while uploading, -1 while the server downloads a link. */
   const [progress, setProgress] = useState<number | null>(null)
+  const [busyTitle, setBusyTitle] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<SpotImage | null>(null)
 
@@ -73,34 +92,62 @@ export function Gallery({
     ? t('board.uploadsPaused')
     : t('board.imageLimit')
 
-  async function addFiles(files: File[]) {
-    if (!canEdit || blocked || files.length === 0) return
+  async function refresh() {
+    const [list, nextQuota] = await Promise.all([
+      listImages(spotId),
+      getQuota(),
+    ])
+    setImages(list.images)
+    setUploadsEnabled(list.uploadsEnabled)
+    setQuota(nextQuota)
+  }
+
+  async function run(work: () => Promise<void>) {
     setError(null)
-    setProgress(0)
     try {
-      for (const file of files) {
-        await uploadImage(spotId, file, setProgress)
-      }
-      const [list, nextQuota] = await Promise.all([
-        listImages(spotId),
-        getQuota(),
-      ])
-      setImages(list.images)
-      setUploadsEnabled(list.uploadsEnabled)
-      setQuota(nextQuota)
+      await work()
+      await refresh()
     } catch (reason) {
-      const code = reason instanceof Error ? reason.message : ''
-      if (code === 'paused') {
+      if (
+        (reason instanceof Error && reason.message === 'paused') ||
+        (reason instanceof ApiError && reason.status === 503)
+      ) {
         setUploadsEnabled(false)
-        setError(t('board.uploadsPaused'))
-      } else if (code === 'quota') {
-        setError(t('board.imageLimit'))
-      } else {
-        setError(t('board.imageError'))
       }
+      setError(photoErrorMessage(reason, t))
     } finally {
       setProgress(null)
+      setBusyTitle(null)
     }
+  }
+
+  async function handleDropped(dropped: Dropped) {
+    if (!canEdit || blocked || progress !== null || busyTitle !== null) return
+    if (dropped.kind === 'none') {
+      setError(t('images.webNotAnImage'))
+      return
+    }
+    if (dropped.kind === 'files') {
+      const files = dropped.files
+      setProgress(0)
+      await run(async () => {
+        for (const file of files) await uploadImage(spotId, file, setProgress)
+      })
+      return
+    }
+    const url = dropped.url
+    setProgress(-1)
+    await run(async () => {
+      await addImageFromUrl(spotId, url)
+    })
+  }
+
+  async function addSuggestion(fileTitle: string) {
+    if (!canEdit || blocked || progress !== null || busyTitle !== null) return
+    setBusyTitle(fileTitle)
+    await run(async () => {
+      await addImageFromCommons(spotId, fileTitle)
+    })
   }
 
   async function remove(imageId: string) {
@@ -116,7 +163,15 @@ export function Gallery({
   }
 
   return (
-    <section className="space-y-3" aria-label={t('board.photo')}>
+    <section
+      className="space-y-3"
+      aria-label={t('board.photo')}
+      onPaste={
+        canEdit && status === 'ready'
+          ? onPasteImage((dropped) => void handleDropped(dropped))
+          : undefined
+      }
+    >
       {status === 'loading' ? <p>{t('board.imagesLoading')}</p> : null}
       {status === 'error' ? (
         <ErrorNotice>{t('board.imageError')}</ErrorNotice>
@@ -137,35 +192,43 @@ export function Gallery({
             {blockMessage}
           </p>
         ) : (
-          <label
-            data-testid="image-drop"
-            className="flex min-h-24 cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-border px-3 text-center"
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault()
-              void addFiles([...event.dataTransfer.files])
-            }}
-          >
-            <input
-              id={inputId}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,.heic"
-              multiple
-              className="sr-only"
-              onChange={(event) => {
-                const files = [...(event.target.files ?? [])]
-                event.target.value = ''
-                void addFiles(files)
-              }}
-            />
-            {t('board.dropImages')}
-          </label>
+          <DropZone onDropped={(dropped) => void handleDropped(dropped)} />
         )
+      ) : null}
+      {canEdit && title.trim() !== '' ? (
+        <a
+          href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${title} ${address}`.trim())}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            hoverClass.link,
+            'inline-flex min-h-11 items-center text-sm underline',
+          )}
+        >
+          {t('images.webFindOnGoogle')}
+        </a>
+      ) : null}
+      {canEdit &&
+      status === 'ready' &&
+      tripId !== undefined &&
+      lat !== undefined &&
+      lng !== undefined ? (
+        <Suggestions
+          tripId={tripId}
+          lat={lat}
+          lng={lng}
+          disabled={blocked || progress !== null}
+          busyTitle={busyTitle}
+          isAdded={(item) =>
+            images.some((image) => image.sourceUrl === item.descriptionUrl)
+          }
+          onAdd={(item) => void addSuggestion(item.fileTitle)}
+        />
       ) : null}
       {progress !== null ? (
         <progress
           aria-label={t('board.uploadProgress')}
-          value={Math.round(progress * 100)}
+          value={progress < 0 ? undefined : Math.round(progress * 100)}
           max={100}
           className="h-2 w-full"
         />
@@ -231,13 +294,49 @@ export function Gallery({
           >
             <X aria-hidden="true" className="size-4" />
           </button>
-          <img
-            src={imageSrc(open.url)}
-            alt={t('board.photo')}
-            className="max-h-full max-w-full"
-          />
+          <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
+            <img
+              src={imageSrc(open.url)}
+              alt={t('board.photo')}
+              className="min-h-0 max-w-full object-contain"
+            />
+            <ImageSource image={open} />
+          </figure>
         </div>
       ) : null}
     </section>
   )
+}
+
+/** Where a photo came from: a Commons credit or the host of a link (R-34-11). */
+function ImageSource({ image }: { image: SpotImage }) {
+  const { t } = useTranslation()
+  if (!image.sourceUrl) return null
+  const text =
+    image.credit !== null
+      ? t('images.webCredit', {
+          artist: image.credit,
+          license: image.license ?? '',
+        })
+      : t('images.webSource', { host: hostOf(image.sourceUrl) })
+  return (
+    <figcaption className="rounded-[8px] bg-card px-3 py-1 text-sm">
+      <a
+        href={image.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(hoverClass.link, 'underline')}
+      >
+        {text}
+      </a>
+    </figcaption>
+  )
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
 }

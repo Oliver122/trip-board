@@ -2,10 +2,20 @@ import type { FastifyReply } from 'fastify'
 
 export const tileOrigin = 'https://tiles.openfreemap.org'
 
+/** Commons thumbnails in the suggestion strip (step 34). */
+export const commonsImageOrigin = 'https://upload.wikimedia.org'
+
 const hsts = 'max-age=15552000; includeSubDomains'
 
 export function contentSecurityPolicy(blobOrigin: string): string {
-  const images = ["'self'", 'blob:', 'data:', tileOrigin, blobOrigin]
+  const images = [
+    "'self'",
+    'blob:',
+    'data:',
+    tileOrigin,
+    commonsImageOrigin,
+    blobOrigin,
+  ]
     .filter((value, index, all) => all.indexOf(value) === index)
     .join(' ')
   const connect = ["'self'", tileOrigin, blobOrigin]

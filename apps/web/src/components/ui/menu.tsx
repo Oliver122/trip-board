@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import { cn } from '../../lib/utils'
 import { hoverClass } from './hover'
@@ -41,6 +42,8 @@ export function Menu({
   const popoverRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const pendingFocus = useRef<'first' | 'last' | null>(null)
+  /** Trigger position the popover was placed against. */
+  const placedAt = useRef<{ top: number; left: number } | null>(null)
 
   const close = (restoreFocus = true) => {
     setOpen(false)
@@ -50,10 +53,41 @@ export function Menu({
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: PointerEvent | MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (
+        !rootRef.current?.contains(target) &&
+        !popoverRef.current?.contains(target)
+      )
+        setOpen(false)
     }
+    // A scrolled ancestor of the trigger (or the page) moves the trigger away
+    // from the fixed popover; scrolling inside the popover is fine. Only a
+    // scroll that really moved the trigger closes it: the scroll event of a
+    // click that first brought the trigger into view can land after opening.
+    const onScroll = (event: Event) => {
+      const target = event.target as Node
+      if (popoverRef.current?.contains(target)) return
+      if (target !== document && !target.contains(triggerRef.current)) return
+      const placed = placedAt.current
+      const now = triggerRef.current?.getBoundingClientRect()
+      if (
+        placed &&
+        now &&
+        Math.abs(now.top - placed.top) < 1 &&
+        Math.abs(now.left - placed.left) < 1
+      )
+        return
+      setOpen(false)
+    }
+    const onResize = () => setOpen(false)
     document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
+    }
   }, [open])
 
   const items = () => [
@@ -72,6 +106,38 @@ export function Menu({
     pendingFocus.current = which
     setOpen(true)
   }
+
+  // Place the portaled popover next to the trigger, flipped and clamped to the
+  // viewport, before the browser paints it.
+  useLayoutEffect(() => {
+    const pop = popoverRef.current
+    const trig = triggerRef.current
+    if (!open || !pop || !trig) return
+    const margin = 8
+    const gap = 4
+    pop.style.maxHeight = ''
+    pop.style.overflowY = ''
+    const t = trig.getBoundingClientRect()
+    placedAt.current = { top: t.top, left: t.left }
+    const { width, height } = pop.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const below = vh - t.bottom - gap - margin
+    const above = t.top - gap - margin
+    let top: number
+    if (height <= below) top = t.bottom + gap
+    else if (height <= above) top = t.top - gap - height
+    else {
+      const useBelow = below >= above
+      const room = Math.max(0, useBelow ? below : above)
+      pop.style.maxHeight = `${room}px`
+      pop.style.overflowY = 'auto'
+      top = useBelow ? t.bottom + gap : t.top - gap - room
+    }
+    const left = align === 'end' ? t.right - width : t.left
+    pop.style.top = `${top}px`
+    pop.style.left = `${Math.max(margin, Math.min(left, vw - margin - width))}px`
+  }, [open, align])
 
   // Focus moves before the browser paints the menu, so a key pressed as soon
   // as the menu is visible already reaches an item.
@@ -137,23 +203,23 @@ export function Menu({
       >
         {trigger}
       </button>
-      {open ? (
-        <MenuContext.Provider value={{ close }}>
-          <div
-            ref={popoverRef}
-            id={menuId}
-            role="menu"
-            aria-label={label}
-            onKeyDown={onMenuKey}
-            className={cn(
-              'absolute top-full z-40 mt-1 min-w-44 rounded-[8px] border border-border bg-card py-1 text-foreground shadow-panel',
-              align === 'end' ? 'right-0' : 'left-0',
-            )}
-          >
-            {children}
-          </div>
-        </MenuContext.Provider>
-      ) : null}
+      {open
+        ? createPortal(
+            <MenuContext.Provider value={{ close }}>
+              <div
+                ref={popoverRef}
+                id={menuId}
+                role="menu"
+                aria-label={label}
+                onKeyDown={onMenuKey}
+                className="fixed top-0 left-0 z-50 min-w-44 rounded-[8px] border border-border bg-card py-1 text-foreground shadow-panel"
+              >
+                {children}
+              </div>
+            </MenuContext.Provider>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

@@ -441,6 +441,9 @@ CREATE TABLE images (
   height       integer     NOT NULL CHECK (height BETWEEN 1 AND 2048),
   sort_order   integer     NOT NULL DEFAULT 0,
   created_at   timestamptz NOT NULL DEFAULT now(),
+  source_url   text        CHECK (char_length(source_url) <= 2000),  -- web photos only (step 34)
+  credit       text        CHECK (char_length(credit) <= 300),
+  license      text        CHECK (char_length(license) <= 100),
   FOREIGN KEY (trip_id, spot_id) REFERENCES spots (trip_id, id) ON DELETE CASCADE
 );
 
@@ -479,6 +482,14 @@ CREATE TABLE geocode_cache (
 );
 
 CREATE INDEX geocode_cache_created_at_idx ON geocode_cache (created_at);
+
+CREATE TABLE commons_cache (
+  point_key   text        PRIMARY KEY,  -- the point rounded to 4 decimals, '35.0394,135.7292'
+  response    jsonb       NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX commons_cache_created_at_idx ON commons_cache (created_at);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Administration

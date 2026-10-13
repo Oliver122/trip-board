@@ -19,6 +19,17 @@ describe('loadConfig', () => {
     )
   })
 
+  it('defaults COMMONS_BASE_URL and accepts an override', () => {
+    const base = { DATABASE_URL: 'postgres://localhost/tripboard' }
+    expect(loadConfig(base).COMMONS_BASE_URL).toBe(
+      'https://commons.wikimedia.org',
+    )
+    expect(
+      loadConfig({ ...base, COMMONS_BASE_URL: 'http://127.0.0.1:9999' })
+        .COMMONS_BASE_URL,
+    ).toBe('http://127.0.0.1:9999')
+  })
+
   it('T-22-02 refuses DEV_LOGIN outside a local development origin', () => {
     const base = {
       DATABASE_URL: 'postgres://localhost/tripboard',

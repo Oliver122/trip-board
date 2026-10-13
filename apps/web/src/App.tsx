@@ -23,6 +23,7 @@ import { TripLayout } from './pages/TripLayout'
 import { TripSettingsPage } from './pages/TripSettingsPage'
 import { TripsPage } from './pages/TripsPage'
 import { DevLoginProvider } from './dev-login'
+import { SharePage } from './share/SharePage'
 import { RequireAuth } from './RequireAuth'
 import { ListFollowsMapProvider } from './list-follows-map'
 import { SessionProvider } from './session'
@@ -61,6 +62,14 @@ export function App() {
                       <Route path="schedule" element={<SchedulePage />} />
                       <Route path="settings" element={<TripSettingsPage />} />
                     </Route>
+                    <Route
+                      path="/share"
+                      element={
+                        <RequireAuth>
+                          <SharePage />
+                        </RequireAuth>
+                      }
+                    />
                     <Route
                       path="/account"
                       element={

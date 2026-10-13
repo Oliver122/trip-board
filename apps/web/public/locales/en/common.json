@@ -748,11 +748,12 @@
   },
   "kinds": {
     "title": "Spot kinds",
+    "sectionTitle": "Spot kinds",
+    "sectionDescription": "The categories this trip uses for its spots: name, color, symbol and order.",
     "field": "Kinds",
     "atMostTwo": "At most 2 kinds",
     "both": "{{first}} and {{second}}",
     "pinLabel": "{{title}}, {{kinds}}",
-    "boardMenu": "Board menu",
     "loadError": "Spot kinds could not be loaded.",
     "list": "Spot kinds of this trip",
     "spotCount_one": "{{count}} spot",
@@ -889,6 +890,72 @@
       "dismiss": "Dismiss",
       "invalidMax": "Enter a number above {{limit}} and at most 64.",
       "loadError": "The request status could not be loaded."
+    }
+  },
+  "places": {
+    "looking": "Looking up place…",
+    "linkField": "Google Maps link",
+    "fillIn": "Fill in",
+    "unplaced": "Couldn't place this on the map. Click the map to set the pin.",
+    "errors": {
+      "link_not_google_maps": "This is not a Google Maps link.",
+      "link_resolve_failed": "Couldn't open this link. Check it and try again.",
+      "rate_limited": "Too many lookups. Wait a minute and try again.",
+      "generic": "Couldn't look up this place. Try again."
+    }
+  },
+  "images": {
+    "webFindOnGoogle": "Find images on Google",
+    "webNotAnImage": "This is not an image or image link",
+    "webPasteHint": "You can also paste an image or an image link.",
+    "webSource": "Source: {{host}}",
+    "webCredit": "Photo: {{artist}} · {{license}} · Wikimedia Commons",
+    "suggestionsTitle": "Suggested photos",
+    "suggestionsLoading": "Loading suggestions",
+    "suggestionsEmpty": "No free photos found near this place",
+    "suggestionsError": "Could not load the suggestions.",
+    "suggestionsRetry": "Try again",
+    "suggestionsFooter": "From Wikimedia Commons",
+    "suggestionsBy": "{{artist}} · {{license}}",
+    "suggestionsAdd": "Add",
+    "suggestionsAdding": "Adding…",
+    "suggestionsAddLabel": "Add image by {{artist}}",
+    "draftTitle": "Photos",
+    "queueRemove": "Remove {{label}}",
+    "queueFull": "At most {{max}} photos can be added together with a new spot.",
+    "queueFailed_one": "Spot added. 1 photo could not be added: {{details}}",
+    "queueFailed_other": "Spot added. {{count}} photos could not be added: {{details}}",
+    "errors": {
+      "url_not_allowed": "This link points to an address that cannot be used.",
+      "fetch_failed": "The image could not be downloaded from that link.",
+      "commons_failed": "Wikimedia Commons did not answer.",
+      "license_not_allowed": "This photo's license does not allow reuse here.",
+      "already_added": "This photo is already on the spot.",
+      "too_large": "The image is larger than 10 MB.",
+      "unsupported_type": "This is not a supported image type.",
+      "rate_limited": "Too many uploads, try again in a moment.",
+      "invalid_url": "This is not a valid image link."
+    }
+  },
+  "share": {
+    "title": "Add a place",
+    "pickTrip": "Add to which trip?",
+    "continue": "Continue",
+    "noTrips": "You have no trip you can add spots to",
+    "toTrips": "Go to my trips",
+    "loadError": "Couldn't load your trips.",
+    "account": {
+      "title": "Send places from Google Maps",
+      "intro": "Hand a place from Google Maps to a trip board: its link fills the add panel with title, address and pin.",
+      "bookmarklet": "Send to TripBoard",
+      "copy": "Copy",
+      "copied": "Copied",
+      "desktop": "On a computer",
+      "desktopHow": "Drag \"Send to TripBoard\" to your bookmarks bar. Open a place in Google Maps and click the bookmark. Or copy the code and paste it as the address of a new bookmark.",
+      "android": "On Android",
+      "androidHow": "Install TripBoard from your browser's menu (Add to Home screen). Then in Google Maps choose Share, then TripBoard, and pick the trip.",
+      "iphone": "On iPhone",
+      "iphoneHow": "Safari cannot share to web apps. In Google Maps choose Share, then Copy, and paste the link into the \"Google Maps link\" field of the add panel."
     }
   }
 }
