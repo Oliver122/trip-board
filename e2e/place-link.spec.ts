@@ -2,6 +2,7 @@ import { answerConfirm } from './confirm'
 import { expect, test, type Page } from './fixtures'
 import { showLocale } from './locale'
 import { waitForMap } from './map'
+import { dispatchPaste } from './clipboard'
 
 const shareText =
   'Kinkaku-ji\n1 Kinkakujicho, Kita Ward, Kyoto\nhttps://maps.app.goo.gl/kinkaku'
@@ -246,18 +247,7 @@ async function fakeResolver(page: Page): Promise<() => number> {
 }
 
 async function paste(page: Page, text: string) {
-  await page.evaluate((value) => {
-    const data = new DataTransfer()
-    data.setData('text/plain', value)
-    const target = document.activeElement ?? document.body
-    target.dispatchEvent(
-      new ClipboardEvent('paste', {
-        clipboardData: data,
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
-  }, text)
+  await dispatchPaste(page, { text })
 }
 
 async function mapCenter(page: Page) {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { dispatchPaste } from './clipboard'
 
 const planner = '100000000000000002'
 const tomId = '100000000000000003'
@@ -140,20 +141,7 @@ async function drop(page: Page, data: Record<string, string>) {
 }
 
 async function pastePng(page: Page) {
-  await page.evaluate((base64) => {
-    const zone = document.activeElement
-    if (!(zone instanceof HTMLElement)) throw new Error('nothing focused')
-    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))
-    const transfer = new DataTransfer()
-    transfer.items.add(new File([bytes], 'pasted.png', { type: 'image/png' }))
-    zone.dispatchEvent(
-      new ClipboardEvent('paste', {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: transfer,
-      }),
-    )
-  }, png)
+  await dispatchPaste(page, { pngBase64: png, name: 'pasted.png' })
 }
 
 async function login(page: Page, discordId: string) {

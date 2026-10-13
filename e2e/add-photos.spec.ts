@@ -2,6 +2,7 @@ import { expectNoSeriousViolations } from './a11y'
 import { answerConfirm } from './confirm'
 import { expect, test, type Page } from './fixtures'
 import { waitForMap } from './map'
+import { dispatchPaste } from './clipboard'
 
 const planner = '100000000000000002'
 const photoUrl = 'http://fixtures.tripboard.test/photo.jpg'
@@ -62,17 +63,11 @@ test('T-34-09 a spot filled from a Maps link opens the suggestions at once', asy
   const tripId = await createTrip(page, 'Link photos')
   await page.goto(`/trips/${tripId}`)
   await waitForMap(page)
-  await page.evaluate(() => {
-    const data = new DataTransfer()
-    data.setData('text/plain', 'Kinkaku-ji\nhttps://maps.app.goo.gl/kinkaku')
-    document.body.dispatchEvent(
-      new ClipboardEvent('paste', {
-        clipboardData: data,
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
-  })
+  await dispatchPaste(
+    page,
+    { text: 'Kinkaku-ji\nhttps://maps.app.goo.gl/kinkaku' },
+    'body',
+  )
   const dialog = page.getByRole('dialog', { name: 'New spot' })
   await expect(dialog.getByLabel('Title')).toHaveValue('Kinkaku-ji')
   await expect(
