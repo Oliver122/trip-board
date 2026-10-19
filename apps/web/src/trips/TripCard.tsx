@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
+import { useDataSaver } from '../lib/data-saver'
 import { cn } from '../lib/utils'
 import { formatDate } from '../lib/format'
 
@@ -124,12 +125,13 @@ function AvatarFace({
   member: Trip['members'][number]
   ringClass: string
 }) {
+  const { on: lowData } = useDataSaver()
   const face = cn(
     hoverClass.avatar,
     'size-8 rounded-full object-cover ring-2',
     ringClass,
   )
-  if (member.avatarUrl) {
+  if (member.avatarUrl && !lowData) {
     return (
       <img
         src={member.avatarUrl}

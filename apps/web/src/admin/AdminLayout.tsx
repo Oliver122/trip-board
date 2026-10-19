@@ -5,6 +5,7 @@ import { ThemeSwitch } from '../components/Preferences'
 import { DevLoginBadge } from '../dev-login'
 import { hoverClass } from '../components/ui/hover'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { useSession } from '../session'
 import { getStats, pendingRequestCount } from './client'
@@ -49,6 +50,7 @@ export function AdminGate() {
 function AdminLayout() {
   const { t } = useTranslation()
   const location = useLocation()
+  const phone = useMediaQuery(phoneQuery)
   const [count, setCount] = useState(0)
   const [tick, setTick] = useState(0)
   const [capacityTick, setCapacityTick] = useState(0)
@@ -83,6 +85,17 @@ function AdminLayout() {
       })
     return () => controller.abort()
   }, [location.pathname, capacityTick])
+
+  if (phone) {
+    return (
+      <main className="mx-auto max-w-xl space-y-3 p-6">
+        <p data-testid="admin-phone-notice">{t('phone.adminNotice')}</p>
+        <Link to="/trips" className={hoverClass.link}>
+          {t('phone.back')}
+        </Link>
+      </main>
+    )
+  }
 
   return (
     <PendingContext.Provider

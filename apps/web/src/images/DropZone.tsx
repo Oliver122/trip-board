@@ -1,5 +1,6 @@
 import { useId, useRef, type ClipboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { parseTransfer, type Dropped } from './drop'
 
@@ -35,6 +36,7 @@ export function DropZone({
   const { t } = useTranslation()
   const inputId = useId()
   const input = useRef<HTMLInputElement>(null)
+  const phone = useMediaQuery(phoneQuery)
   return (
     <label
       data-testid={testId}
@@ -60,7 +62,9 @@ export function DropZone({
         ref={input}
         id={inputId}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,.heic"
+        accept={
+          phone ? 'image/*' : 'image/jpeg,image/png,image/webp,image/heic,.heic'
+        }
         multiple
         tabIndex={-1}
         disabled={disabled}
@@ -71,8 +75,14 @@ export function DropZone({
           if (files.length > 0) onDropped({ kind: 'files', files })
         }}
       />
-      <span>{t('board.dropImages')}</span>
-      <span className="text-xs text-muted">{t('images.webPasteHint')}</span>
+      {phone ? (
+        <span>{t('lowData.addPhotos')}</span>
+      ) : (
+        <>
+          <span>{t('board.dropImages')}</span>
+          <span className="text-xs text-muted">{t('images.webPasteHint')}</span>
+        </>
+      )}
     </label>
   )
 }

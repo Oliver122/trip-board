@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useMatch } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useTripUnread } from '../comments/useTripUnread'
-import { NewsButton } from '../comments/News'
+import { NewsButton, NewsPanel } from '../comments/News'
 import { onMembersRefresh } from '../live/bus'
 import { MembersDialog } from '../members/MembersDialog'
 import { cn } from '../lib/utils'
@@ -15,6 +15,9 @@ import {
   memberGroupLabel,
 } from '../trips/TripCard'
 import { Header } from './Header'
+import { MoreSheet } from './phone/MoreSheet'
+import { TabBar, type PhoneTab } from './phone/TabBar'
+import { usePhoneView } from './phone/use-phone'
 import { hoverClass } from './ui/hover'
 
 export function AppShell() {
@@ -24,23 +27,37 @@ export function AppShell() {
   const board = useMatch('/trips/:id')
   const tripId = schedule?.params.id ?? settings?.params.id ?? board?.params.id
   const [membersOpen, setMembersOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [newsOpen, setNewsOpen] = useState(false)
+  const [tripName, setTripName] = useState<string | null>(null)
+  const { phone, view, setView } = usePhoneView()
   const [members, setMembers] = useState<Trip['members']>([])
   const unread = useTripUnread(tripId)
 
   useEffect(() => {
     setMembersOpen(false)
+    setMoreOpen(false)
+    setNewsOpen(false)
   }, [tripId])
+
+  // Leaving the phone layout closes what only the phone has.
+  useEffect(() => {
+    if (!phone) setMoreOpen(false)
+  }, [phone])
 
   useEffect(() => {
     if (!tripId) {
       setMembers([])
+      setTripName(null)
       return
     }
     let cancelled = false
     const load = () => {
       void getTrip(tripId)
         .then((trip) => {
-          if (!cancelled) setMembers(trip.members)
+          if (cancelled) return
+          setMembers(trip.members)
+          setTripName(trip.name)
         })
         .catch(() => undefined)
     }
@@ -64,6 +81,7 @@ export function AppShell() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <Header
+        phone={phone && tripId ? { tripName } : null}
         news={
           schedule?.params.id || board?.params.id ? (
             <NewsButton
@@ -142,6 +160,45 @@ export function AppShell() {
       <div className="flex min-h-0 flex-1 flex-col">
         <Outlet />
       </div>
+      {phone && tripId ? (
+        <>
+          <TabBar
+            tripId={tripId}
+            active={activeTab(Boolean(schedule), Boolean(settings), view)}
+            onView={(next) => setView(next)}
+            onMore={() => setMoreOpen(true)}
+          />
+          {moreOpen ? (
+            <MoreSheet
+              tripId={tripId}
+              unread={unread}
+              canSeeMembers={members.length > 0}
+              onClose={() => setMoreOpen(false)}
+              onMembers={() => {
+                setMoreOpen(false)
+                setMembersOpen(true)
+              }}
+              onNews={() => {
+                setMoreOpen(false)
+                setNewsOpen(true)
+              }}
+            />
+          ) : null}
+          {newsOpen ? (
+            <NewsPanel tripId={tripId} onClose={() => setNewsOpen(false)} />
+          ) : null}
+        </>
+      ) : null}
     </div>
   )
+}
+
+function activeTab(
+  schedule: boolean,
+  settings: boolean,
+  view: 'map' | 'list',
+): PhoneTab {
+  if (schedule) return 'schedule'
+  if (settings) return 'more'
+  return view
 }

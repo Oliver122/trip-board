@@ -12,15 +12,24 @@ import {
   type SpotPlan,
 } from '@tripboard/shared'
 import { Plus } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
+  createSearchParams,
   useLocation,
   useNavigate,
   useParams,
   useSearchParams,
 } from 'react-router'
+import { usePhoneView } from '../components/phone/use-phone'
 import { Toast, type ToastMessage } from '../components/Toast'
 import { ErrorState, PanelSkeleton } from '../components/states'
 import { useConfirm } from '../components/ui/confirm'
@@ -96,7 +105,24 @@ export function BoardPage() {
     dismissNotice,
     liveError,
   } = useTripData()
-  const [params, setParams] = useSearchParams()
+  const [params, setRawParams] = useSearchParams()
+  const { phone, view, setView } = usePhoneView()
+  // List filters rebuild the query string; the phone's ?view must survive it.
+  const viewRef = useRef(params.get('view'))
+  viewRef.current = params.get('view')
+  const setParams = useCallback<typeof setRawParams>(
+    (next, options) => {
+      if (typeof next === 'function') {
+        setRawParams(next, options)
+        return
+      }
+      const copy = createSearchParams(next)
+      if (viewRef.current && !copy.has('view'))
+        copy.set('view', viewRef.current)
+      setRawParams(copy, options)
+    },
+    [setRawParams],
+  )
   const { kinds } = useTripKinds(id)
   const location = useLocation()
   const navigate = useNavigate()
@@ -340,6 +366,23 @@ export function BoardPage() {
       confirmLabel: t('confirm.discardAction'),
       danger: true,
     })
+  }
+
+  // Phone: leave the panel for the map and fly to the spot's pin (R-38-02).
+  async function showOnMap() {
+    const spot = panel?.spot
+    if (!panel || !spot) return
+    if (!draftsEqual(panel.draft, panel.baseline)) {
+      if (!(await confirmDiscard())) return
+    }
+    setPanel(null)
+    setSelectedId(spot.id)
+    setFlyTo({
+      token: `${spot.id}-${Date.now()}`,
+      lng: spot.lng,
+      lat: spot.lat,
+    })
+    setView('map')
   }
 
   async function requestClose() {
@@ -850,7 +893,7 @@ export function BoardPage() {
   const addButton = canEdit ? (
     <Button
       data-testid="add-new"
-      className="pointer-events-auto absolute bottom-36 left-4 z-10 shadow-panel sm:bottom-12"
+      className="pointer-events-auto absolute bottom-4 left-4 z-10 shadow-panel sm:bottom-12"
       onClick={openAdd}
     >
       <Plus aria-hidden="true" className="size-4" />
@@ -870,7 +913,7 @@ export function BoardPage() {
         </div>
       ) : listStatus === 'loading' && blockList ? (
         <PanelSkeleton />
-      ) : (
+      ) : phone && view === 'map' ? null : (
         <SpotList
           tripId={tripId}
           tripName={trip.name}
@@ -910,6 +953,7 @@ export function BoardPage() {
           onDraft={changeDraft}
           onLinkPlace={fillFromLink}
           linkUnplaced={Boolean(panel.unplaced) && panel.draft.lat == null}
+          onShowOnMap={phone && panel.spot ? () => void showOnMap() : undefined}
           onClose={() => void requestClose()}
           onSubmit={() => {
             void save()

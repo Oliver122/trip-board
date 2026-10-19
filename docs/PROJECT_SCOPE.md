@@ -1,6 +1,6 @@
 # Trip Board — Project Structure & Feature Scope
 
-Status: **v4, admin area added** — nothing is implemented yet.
+Status: **v4, admin area added.** This is the original scope; for how the built system works today, its outside services and known issues, see [`SYSTEM_OVERVIEW.md`](./SYSTEM_OVERVIEW.md).
 Wireframes and diagrams: [`DESIGN.md`](./DESIGN.md). Database: [`database/`](./database/DATABASE.md). Build steps: [`../requirements/`](../requirements/README.md). Stitch prompt: [`STITCH_DESIGN_GUIDE.md`](./STITCH_DESIGN_GUIDE.md).
 
 ![Original sketch](./sketch.png)
@@ -28,7 +28,7 @@ A shared, map-first travel planning board: create a trip (e.g. *Japan 2026*), pi
 | 9 | Images | **Uploads only**, stored in blob storage (S3-compatible). **Per-user quota** on image count and total MB |
 | 10 | Language | **English + German** via translation files |
 | 11 | Design | **Minimal**: neutral surfaces, category color only as accent |
-| 12 | Mobile | **Responsive** from day one; a dedicated simplified phone UI is a later phase |
+| 12 | Mobile | **Responsive** from day one; below 640 px a phone layout (bottom tab bar, one view per tab, fewer features) from step 38, with a *Low data* mode and an *Open in Google Maps* link on every spot |
 | 13 | Hosting | Not part of this plan. The app stays provider-agnostic (env-based config, Docker-friendly) |
 | 14 | Invite role | Owner picks the role per invite; **default visitor** |
 | 15 | Quotas | 100 images / 200 MB per user, 10 MB per file. No trip-wide cap for now |
@@ -197,7 +197,7 @@ Filters and sort are kept in the URL query (`?q=ramen&cat=must_go&sort=scheduled
 ### 5.9 Responsive
 - **≥ 1024 px:** map + side list (as in sketch); panel overlays the map.
 - **640–1023 px:** narrower list; panel as right-side sheet.
-- **< 640 px:** full-screen map, list as a bottom sheet, panel full-screen. A dedicated phone UI is a later phase.
+- **< 640 px:** bottom tab bar (*Map · List · Schedule · More*), one view per tab, full-screen panel with collapsible sections (step 38). *Low data* mode holds back photos, map and avatars; every spot has *Open in Google Maps*.
 
 ### 5.10 Admin area
 Platform-level administration, separate from trip roles. A trip owner is **not** an admin.
@@ -320,7 +320,7 @@ Every trip-scoped route runs a role guard (`requireTripRole('visitor' | 'planner
 
 ## 10. Extra features backlog (not in v1)
 
-Live updates (WebSocket) · voting on spots · activity feed · route lines + travel times within a bucket · paste Google Maps link to auto-fill · custom categories · budget per person · Discord bot/webhook · public read-only link · offline PWA · packing checklist · “visited” + photo journal · per-bucket participants · distance from home base · JSON / GPX / KML export · trip-wide storage cap · dedicated phone UI.
+Live updates (WebSocket) · voting on spots · activity feed · route lines + travel times within a bucket · paste Google Maps link to auto-fill · custom categories · budget per person · Discord bot/webhook · public read-only link · offline PWA · packing checklist · “visited” + photo journal · per-bucket participants · distance from home base · JSON / GPX / KML export · trip-wide storage cap.
 
 ---
 

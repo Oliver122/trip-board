@@ -9,10 +9,11 @@ import {
   type Spot,
   type SpotPlan,
 } from '@tripboard/shared'
-import { LoaderCircle, Trash2 } from 'lucide-react'
+import { ExternalLink, LoaderCircle, MapPin, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
+import { Section } from '../components/phone/Section'
 import { Button } from '../components/ui/button'
 import { ChipGroup } from '../components/ui/chip-group'
 import { useConfirm } from '../components/ui/confirm'
@@ -25,9 +26,11 @@ import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import { formatDate, formatTime } from '../lib/format'
 import { searchAddress } from './client'
+import { googleMapsUrl } from './maps-link'
 import { placeLinkError, resolvePlaceLink } from './place-link'
 import { CopyAddress } from './CopyAddress'
 import { Dialog } from './Dialog'
+import { listImages } from '../images/client'
 import { Gallery } from '../images/Gallery'
 import { DraftPhotos } from '../images/DraftPhotos'
 import { SpotDiscussion } from '../comments/SpotDiscussion'
@@ -53,6 +56,7 @@ export function SpotPanel({
   onDraft,
   onLinkPlace,
   linkUnplaced = false,
+  onShowOnMap,
   onClose,
   onSubmit,
   onDelete,
@@ -77,6 +81,8 @@ export function SpotPanel({
   onLinkPlace?: (place: PlaceFromLink) => void
   /** The last lookup found no point, so the pin is still unset (R-33-07). */
   linkUnplaced?: boolean
+  /** Phone only: close the panel, show the map and fly to the pin (R-38-02). */
+  onShowOnMap?: () => void
   onClose: () => void
   onSubmit: () => void
   onDelete: () => void
@@ -107,6 +113,12 @@ export function SpotPanel({
   const [mapsLinkBusy, setMapsLinkBusy] = useState(false)
   const [mapsLinkError, setMapsLinkError] = useState<string | null>(null)
   const readOnly = mode === 'view'
+  const [detailsOpen, setDetailsOpen] = useState(true)
+  const [section, setSection] = useState<
+    'photos' | 'plans' | 'comments' | null
+  >(focusDiscussion ? 'comments' : null)
+  const [photoCount, setPhotoCount] = useState<number | null>(null)
+  const spotId = spot?.id
   const [results, setResults] = useState<GeocodePlace[]>([])
   const [addressFocused, setAddressFocused] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -117,6 +129,18 @@ export function SpotPanel({
     draft.title.trim().length > 0 && draft.lat != null && draft.lng != null
   const normalizedLink = normalizeSpotLink(draft.link)
   const linkHref = 'link' in normalizedLink ? normalizedLink.link : null
+
+  // The phone shows the photo count on the collapsed section (R-38-04).
+  useEffect(() => {
+    if (!phone || !spotId) return
+    const controller = new AbortController()
+    void listImages(spotId, controller.signal)
+      .then((list) => {
+        if (!controller.signal.aborted) setPhotoCount(list.images.length)
+      })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [phone, spotId, imageRevision, section])
 
   useEffect(() => {
     if (!confirming && refocusDelete.current) {
@@ -247,11 +271,70 @@ export function SpotPanel({
     }
   }
 
+  const toggle = (name: 'photos' | 'plans' | 'comments') =>
+    setSection((current) => (current === name ? null : name))
+
   function submit(event: FormEvent) {
     event.preventDefault()
     if (!ready || saving || readOnly) return
     onSubmit()
   }
+
+  const categoryBlock = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="min-w-40 flex-1">
+        <p aria-hidden="true" className="mb-1">
+          {t('board.category')}
+        </p>
+        <div className="mb-2">
+          <CategoryBadge
+            category={draft.baseCategory === 'home' ? 'home' : 'kind'}
+            kinds={draftKinds(draft, kinds ?? [])}
+          />
+        </div>
+        <div data-testid="kind-picker" className="flex flex-wrap gap-2">
+          <ChipGroup
+            label={t('board.category')}
+            options={(kinds ?? []).map((kind) => ({
+              value: kind.id,
+              label: kindLabel(t, kind),
+              mark: <CategoryDot kind={kind} />,
+            }))}
+            value={draft.baseCategory === 'home' ? [] : draft.kindIds}
+            max={kindLimits.perSpot}
+            maxHint={t('kinds.atMostTwo')}
+            disabled={readOnly}
+            onChange={(next) => {
+              const toggled = [...next, ...draft.kindIds].find(
+                (id) => next.includes(id) !== draft.kindIds.includes(id),
+              )
+              if (toggled) void toggleKind(toggled)
+            }}
+          />
+          <ChipGroup
+            label={t('category.home')}
+            options={[
+              {
+                value: 'home',
+                label: t('category.home'),
+                mark: <CategoryDot category="home" />,
+              },
+            ]}
+            value={draft.baseCategory === 'home' ? ['home'] : []}
+            disabled={readOnly}
+            onChange={(next) => {
+              if (next.includes('home')) pickHome()
+            }}
+          />
+        </div>
+      </div>
+      {spot && spot.displayCategory === 'planned' ? (
+        <p className="pb-3">
+          {t('board.plannedBadge', { count: spot.planCount })}
+        </p>
+      ) : null}
+    </div>
+  )
 
   return (
     <Dialog
@@ -327,223 +410,208 @@ export function SpotPanel({
             </div>
           ) : null}
 
-          <label htmlFor={addressId} className="block">
-            {t('board.address')}
-          </label>
-          <div className="flex gap-2">
-            <input
-              id={addressId}
-              value={draft.address}
-              readOnly={readOnly}
-              onFocus={() => setAddressFocused(true)}
-              onBlur={() => setAddressFocused(false)}
-              onChange={(event) =>
-                onDraft({ ...draft, address: event.target.value })
-              }
-              className={inputClass}
-              role="combobox"
-              aria-expanded={results.length > 0}
-              aria-controls="address-results"
-            />
-            {draft.address ? <CopyAddress address={draft.address} /> : null}
-          </div>
-          {results.length > 0 ? (
-            <ul
-              id="address-results"
-              role="listbox"
-              className="m-0 list-none p-0"
-            >
-              {results.map((place) => (
-                <li key={`${place.label}-${place.lat}-${place.lng}`}>
-                  <button
-                    type="button"
-                    role="option"
-                    className={cn(
-                      hoverClass.item,
-                      'w-full px-3 py-2 text-left',
-                    )}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => choose(place)}
-                  >
-                    {place.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {readOnly ? null : (
-            <p className="text-sm text-muted">{t('board.placeHint')}</p>
-          )}
-          {linkUnplaced ? (
-            <p role="status" data-testid="link-unplaced" className="text-sm">
-              {t('places.unplaced')}
-            </p>
-          ) : null}
+          {phone ? categoryBlock : null}
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-40 flex-1">
-              <p aria-hidden="true" className="mb-1">
-                {t('board.category')}
-              </p>
-              <div className="mb-2">
-                <CategoryBadge
-                  category={draft.baseCategory === 'home' ? 'home' : 'kind'}
-                  kinds={draftKinds(draft, kinds ?? [])}
-                />
-              </div>
-              <div data-testid="kind-picker" className="flex flex-wrap gap-2">
-                <ChipGroup
-                  label={t('board.category')}
-                  options={(kinds ?? []).map((kind) => ({
-                    value: kind.id,
-                    label: kindLabel(t, kind),
-                    mark: <CategoryDot kind={kind} />,
-                  }))}
-                  value={draft.baseCategory === 'home' ? [] : draft.kindIds}
-                  max={kindLimits.perSpot}
-                  maxHint={t('kinds.atMostTwo')}
-                  disabled={readOnly}
-                  onChange={(next) => {
-                    const toggled = [...next, ...draft.kindIds].find(
-                      (id) => next.includes(id) !== draft.kindIds.includes(id),
-                    )
-                    if (toggled) void toggleKind(toggled)
-                  }}
-                />
-                <ChipGroup
-                  label={t('category.home')}
-                  options={[
-                    {
-                      value: 'home',
-                      label: t('category.home'),
-                      mark: <CategoryDot category="home" />,
-                    },
-                  ]}
-                  value={draft.baseCategory === 'home' ? ['home'] : []}
-                  disabled={readOnly}
-                  onChange={(next) => {
-                    if (next.includes('home')) pickHome()
-                  }}
-                />
-              </div>
+          <Section
+            enabled={phone}
+            title={t('phone.details')}
+            open={detailsOpen}
+            onToggle={() => setDetailsOpen((value) => !value)}
+            keepMounted
+            testId="section-details"
+          >
+            <label htmlFor={addressId} className="block">
+              {t('board.address')}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id={addressId}
+                value={draft.address}
+                readOnly={readOnly}
+                onFocus={() => setAddressFocused(true)}
+                onBlur={() => setAddressFocused(false)}
+                onChange={(event) =>
+                  onDraft({ ...draft, address: event.target.value })
+                }
+                className={inputClass}
+                role="combobox"
+                aria-expanded={results.length > 0}
+                aria-controls="address-results"
+              />
+              {draft.address ? <CopyAddress address={draft.address} /> : null}
             </div>
-            {spot && spot.displayCategory === 'planned' ? (
-              <p className="pb-3">
-                {t('board.plannedBadge', { count: spot.planCount })}
+            {spot ? (
+              <a
+                href={googleMapsUrl(spot)}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="open-in-maps"
+                className={cn(
+                  hoverClass.link,
+                  'inline-flex min-h-11 items-center gap-2',
+                )}
+              >
+                <ExternalLink aria-hidden="true" className="size-4" />
+                {t('phone.openInMaps')}
+              </a>
+            ) : null}
+            {results.length > 0 ? (
+              <ul
+                id="address-results"
+                role="listbox"
+                className="m-0 list-none p-0"
+              >
+                {results.map((place) => (
+                  <li key={`${place.label}-${place.lat}-${place.lng}`}>
+                    <button
+                      type="button"
+                      role="option"
+                      className={cn(
+                        hoverClass.item,
+                        'w-full px-3 py-2 text-left',
+                      )}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => choose(place)}
+                    >
+                      {place.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {readOnly ? null : (
+              <p className="text-sm text-muted">{t('board.placeHint')}</p>
+            )}
+            {linkUnplaced ? (
+              <p role="status" data-testid="link-unplaced" className="text-sm">
+                {t('places.unplaced')}
               </p>
             ) : null}
-          </div>
 
-          {draft.baseCategory === 'home' ? (
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-3">
-                <div className="min-w-40 flex-1">
-                  <label htmlFor={stayFromId} className="mb-1 block">
-                    {t('board.stayFrom')}
-                  </label>
-                  <input
-                    id={stayFromId}
-                    type="date"
-                    value={draft.stayFrom}
-                    readOnly={readOnly}
-                    onChange={(event) =>
-                      onDraft({ ...draft, stayFrom: event.target.value })
-                    }
-                    className={inputClass}
-                  />
+            {phone ? null : categoryBlock}
+
+            {draft.baseCategory === 'home' ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-3">
+                  <div className="min-w-40 flex-1">
+                    <label htmlFor={stayFromId} className="mb-1 block">
+                      {t('board.stayFrom')}
+                    </label>
+                    <input
+                      id={stayFromId}
+                      type="date"
+                      value={draft.stayFrom}
+                      readOnly={readOnly}
+                      onChange={(event) =>
+                        onDraft({ ...draft, stayFrom: event.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="min-w-40 flex-1">
+                    <label htmlFor={stayToId} className="mb-1 block">
+                      {t('board.stayTo')}
+                    </label>
+                    <input
+                      id={stayToId}
+                      type="date"
+                      value={draft.stayTo}
+                      readOnly={readOnly}
+                      onChange={(event) =>
+                        onDraft({ ...draft, stayTo: event.target.value })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
-                <div className="min-w-40 flex-1">
-                  <label htmlFor={stayToId} className="mb-1 block">
-                    {t('board.stayTo')}
-                  </label>
+                <label
+                  htmlFor={primaryId}
+                  className="flex min-h-11 items-center gap-2"
+                >
                   <input
-                    id={stayToId}
-                    type="date"
-                    value={draft.stayTo}
-                    readOnly={readOnly}
+                    id={primaryId}
+                    type="checkbox"
+                    checked={draft.primary}
+                    disabled={readOnly}
                     onChange={(event) =>
-                      onDraft({ ...draft, stayTo: event.target.value })
+                      onDraft({ ...draft, primary: event.target.checked })
                     }
-                    className={inputClass}
                   />
-                </div>
+                  {t('board.primaryHome')}
+                </label>
+                {overlaps.length > 0 ? (
+                  <p role="status" data-testid="stay-overlap">
+                    {t('board.stayOverlap', {
+                      title: overlaps.map((other) => other.title).join(', '),
+                    })}
+                  </p>
+                ) : null}
               </div>
-              <label
-                htmlFor={primaryId}
-                className="flex min-h-11 items-center gap-2"
-              >
-                <input
-                  id={primaryId}
-                  type="checkbox"
-                  checked={draft.primary}
-                  disabled={readOnly}
-                  onChange={(event) =>
-                    onDraft({ ...draft, primary: event.target.checked })
-                  }
-                />
-                {t('board.primaryHome')}
-              </label>
-              {overlaps.length > 0 ? (
-                <p role="status" data-testid="stay-overlap">
-                  {t('board.stayOverlap', {
-                    title: overlaps.map((other) => other.title).join(', '),
-                  })}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+            ) : null}
 
-          <label htmlFor={infoId} className="block">
-            {t('board.info')}
-          </label>
-          <textarea
-            id={infoId}
-            value={draft.info}
-            readOnly={readOnly}
-            rows={3}
-            placeholder={t('board.infoPlaceholder')}
-            onChange={(event) =>
-              onDraft({ ...draft, info: event.target.value })
-            }
-            className={inputClass}
-          />
-
-          <label htmlFor={linkId} className="block">
-            {t('board.link')}
-          </label>
-          <FieldError
-            message={
-              linkError
-                ? t(
-                    linkError === 'too_long'
-                      ? 'board.linkTooLong'
-                      : 'board.linkInvalid',
-                  )
-                : null
-            }
-            id={`${linkId}-error`}
-            testId="link-error"
-          >
-            <input
-              id={linkId}
-              value={draft.link}
+            <label htmlFor={infoId} className="block">
+              {t('board.info')}
+            </label>
+            <textarea
+              id={infoId}
+              value={draft.info}
               readOnly={readOnly}
+              rows={3}
+              placeholder={t('board.infoPlaceholder')}
               onChange={(event) =>
-                onDraft({ ...draft, link: event.target.value })
+                onDraft({ ...draft, info: event.target.value })
               }
               className={inputClass}
             />
-          </FieldError>
-          {linkHref ? (
-            <a
-              href={linkHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="spot-link"
-              className={hoverClass.link}
+
+            <label htmlFor={linkId} className="block">
+              {t('board.link')}
+            </label>
+            <FieldError
+              message={
+                linkError
+                  ? t(
+                      linkError === 'too_long'
+                        ? 'board.linkTooLong'
+                        : 'board.linkInvalid',
+                    )
+                  : null
+              }
+              id={`${linkId}-error`}
+              testId="link-error"
             >
-              {linkHref}
-            </a>
+              <input
+                id={linkId}
+                value={draft.link}
+                readOnly={readOnly}
+                onChange={(event) =>
+                  onDraft({ ...draft, link: event.target.value })
+                }
+                className={inputClass}
+              />
+            </FieldError>
+            {linkHref ? (
+              <a
+                href={linkHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="spot-link"
+                className={hoverClass.link}
+              >
+                {linkHref}
+              </a>
+            ) : null}
+          </Section>
+
+          {onShowOnMap ? (
+            <Button
+              variant="outline"
+              data-testid="show-on-map"
+              onClick={onShowOnMap}
+            >
+              <MapPin aria-hidden="true" className="size-4" />
+              {t('phone.showOnMap')}
+            </Button>
           ) : null}
 
           {mode === 'add' && draft.lat != null && draft.lng != null ? (
@@ -567,33 +635,57 @@ export function SpotPanel({
             </p>
           ) : null}
           {spot ? (
-            <Gallery
-              spotId={spot.id}
-              canEdit={!readOnly}
-              revision={imageRevision}
-              tripId={tripId}
-              title={draft.title}
-              address={draft.address}
-              lat={spot.lat}
-              lng={spot.lng}
-            />
+            <Section
+              enabled={phone}
+              title={t('phone.photos', { count: photoCount ?? 0 })}
+              open={section === 'photos'}
+              onToggle={() => toggle('photos')}
+              testId="section-photos"
+            >
+              <Gallery
+                spotId={spot.id}
+                canEdit={!readOnly}
+                revision={imageRevision}
+                tripId={tripId}
+                title={draft.title}
+                address={draft.address}
+                lat={spot.lat}
+                lng={spot.lng}
+              />
+            </Section>
           ) : null}
           {spot ? (
-            <InPlans
-              plans={plans}
-              entries={entries}
-              canEdit={!readOnly}
-              onAdd={onAddToPlan}
-              onRemove={onRemoveFromPlan}
-            />
+            <Section
+              enabled={phone}
+              title={t('phone.plans', { count: plans.length })}
+              open={section === 'plans'}
+              onToggle={() => toggle('plans')}
+              testId="section-plans"
+            >
+              <InPlans
+                plans={plans}
+                entries={entries}
+                canEdit={!readOnly}
+                onAdd={onAddToPlan}
+                onRemove={onRemoveFromPlan}
+              />
+            </Section>
           ) : null}
           {spot ? (
-            <SpotDiscussion
-              key={spot.id}
-              spot={spot}
-              onToast={onToast}
-              focusOnMount={focusDiscussion}
-            />
+            <Section
+              enabled={phone}
+              title={t('phone.comments', { count: spot.commentCount })}
+              open={section === 'comments'}
+              onToggle={() => toggle('comments')}
+              testId="section-comments"
+            >
+              <SpotDiscussion
+                key={spot.id}
+                spot={spot}
+                onToast={onToast}
+                focusOnMount={focusDiscussion}
+              />
+            </Section>
           ) : null}
         </div>
 

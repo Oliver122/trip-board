@@ -6,7 +6,9 @@ import {
   createQuotaRequest,
   listMyQuotaRequests,
 } from '../admin/client'
+import { DataSaverSetting } from '../components/DataSaver'
 import { LanguageSwitch, ThemeSwitch } from '../components/Preferences'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { useListFollowsMap } from '../list-follows-map'
 import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
@@ -18,6 +20,7 @@ import { useSession } from '../session'
 
 export function AccountPage() {
   const { t } = useTranslation()
+  const phone = useMediaQuery(phoneQuery)
   const { user } = useSession()
   const { enabled: listFollowsMap, setEnabled: setListFollowsMap } =
     useListFollowsMap()
@@ -98,6 +101,9 @@ export function AccountPage() {
           }}
         />
       ) : null}
+      <div className="mb-6">
+        <DataSaverSetting />
+      </div>
       <section aria-labelledby={settingsId} className="space-y-4">
         <h2 id={settingsId} className="text-base font-semibold">
           {t('account.settings')}
@@ -120,7 +126,7 @@ export function AccountPage() {
           {t('account.listFollowsMap')}
         </label>
       </section>
-      <GoogleMapsSection />
+      {phone ? null : <GoogleMapsSection />}
     </main>
   )
 }

@@ -1,5 +1,6 @@
 import { kindSymbolIndex, type KindSymbol } from '@tripboard/shared'
 import { useSyncExternalStore } from 'react'
+import { useDataSaver } from '../lib/data-saver'
 import { cn } from '../lib/utils'
 import bundledManifest from './texture-manifest.json'
 import { KindSymbolIcon } from './symbols'
@@ -98,7 +99,9 @@ export function resetTextureState() {
  * empty.
  */
 export function useSymbolTexture(symbol: KindSymbol): SymbolTexture | null {
-  const texture = symbolTexture(symbol)
+  const { on: lowData } = useDataSaver()
+  // Low data (R-38-10): kind color and vector symbol, no atlas request.
+  const texture = lowData ? null : symbolTexture(symbol)
   const url = texture?.url ?? ''
   const hasFailed = useSyncExternalStore(
     subscribe,

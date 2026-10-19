@@ -30,8 +30,8 @@ for (const width of widths) {
     const tripId = await createTrip(page, `Modals ${width}`)
 
     for (const name of modalNames) {
-      // The phone layout has no Import button (the toolbar is hidden).
-      if (name === 'import' && width < 640) continue
+      // R-38-05: below 640 px the toolbar has no Import or Export button.
+      if ((name === 'import' || name === 'export') && width < 640) continue
       const dialog = await openModal(page, tripId, name, width)
       await expect(dialog).toBeVisible()
       const box = await dialog.boundingBox()
@@ -520,6 +520,8 @@ async function openModal(
   }
   await page.goto(`/trips/${tripId}`)
   if (name === 'members') {
+    // R-38-03: the phone keeps Members in the More sheet.
+    if (phone) await page.getByRole('button', { name: /^(More|Mehr)$/ }).click()
     await page.getByRole('button', { name: /^(Members|Mitglieder)\b/ }).click()
     return page.getByRole('dialog').first()
   }

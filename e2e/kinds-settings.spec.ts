@@ -200,7 +200,8 @@ test('T-32-03 the old kinds link lands on the settings section for the owner and
 const viewports = [
   { width: 1280, height: 800 },
   { width: 768, height: 1024 },
-  { width: 375, height: 667 },
+  // R-38-05: the kinds section exists from 640 px; smaller screens show a note.
+  { width: 640, height: 667 },
 ]
 
 for (const viewport of viewports) {
@@ -356,6 +357,21 @@ test('T-32-08 a kind added in one browser shows in the other, and an approved li
   await otherContext.close()
 })
 
+test('T-32-04 below 640 px trip settings show a note instead of the kinds section @chromium', async ({
+  page,
+}) => {
+  test.setTimeout(30_000)
+  await page.setViewportSize({ width: 375, height: 667 })
+  await showLocale(page, 'en')
+  await login(page, freshDiscordId())
+  const tripId = await createTrip(page)
+  await page.goto(`/trips/${tripId}/settings`)
+  await expect(
+    page.getByText('Manage spot kinds on a larger screen.'),
+  ).toBeVisible()
+  await expect(page.getByTestId('kinds-section')).toHaveCount(0)
+})
+
 test('T-32-09 kind rows stay on one line at 768 px and the page does not scroll sideways at 375 px @chromium', async ({
   page,
 }) => {
@@ -384,8 +400,12 @@ test('T-32-09 kind rows stay on one line at 768 px and the page does not scroll 
     }
   }
 
+  // R-38-05: at 375 px the kinds section is replaced by a note.
   await page.setViewportSize({ width: 375, height: 667 })
-  await expect(rows.first()).toBeVisible()
+  await expect(
+    page.getByText('Manage spot kinds on a larger screen.'),
+  ).toBeVisible()
+  await expect(rows).toHaveCount(0)
   const overflow = await page.evaluate(() => ({
     scroll: document.scrollingElement!.scrollWidth,
     inner: window.innerWidth,

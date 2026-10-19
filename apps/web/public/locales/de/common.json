@@ -957,5 +957,47 @@
       "iphone": "Auf dem iPhone",
       "iphoneHow": "Safari kann nicht an Web-Apps teilen. Wähle in Google Maps Teilen, dann Kopieren, und füge den Link in das Feld „Google-Maps-Link“ im Hinzufügen-Fenster ein."
     }
+  },
+  "lowData": {
+    "title": "Datensparmodus",
+    "badge": "Datensparen",
+    "badgeLabel": "Datensparmodus ist an. Einstellung öffnen.",
+    "menuOn": "Datensparmodus: an",
+    "menuOff": "Datensparmodus: aus",
+    "switch": "Datensparmodus",
+    "settingTitle": "Datensparmodus",
+    "settingHint": "Der Datensparmodus lädt keine Fotos, keine Karte und keine Avatare, bis du sie anforderst. Automatisch schaltet ihn ein, wenn dein Browser Datensparen wünscht oder die Verbindung sehr langsam ist.",
+    "auto": "Automatisch",
+    "on": "An",
+    "off": "Aus",
+    "loadPhoto": "Foto laden",
+    "loadAll": "Alle laden ({{size}})",
+    "photoSize": "{{size}}",
+    "photoPlaceholder": "Foto nicht geladen, {{size}}",
+    "loadMapQuestion": "Karte laden? Verbraucht etwa 2–5 MB.",
+    "loadMap": "Karte laden",
+    "cancel": "Abbrechen",
+    "addPhotos": "Fotos hinzufügen"
+  },
+  "phone": {
+    "tabsLabel": "Reisebereiche",
+    "map": "Karte",
+    "list": "Liste",
+    "schedule": "Plan",
+    "more": "Mehr",
+    "moreTitle": "Mehr",
+    "settings": "Einstellungen",
+    "members": "Mitglieder",
+    "news": "Neuigkeiten",
+    "back": "Meine Reisen",
+    "details": "Details",
+    "photos": "Fotos ({{count}})",
+    "plans": "In Plänen ({{count}})",
+    "comments": "Kommentare ({{count}})",
+    "showOnMap": "Auf der Karte zeigen",
+    "openInMaps": "In Google Maps öffnen",
+    "openSpotInMaps": "{{title}} in Google Maps öffnen",
+    "kindsNote": "Verwalte Orts-Arten auf einem größeren Bildschirm.",
+    "adminNotice": "Der Admin-Bereich braucht einen größeren Bildschirm."
   }
 }

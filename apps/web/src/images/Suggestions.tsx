@@ -1,8 +1,9 @@
 import type { PhotoSuggestion } from '@tripboard/shared'
 import { ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { hoverClass } from '../components/ui/hover'
+import { useDataSaver } from '../lib/data-saver'
 import { cn } from '../lib/utils'
 import { listPhotoSuggestions } from './client'
 
@@ -36,7 +37,16 @@ export function Suggestions({
 }) {
   const { t } = useTranslation()
   const panelId = useId()
-  const [open, setOpen] = useState(defaultOpen)
+  const { on: lowData } = useDataSaver()
+  // Low data (R-38-10): never opened on its own; opens once low data is off.
+  const [open, setOpen] = useState(defaultOpen && !lowData)
+  const heldBack = useRef(defaultOpen && lowData)
+  useEffect(() => {
+    if (!lowData && heldBack.current) {
+      heldBack.current = false
+      setOpen(true)
+    }
+  }, [lowData])
   const [load, setLoad] = useState<Load>({ state: 'idle' })
   const [attempt, setAttempt] = useState(0)
 

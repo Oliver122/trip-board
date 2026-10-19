@@ -29,31 +29,18 @@ test('T-15-01 at 800 px the list stays visible beside the side sheet', async ({
 })
 
 test(
-  'T-15-02 phone sheet, filters, and full-screen panel',
+  'T-15-02 phone list tab, filters, and full-screen panel',
   { tag: '@mobile' },
   async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await login(page, '100000000000000002')
-    const tripId = await createTrip(page, 'Phone sheet')
+    const tripId = await createTrip(page, 'Phone list')
     await createSpot(page, tripId, 'Dotonbori')
-    await page.goto(`/trips/${tripId}`)
+    await page.goto(`/trips/${tripId}?view=list`)
     const list = page.getByTestId('spot-list')
-    await expect(list).toHaveAttribute('data-sheet', 'peek')
+    await expect(list).toHaveAttribute('data-layout', 'full')
+    await expect(page.getByTestId('sheet-handle')).toHaveCount(0)
     await expect(page.getByTestId('filters')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Search' })).toBeHidden()
-    await expect(list.getByRole('button', { name: /Dotonbori/ })).toBeHidden()
-
-    const handle = page.getByTestId('sheet-handle')
-    const box = await handle.boundingBox()
-    if (!box) throw new Error('sheet handle missing')
-    const x = box.x + box.width / 2
-    const y = box.y + box.height / 2
-    await page.mouse.move(x, y)
-    await page.mouse.down()
-    await page.mouse.move(x, y - 280, { steps: 12 })
-    await page.mouse.up()
-
-    await expect(list).toHaveAttribute('data-sheet', 'half')
     await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
     const card = list.getByRole('button', { name: /Dotonbori/ })
     await expect(card).toBeVisible()
@@ -114,6 +101,8 @@ test('T-15-06 a markup title stays literal text in the list, panel, CSV, and PDF
 test('T-15-10 keyboard creates a spot, adds it to a bucket, and exports CSV', async ({
   page,
 }) => {
+  // A long Tab walk: about 24 s alone, so it needs room when other specs run.
+  test.setTimeout(90_000)
   await page.setViewportSize({ width: 1280, height: 800 })
   await mockGeocode(page)
   await login(page, '100000000000000002')
