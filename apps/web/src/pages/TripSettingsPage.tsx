@@ -16,6 +16,7 @@ import { activeLocale } from '../i18n'
 import { useSession } from '../session'
 import { ConflictDialog, type ConflictRow } from '../live/ConflictDialog'
 import { conflictOf, isAuth, isConflict, isInvalid } from '../api/http'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { KindsSection } from '../kinds/KindsSection'
 import { updateTrip } from '../trips/client'
 import { DeleteTripDialog } from '../trips/DeleteTripDialog'
@@ -25,6 +26,7 @@ import { useTripData } from '../trips/trip-context'
 
 export function TripSettingsPage() {
   const { t } = useTranslation()
+  const phone = useMediaQuery(phoneQuery)
   const { reload } = useSession()
   const navigate = useNavigate()
   const { trip, setTrip } = useTripData()
@@ -43,7 +45,17 @@ export function TripSettingsPage() {
         onUpdated={setTrip}
         onUnauthorized={reload}
         onDelete={() => setConfirming(true)}
-        kinds={showKinds ? <KindsSection tripId={trip.id} /> : null}
+        kinds={
+          showKinds ? (
+            phone ? (
+              <p data-testid="kinds-phone-note" className="mt-8 text-muted">
+                {t('phone.kindsNote')}
+              </p>
+            ) : (
+              <KindsSection tripId={trip.id} />
+            )
+          ) : null
+        }
       />
       <DeleteTripDialog
         trip={confirming ? trip : null}

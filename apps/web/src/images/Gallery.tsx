@@ -1,10 +1,12 @@
 import type { Quota, SpotImage } from '@tripboard/shared'
-import { X } from 'lucide-react'
+import { ImageIcon, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/http'
 import { ErrorNotice } from '../components/notice'
 import { hoverClass } from '../components/ui/hover'
+import { useDataSaver } from '../lib/data-saver'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
 import {
   addImageFromCommons,
@@ -17,9 +19,17 @@ import {
 } from './client'
 import type { Dropped } from './drop'
 import { DropZone, onPasteImage } from './DropZone'
-import { megabytes } from './format'
+import { formatSize, megabytes } from './format'
 import { photoErrorMessage } from './reasons'
 import { Suggestions } from './Suggestions'
+
+/**
+ * Photos shown or asked for while the page is open (R-38-08): they stay shown
+ * when low data turns on. `previews` are local files of uploads made in low
+ * data mode, shown without downloading the file again.
+ */
+const shownImages = new Set<string>()
+const previews = new Map<string, string>()
 
 export function Gallery({
   spotId,
@@ -41,7 +51,10 @@ export function Gallery({
   lat?: number
   lng?: number
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { on: lowData } = useDataSaver()
+  const phone = useMediaQuery(phoneQuery)
+  const [, setShownRevision] = useState(0)
   const [images, setImages] = useState<SpotImage[]>([])
   const [quota, setQuota] = useState<Quota | null>(null)
   const [uploadsEnabled, setUploadsEnabled] = useState(true)
@@ -83,6 +96,23 @@ export function Gallery({
     document.addEventListener('keydown', onKey, true)
     return () => document.removeEventListener('keydown', onKey, true)
   }, [open])
+
+  // Without low data every image is on screen, and it stays when low data turns on.
+  useEffect(() => {
+    if (lowData) return
+    for (const image of images) shownImages.add(image.id)
+  }, [lowData, images])
+
+  const isShown = (image: SpotImage) =>
+    !lowData || shownImages.has(image.id) || previews.has(image.id)
+  const sourceOf = (image: SpotImage) =>
+    previews.get(image.id) ?? imageSrc(image.url)
+  const held = images.filter((image) => !isShown(image))
+
+  function show(list: readonly SpotImage[]) {
+    for (const image of list) shownImages.add(image.id)
+    setShownRevision((value) => value + 1)
+  }
 
   const full =
     quota !== null &&
@@ -131,7 +161,12 @@ export function Gallery({
       const files = dropped.files
       setProgress(0)
       await run(async () => {
-        for (const file of files) await uploadImage(spotId, file, setProgress)
+        for (const file of files) {
+          const saved = await uploadImage(spotId, file, setProgress)
+          if (lowData && /^image\/(jpeg|png|webp)$/.test(file.type)) {
+            previews.set(saved.id, URL.createObjectURL(file))
+          }
+        }
       })
       return
     }
@@ -195,7 +230,7 @@ export function Gallery({
           <DropZone onDropped={(dropped) => void handleDropped(dropped)} />
         )
       ) : null}
-      {canEdit && title.trim() !== '' ? (
+      {canEdit && !phone && title.trim() !== '' ? (
         <a
           href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${title} ${address}`.trim())}`}
           target="_blank"
@@ -237,25 +272,51 @@ export function Gallery({
       {status === 'ready' && images.length === 0 ? (
         <p className="text-sm text-muted">{t('board.imagesEmpty')}</p>
       ) : null}
+      {held.length > 1 ? (
+        <button
+          type="button"
+          data-testid="load-all-photos"
+          className={cn(
+            hoverClass.secondary,
+            'inline-flex min-h-11 items-center rounded-[8px] px-3 text-sm',
+          )}
+          onClick={() => show(held)}
+        >
+          {t('lowData.loadAll', {
+            size: formatSize(
+              held.reduce((sum, image) => sum + image.bytes, 0),
+              i18n.language,
+            ),
+          })}
+        </button>
+      ) : null}
       {images.length > 0 ? (
-        <ul className="grid grid-cols-3 gap-2">
+        <ul className="grid grid-cols-3 items-start gap-2">
           {images.map((image) => (
             <li key={image.id} className="relative">
-              <button
-                type="button"
-                className={cn(
-                  hoverClass.card,
-                  'block w-full overflow-hidden rounded-[8px] border border-transparent',
-                )}
-                aria-label={t('board.photo')}
-                onClick={() => setOpen(image)}
-              >
-                <img
-                  src={imageSrc(image.url)}
-                  alt=""
-                  className="aspect-square w-full object-cover"
+              {isShown(image) ? (
+                <button
+                  type="button"
+                  className={cn(
+                    hoverClass.card,
+                    'block w-full overflow-hidden rounded-[8px] border border-transparent',
+                  )}
+                  aria-label={t('board.photo')}
+                  onClick={() => setOpen(image)}
+                >
+                  <img
+                    src={sourceOf(image)}
+                    alt=""
+                    className="aspect-square w-full object-cover"
+                  />
+                </button>
+              ) : (
+                <PhotoPlaceholder
+                  image={image}
+                  language={i18n.language}
+                  onLoad={() => show([image])}
                 />
-              </button>
+              )}
               {canEdit ? (
                 <button
                   type="button"
@@ -296,7 +357,7 @@ export function Gallery({
           </button>
           <figure className="flex max-h-full max-w-full flex-col items-center gap-2">
             <img
-              src={imageSrc(open.url)}
+              src={sourceOf(open)}
               alt={t('board.photo')}
               className="min-h-0 max-w-full object-contain"
             />
@@ -305,6 +366,43 @@ export function Gallery({
         </div>
       ) : null}
     </section>
+  )
+}
+
+/** A photo held back by low data: its shape, size and a button to load it (R-38-08). */
+function PhotoPlaceholder({
+  image,
+  language,
+  onLoad,
+}: {
+  image: SpotImage
+  language: string
+  onLoad: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div
+      data-testid="photo-placeholder"
+      role="group"
+      aria-label={t('lowData.photoPlaceholder', {
+        size: formatSize(image.bytes, language),
+      })}
+      style={{ aspectRatio: `${image.width} / ${image.height}` }}
+      className="flex min-h-28 w-full flex-col items-center justify-center gap-1 rounded-[8px] border border-border bg-border/40 p-1 text-center text-xs"
+    >
+      <ImageIcon aria-hidden="true" className="size-5 text-muted" />
+      <span className="text-muted">{formatSize(image.bytes, language)}</span>
+      <button
+        type="button"
+        className={cn(
+          hoverClass.secondary,
+          'inline-flex min-h-11 items-center rounded-[8px] px-2',
+        )}
+        onClick={onLoad}
+      >
+        {t('lowData.loadPhoto')}
+      </button>
+    </div>
   )
 }
 

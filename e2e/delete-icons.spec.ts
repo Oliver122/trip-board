@@ -116,6 +116,16 @@ for (const locale of ['en', 'de'] as const) {
       await page.goto(`/trips/${tripId}?spot=${spotId}`)
       const panel = page.getByRole('dialog')
       await expect(panel).toBeVisible()
+      if (width < 640) {
+        // The phone panel keeps these in collapsed sections (R-38-04): open
+        // each one in turn and check its buttons, ending on the comments.
+        for (const section of ['photos', 'plans', 'comments']) {
+          const toggle = page.getByTestId(`section-${section}`)
+          await toggle.click()
+          await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+          await expectButtonsFit(panel, `spot panel ${section} ${label}`)
+        }
+      }
       await expect(page.getByTestId('comment')).toHaveCount(3)
       await expectButtonsFit(panel, `spot panel ${label}`)
       await expectButtonsFit(
@@ -168,7 +178,15 @@ async function expectButtonsFit(
     const found: string[] = []
     const buttons = [...element.querySelectorAll('button')].filter((button) => {
       const rect = button.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
+      if (rect.width === 0 || rect.height === 0) return false
+      // A button scrolled out of the panel body is clipped, not overlapping.
+      const body = button.closest('[data-modal-body]')
+      if (body) {
+        const view = body.getBoundingClientRect()
+        if (rect.bottom > view.bottom + 0.5 || rect.top < view.top - 0.5)
+          return false
+      }
+      return true
     })
     const name = (button: HTMLElement) =>
       button.getAttribute('aria-label') ||

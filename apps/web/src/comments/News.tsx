@@ -61,7 +61,7 @@ export function NewsButton({
   )
 }
 
-function NewsPanel({
+export function NewsPanel({
   tripId,
   onClose,
 }: {

@@ -191,23 +191,42 @@ Only the owner sees role dropdowns, remove buttons and the invite section.
 └───────────────────────────────────┘
 ```
 
-### 3.7 Tablet and phone (responsive, not yet phone-optimised)
+### 3.7 Tablet and phone
 
 ```
- Tablet 640–1023 px                     Phone < 640 px
-┌──────────────────────────────┐       ┌──────────────────┐
-│ Japan 2026 ▾        👥  (◉)  │       │ Japan 2026 ▾ (◉) │
-├───────────────────┬──────────┤       ├──────────────────┤
-│                   │ [🔍][⚲]  │       │                  │
-│       MAP         │ [⇅][⇩]   │       │       MAP        │
-│                   │ ▌Card    │       │                  │
-│                   │ ▌Card    │       │            [+]   │
-│  [+ Add new]      │ ▌Card    │       ├──────────────────┤
-└───────────────────┴──────────┘       │ ━━━━  12 spots   │  ← bottom sheet,
-  panel = right side sheet             │ ▌Card            │    drag up for list
-                                       └──────────────────┘
-                                         panel = full screen
+ Tablet 640–1023 px                     Phone < 640 px: Map and List tabs
+┌──────────────────────────────┐       ┌──────────────────┐ ┌──────────────────┐
+│ Japan 2026 ▾        👥  (◉)  │       │ ‹ Japan 2026 (◉) │ │ ‹ Japan 2026 (◉) │
+├───────────────────┬──────────┤       ├──────────────────┤ ├──────────────────┤
+│                   │ [🔍][⚲]  │       │                  │ │ [🔍][⚲][⇅]       │
+│       MAP         │ [⇅][⇩]   │       │       MAP        │ │ ▌Card        ⚲   │
+│                   │ ▌Card    │       │                  │ │ ▌Card        ⚲   │
+│                   │ ▌Card    │       │            [+]   │ │ ▌Card        ⚲   │
+│  [+ Add new]      │ ▌Card    │       ├──────────────────┤ ├──────────────────┤
+└───────────────────┴──────────┘       │ Map List Plan ⋯  │ │ Map List Plan ⋯  │
+  panel = right side sheet             └──────────────────┘ └──────────────────┘
+                                         bottom bar, ≥ 48 px, above the safe area
 ```
+
+Phone panel (full screen), sections collapsed except *Details*:
+
+```
+┌──────────────────┐
+│ Kinkaku-ji     ✕ │
+│ ● Sights         │
+│ ▾ Details        │
+│   address  [⧉]   │
+│   ↗ Open in Google Maps
+│ ▸ Photos (3)     │
+│ ▸ In plans (1)   │
+│ ▸ Comments (2)   │
+└──────────────────┘
+```
+
+- The phone bar has *Map*, *List*, *Schedule* and *More* (Settings, Members, News, *Low data*, theme). Map and List are one route (`?view=list`).
+- *Low data* holds back photos, the map and avatars until asked for; the header shows a *Low data* badge.
+- Every saved spot has *Open in Google Maps* next to its address, and each phone list card has a map-pin link.
+- Hidden on the phone (still reachable by URL, and back at ≥ 640 px): import, export, spot kinds, schedule drag-and-drop, the bookmarklet, the admin area.
 
 ### 3.8 Admin — layout and dashboard
 

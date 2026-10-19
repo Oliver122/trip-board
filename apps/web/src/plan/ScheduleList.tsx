@@ -1,4 +1,5 @@
 import type { PlanEntry, PlanLink, Spot } from '@tripboard/shared'
+import { phoneQuery, useMediaQuery } from '../lib/media'
 import {
   ChevronDown,
   ChevronRight,
@@ -241,6 +242,7 @@ function BucketSpots({
   createdSpotId: string | null
 }) {
   const { t } = useTranslation()
+  const phone = useMediaQuery(phoneQuery)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -371,7 +373,7 @@ function BucketSpots({
                 />
               ) : null}
               <div className="flex items-center gap-1">
-                {canEdit ? (
+                {canEdit && !phone ? (
                   <button
                     type="button"
                     draggable

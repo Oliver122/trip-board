@@ -24,7 +24,8 @@ Steps on parallel branches of the graph can be built in any order; the **Depends
 3. **`/req-implement NN` builds it.**
 4. **The DoD passes.** Until then the core files still describe the state *before* the step.
 5. **Integrate:** apply the core changes to the core files, set `**Status:** integrated YYYY-MM-DD` and the `**Core:**` line in the step, run `pnpm req:build` and `pnpm req:check`.
-6. **`/req-test-report NN`** writes `requirements/reports/NN-report.md`.
+6. **Stack and PR:** every part of a run (step or `+` task) is committed as atomic, individually green commits on its own branch and opened as its own pull request, based on the previous part's branch (stacked PRs). The head agent pushes only green parts and never merges. `pnpm req:stack` plans branches and bases.
+7. **`/req-test-report NN`** writes `requirements/reports/NN-report.md`.
 
 Step header, under the title:
 ```

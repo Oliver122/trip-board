@@ -2,6 +2,7 @@ import { defaultSpotListQuery } from '@tripboard/shared'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useMatch, useParams } from 'react-router'
+import { usePhoneView } from '../components/phone/use-phone'
 import { ErrorState, LoadingState } from '../components/states'
 import { cn } from '../lib/utils'
 import { MapView } from '../map/MapView'
@@ -98,6 +99,9 @@ function TripWorkspace() {
   const schedule = useMatch('/trips/:id/schedule')
   const settings = useMatch('/trips/:id/settings')
   const dark = useDark()
+  const { phone, view, setView } = usePhoneView()
+  // Below 640 px one view shows at a time; the map stays mounted behind (R-38-02).
+  const mapHidden = phone && (schedule != null || view === 'list')
   const routeScope: ViewportScope | null = settings
     ? null
     : schedule
@@ -128,10 +132,10 @@ function TripWorkspace() {
         className={cn(
           'relative min-h-0 min-w-0 flex-1',
           schedule ? 'order-2 min-h-[40vh]' : 'order-1',
-          settings && 'invisible absolute inset-0 z-0 min-h-0',
+          (settings || mapHidden) && 'invisible absolute inset-0 z-0 min-h-0',
         )}
         style={{ backgroundColor: land }}
-        aria-hidden={settings ? true : undefined}
+        aria-hidden={settings || mapHidden ? true : undefined}
       >
         <MapView
           key={trip.id}
@@ -156,6 +160,7 @@ function TripWorkspace() {
           viewportScope={scope}
           viewportStorageKey={viewportStorageKey('board', trip.id)}
           flyTo={scene?.flyTo ?? null}
+          onCancelLoad={() => setView('list', { replace: true })}
         />
         <div
           id="trip-map-overlay"
@@ -168,9 +173,13 @@ function TripWorkspace() {
           'flex min-h-0 min-w-0 flex-col',
           settings
             ? 'relative z-10 w-full flex-1 overflow-auto'
-            : schedule
-              ? 'order-1 max-h-[50vh] w-full lg:max-h-none lg:w-[420px] lg:shrink-0'
-              : 'order-2 w-full sm:w-[280px] sm:shrink-0 lg:w-[360px]',
+            : phone
+              ? mapHidden
+                ? 'relative z-10 w-full flex-1'
+                : 'w-full'
+              : schedule
+                ? 'order-1 max-h-[50vh] w-full lg:max-h-none lg:w-[420px] lg:shrink-0'
+                : 'order-2 w-full sm:w-[280px] sm:shrink-0 lg:w-[360px]',
         )}
       >
         <Outlet />

@@ -957,5 +957,47 @@
       "iphone": "On iPhone",
       "iphoneHow": "Safari cannot share to web apps. In Google Maps choose Share, then Copy, and paste the link into the \"Google Maps link\" field of the add panel."
     }
+  },
+  "lowData": {
+    "title": "Low data",
+    "badge": "Low data",
+    "badgeLabel": "Low data is on. Open the setting.",
+    "menuOn": "Low data: on",
+    "menuOff": "Low data: off",
+    "switch": "Low data",
+    "settingTitle": "Low data",
+    "settingHint": "Low data loads no photos, no map and no avatars until you ask for them. Automatic turns it on when your browser asks to save data or the connection is very slow.",
+    "auto": "Automatic",
+    "on": "On",
+    "off": "Off",
+    "loadPhoto": "Load photo",
+    "loadAll": "Load all ({{size}})",
+    "photoSize": "{{size}}",
+    "photoPlaceholder": "Photo not loaded, {{size}}",
+    "loadMapQuestion": "Load the map? Uses about 2–5 MB.",
+    "loadMap": "Load map",
+    "cancel": "Cancel",
+    "addPhotos": "Add photos"
+  },
+  "phone": {
+    "tabsLabel": "Trip sections",
+    "map": "Map",
+    "list": "List",
+    "schedule": "Schedule",
+    "more": "More",
+    "moreTitle": "More",
+    "settings": "Settings",
+    "members": "Members",
+    "news": "News",
+    "back": "My trips",
+    "details": "Details",
+    "photos": "Photos ({{count}})",
+    "plans": "In plans ({{count}})",
+    "comments": "Comments ({{count}})",
+    "showOnMap": "Show on map",
+    "openInMaps": "Open in Google Maps",
+    "openSpotInMaps": "Open {{title}} in Google Maps",
+    "kindsNote": "Manage spot kinds on a larger screen.",
+    "adminNotice": "The admin area needs a larger screen."
   }
 }

@@ -9,6 +9,7 @@ import { Button } from '../components/ui/button'
 import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
+import { useDataSaver } from '../lib/data-saver'
 import { useSession } from '../session'
 import { cn } from '../lib/utils'
 import { CommentBody } from './body'
@@ -436,7 +437,8 @@ function CommentItem({
 }
 
 function Avatar({ name, url }: { name: string; url: string | null }) {
-  if (url) {
+  const { on: lowData } = useDataSaver()
+  if (url && !lowData) {
     return (
       <img
         src={url}

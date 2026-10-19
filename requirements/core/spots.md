@@ -54,6 +54,14 @@ How a trip's spots are created, read, changed and deleted through the API and th
 | C-SPOT-26 | Pasting a Google Maps link on the board (Ctrl/Cmd+V while focus is not in an `input`, `textarea` or `contenteditable` and no dialog other than the spot panel is open; planner, board admin, owner only) shows the toast “Looking up place…” and opens a fresh add panel with title, address, link and the draft pin, and the map pans to the pin; other pasted text is ignored without a message. An open panel with unsaved changes first asks “Discard unsaved changes?”. A draft filled this way counts as a change, stays editable, and with `placed: false` leaves the pin unset and shows “Couldn't place this on the map. Click the map to set the pin.”. The texts and the errors `link_not_google_maps`, `link_resolve_failed` and `rate_limited` exist in `en` and `de`. <!-- R-33-05, R-33-07, R-33-11 --> | active | 33 | — | T-33-05, T-33-11 |
 | C-SPOT-27 | The add panel (planner, board admin, owner) has a *Google Maps link* / *Google-Maps-Link* field with a *Fill in* / *Übernehmen* button above the address field; the button shows a spinner while the lookup runs, a typed title is kept while address, link and pin are filled, and failures appear under the field with their translated text. <!-- R-33-06 --> | active | 33 | — | T-33-06, T-33-10 |
 
+
+## Phone panel and Google Maps link
+
+| ID | Rule | Status | Since | Changed by | Tests |
+| --- | --- | --- | --- | --- | --- |
+| C-SPOT-28 | Below 640 px the spot panel is full-screen: under the title and category, *Details* (address, info, link, *Open in Google Maps*) is open, and *Photos (n)*, *In plans (n)* and *Comments (n)* are collapsed sections (`button` with `aria-expanded`), of which only one is open at a time. Unsaved-change protection (C-SPOT-17, C-SPOT-24) works the same. <!-- R-38-04 --> | active | 38 | — | T-38-03, T-38-14, T-31-10 |
+| C-SPOT-29 | Every saved spot's panel (all roles, every screen size) shows *Open in Google Maps* / *In Google Maps öffnen* next to the address: a link with an external-link icon, `target="_blank"` and `rel="noopener noreferrer"` to `https://www.google.com/maps/search/?api=1&query=<lat>,<lng>`, with the saved point rounded to 6 decimals and `.` as the separator in every language; it is absent in add mode and never uses an unsaved dragged pin. On the phone's *List* tab each card has a map-pin icon link to the same URL labelled “Open <title> in Google Maps”, which does not open the panel. <!-- R-38-11, R-38-12 --> | active | 38 | — | T-38-11, T-38-12, T-38-13, T-38-16 |
+
 ## Known gaps
 
 - C-SPOT-04: R-06-04 says the 400 carries the message “planned is set automatically”, but `apps/api/src/spots/routes.ts` and `packages/shared/src/spots.ts` answer `invalid_request` with `fields.category = "planned_automatic"`; the rule describes that.

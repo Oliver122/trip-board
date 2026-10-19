@@ -227,6 +227,8 @@ test('T-24-12 renders markup as text and links http(s) with safe attributes', as
 test('T-24-23 News lists unread spots, opens the discussion and clears the badge', async ({
   browser,
 }) => {
+  // Two sessions, two threads and mark-all-read: about 29 s on CI WebKit.
+  test.setTimeout(60_000)
   const first = uniqueTitle('News one')
   const second = uniqueTitle('News two')
   const aiko = await newSession(browser, aikoId)

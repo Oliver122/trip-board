@@ -31,7 +31,7 @@ The board's “Things to do” list and its toolbar: text search, filters (inclu
 | C-LIST-13 | A list card shows a kind-colored strip, the title, the short address or else the first scheduled date and time, and the category icon; hovering a card highlights its pin and the other way round, and clicking either selects the spot, opens the panel and scrolls the card into view. Selecting a card flies the map to its pin. <!-- R-07-03, R-07-04, R-18-10 --> | active | 07 | 18 | T-07-05 |
 | C-LIST-14 | The default order shows scheduled spots first, then a divider “Not scheduled yet”, then the rest. <!-- R-09-04 --> | active | 09 | — | T-09-08 |
 | C-LIST-15 | A count shows “n spots”, or “n of m spots” while filters are active. With no spots the list says “No spots yet — add your first one”, with filters matching nothing “No spots match your filters” with a Reset button, and — only when “List follows map” is on — a spot-less view says “Nothing here — zoom out or turn off ‘only visible on map’”. <!-- R-07-11, R-09-09, R-09-10, R-18-10 --> | active | 07 | 09, 18 | T-07-10, T-09-09 |
-| C-LIST-16 | Below 640 px the list is a draggable bottom sheet (peek, half, full) over a full-screen map and the toolbar collapses into one “Filters” button; at 640–1023 px the list column is narrower. <!-- R-15-01, R-15-02 --> | active | 15 | — | T-15-01, T-15-02 |
+| C-LIST-16 | Below 640 px the list is the *List* tab of the phone's bottom bar (C-APP-25): the toolbar and the cards full-screen with no map; at 640–1023 px the list column is narrower. <!-- R-15-01, R-15-02, R-38-01, R-38-02 --> | active | 15 | 38 | T-15-01, T-15-02, T-38-02 |
 
 ## Known gaps
 

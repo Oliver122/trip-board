@@ -13,6 +13,7 @@ import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
 import { Select } from '../components/ui/select'
+import { useDataSaver } from '../lib/data-saver'
 import { onMembersRefresh } from '../live/bus'
 import { useSession } from '../session'
 import { isAuth, request } from '../api/http'
@@ -446,7 +447,8 @@ function Confirm({
 }
 
 function Avatar({ member }: { member: Member }) {
-  if (member.avatarUrl) {
+  const { on: lowData } = useDataSaver()
+  if (member.avatarUrl && !lowData) {
     return (
       <img
         src={member.avatarUrl}

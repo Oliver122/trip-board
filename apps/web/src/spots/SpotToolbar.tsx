@@ -178,20 +178,22 @@ export function SpotToolbar({
         >
           <ArrowUpDown aria-hidden="true" className="size-4" />
         </Button>
-        <Button
-          variant="outline"
-          className="size-11 px-0"
-          aria-label={t('board.export')}
-          aria-expanded={exportOpen}
-          aria-haspopup="dialog"
-          onClick={() => {
-            setOpen(null)
-            setExportOpen(true)
-          }}
-        >
-          <Download aria-hidden="true" className="size-4" />
-        </Button>
-        {canImport ? (
+        {phone ? null : (
+          <Button
+            variant="outline"
+            className="size-11 px-0"
+            aria-label={t('board.export')}
+            aria-expanded={exportOpen}
+            aria-haspopup="dialog"
+            onClick={() => {
+              setOpen(null)
+              setExportOpen(true)
+            }}
+          >
+            <Download aria-hidden="true" className="size-4" />
+          </Button>
+        )}
+        {canImport && !phone ? (
           <Button
             variant="outline"
             className="size-11 px-0"
@@ -389,22 +391,6 @@ export function SpotToolbar({
           <Button variant="outline" className="mt-3" onClick={reset}>
             {t('board.reset')}
           </Button>
-          {phone ? (
-            <Button
-              variant="outline"
-              className="mt-3 ml-2"
-              aria-label={t('board.export')}
-              aria-expanded={exportOpen}
-              aria-haspopup="dialog"
-              onClick={() => {
-                setOpen(null)
-                setExportOpen(true)
-              }}
-            >
-              <Download aria-hidden="true" className="size-4" />
-              {t('board.export')}
-            </Button>
-          ) : null}
         </div>
       ) : null}
       {open === 'sort' || (phone && open != null) ? (

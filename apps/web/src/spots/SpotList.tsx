@@ -5,13 +5,8 @@ import {
   type Spot,
   type SpotListQuery,
 } from '@tripboard/shared'
-import { Calendar, House, MessageSquare } from 'lucide-react'
-import {
-  Fragment,
-  useEffect,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import { Calendar, House, MapPin, MessageSquare } from 'lucide-react'
+import { Fragment, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   categoryColor,
@@ -32,28 +27,8 @@ import {
   spotsInView,
   spotSubtitle,
 } from './model'
+import { googleMapsUrl } from './maps-link'
 import { SpotToolbar } from './SpotToolbar'
-
-type Snap = 'peek' | 'half' | 'full'
-
-const peekHeight = 112
-
-function snapHeight(snap: Snap, viewport: number): number {
-  if (snap === 'peek') return peekHeight
-  if (snap === 'half') return Math.round(viewport * 0.5)
-  return Math.round(viewport * 0.92)
-}
-
-function nearestSnap(height: number, viewport: number): Snap {
-  const options: [Snap, number][] = [
-    ['peek', peekHeight],
-    ['half', snapHeight('half', viewport)],
-    ['full', snapHeight('full', viewport)],
-  ]
-  return options.reduce((best, item) =>
-    Math.abs(item[1] - height) < Math.abs(best[1] - height) ? item : best,
-  )[0]
-}
 
 export function SpotList({
   tripId,
@@ -101,8 +76,6 @@ export function SpotList({
   const { t, i18n } = useTranslation()
   const { enabled: listFollowsMap } = useListFollowsMap()
   const phone = useMediaQuery(phoneQuery)
-  const [snap, setSnap] = useState<Snap>('peek')
-  const [dragHeight, setDragHeight] = useState<number | null>(null)
   const locale = activeLocale(i18n.resolvedLanguage ?? i18n.language)
   const shown = orderPrimaryHomes(spotsInView(spots, bounds, query.visible))
   const empty = listEmptyKind(total, spots.length, shown.length)
@@ -119,67 +92,17 @@ export function SpotList({
       ?.scrollIntoView({ block: 'nearest' })
   }, [selectedId])
 
-  function onHandlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    const startY = event.clientY
-    const viewport = window.innerHeight
-    const startHeight = dragHeight ?? snapHeight(snap, viewport)
-    const target = event.currentTarget
-    target.setPointerCapture(event.pointerId)
-    const move = (ev: PointerEvent) => {
-      const next = startHeight + (startY - ev.clientY)
-      const max = snapHeight('full', window.innerHeight)
-      setDragHeight(Math.min(max, Math.max(peekHeight, next)))
-    }
-    const up = (ev: PointerEvent) => {
-      const next = startHeight + (startY - ev.clientY)
-      setSnap(nearestSnap(next, window.innerHeight))
-      setDragHeight(null)
-      target.removeEventListener('pointermove', move)
-      target.removeEventListener('pointerup', up)
-    }
-    target.addEventListener('pointermove', move)
-    target.addEventListener('pointerup', up)
-  }
-
   return (
     <aside
       data-testid="spot-list"
-      data-sheet={phone ? snap : 'docked'}
+      data-layout={phone ? 'full' : 'docked'}
       className={cn(
         'flex min-h-0 flex-col bg-card',
         phone
-          ? 'fixed inset-x-0 bottom-0 z-30 overflow-hidden rounded-t-card border border-border shadow-panel'
+          ? 'w-full flex-1'
           : 'w-full flex-1 border-t border-border sm:w-[280px] sm:border-t-0 sm:border-l lg:w-[360px]',
       )}
-      style={
-        phone
-          ? { height: dragHeight ?? snapHeight(snap, window.innerHeight) }
-          : undefined
-      }
     >
-      {phone ? (
-        <button
-          type="button"
-          data-testid="sheet-handle"
-          aria-label={t('board.sheet')}
-          className={cn(
-            hoverClass.ghost,
-            'flex w-full touch-none flex-col items-center py-2',
-          )}
-          onPointerDown={onHandlePointerDown}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowUp') {
-              event.preventDefault()
-              setSnap((current) => (current === 'peek' ? 'half' : 'full'))
-            } else if (event.key === 'ArrowDown') {
-              event.preventDefault()
-              setSnap((current) => (current === 'full' ? 'half' : 'peek'))
-            }
-          }}
-        >
-          <span className="block h-1 w-10 rounded-full bg-border" />
-        </button>
-      ) : null}
       <div className="flex items-baseline justify-between border-b border-border px-4 py-3">
         <h1 className="text-base font-semibold">{t('board.thingsToDo')}</h1>
         <span data-testid="spot-count" className="text-muted">
@@ -209,7 +132,6 @@ export function SpotList({
         className={cn(
           // Keeps room for the list when an open filter panel fills the column.
           'm-0 min-h-24 flex-1 list-none overflow-auto overscroll-contain p-0',
-          phone && snap === 'peek' && dragHeight == null && 'hidden',
         )}
       >
         {empty === 'trip' ? (
@@ -250,7 +172,7 @@ export function SpotList({
                   <span className="h-px flex-1 bg-border" aria-hidden="true" />
                 </li>
               ) : null}
-              <li>
+              <li className="relative">
                 <button
                   type="button"
                   id={`spot-card-${spot.id}`}
@@ -280,7 +202,28 @@ export function SpotList({
                     kinds={spot.kinds}
                     filled={spot.primary}
                   />
+                  {phone ? (
+                    <span className="w-12 shrink-0" aria-hidden="true" />
+                  ) : null}
                 </button>
+                {phone ? (
+                  <a
+                    href={googleMapsUrl(spot)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid={`card-maps-${spot.id}`}
+                    aria-label={t('phone.openSpotInMaps', {
+                      title: spot.title,
+                    })}
+                    className={cn(
+                      hoverClass.ghost,
+                      'absolute right-0 top-1/2 inline-flex size-12 -translate-y-1/2 items-center justify-center',
+                    )}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <MapPin aria-hidden="true" className="size-5" />
+                  </a>
+                ) : null}
               </li>
             </Fragment>
           )

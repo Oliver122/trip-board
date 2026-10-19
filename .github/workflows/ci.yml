@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,7 +16,30 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Only on main: proves the pushed commit is what a green pull request run
+  # already tested, so the test jobs below can be skipped (scripts/ci-pr-verified.mjs).
+  pr-verified:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      verified: ${{ steps.verify.outputs.verified }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - id: verify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-pr-verified.mjs
+
   static:
+    if: ${{ !cancelled() && needs.pr-verified.outputs.verified != 'true' }}
+    needs: pr-verified
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -71,6 +95,8 @@ jobs:
       - run: pnpm test
 
   build:
+    if: ${{ !cancelled() && needs.pr-verified.outputs.verified != 'true' }}
+    needs: pr-verified
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -86,6 +112,8 @@ jobs:
       - run: pnpm check:bundle
 
   e2e:
+    if: ${{ !cancelled() && needs.pr-verified.outputs.verified != 'true' }}
+    needs: pr-verified
     timeout-minutes: 30
     runs-on: ubuntu-24.04
     strategy:
@@ -94,8 +122,14 @@ jobs:
         include:
           - project: chromium
             browser: chromium
+          # Software WebGL fills both vCPUs, so Firefox runs one worker per
+          # job and is split into two shards on separate runners instead.
           - project: firefox
             browser: firefox
+            shard: 1/2
+          - project: firefox
+            browser: firefox
+            shard: 2/2
           - project: webkit
             browser: webkit
           - project: mobile
@@ -164,20 +198,22 @@ jobs:
           if [ "${{ matrix.project }}" = "firefox" ]; then
             export LIBGL_ALWAYS_SOFTWARE=1
             export GALLIUM_DRIVER=llvmpipe
-            xvfb-run -a pnpm test:e2e --project=firefox --headed
+            shard="${{ matrix.shard }}"
+            export PLAYWRIGHT_BLOB_FILE_NAME="report-firefox-${shard%/*}.zip"
+            xvfb-run -a pnpm test:e2e --project=firefox --headed --workers=1 --shard=${{ matrix.shard }}
           else
             pnpm test:e2e --project=${{ matrix.project }}
           fi
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
-          name: blob-report-${{ matrix.project }}
+          name: blob-report-${{ matrix.project }}${{ matrix.shard && format('-{0}', strategy.job-index) || '' }}
           path: blob-report/
           retention-days: 1
 
   e2e-report:
-    if: ${{ !cancelled() }}
-    needs: e2e
+    if: ${{ !cancelled() && needs.pr-verified.outputs.verified != 'true' }}
+    needs: [pr-verified, e2e]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -208,18 +244,33 @@ jobs:
 
   ci-passed:
     if: always()
-    needs: [static, build, e2e, e2e-report]
+    needs: [pr-verified, static, build, e2e, e2e-report]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - name: Require every check to succeed
         env:
+          EVENT_NAME: ${{ github.event_name }}
           NEEDS: ${{ toJson(needs) }}
         run: node scripts/ci-passed.mjs
+      - name: Record the tested tree
+        if: ${{ success() && github.event_name == 'pull_request' }}
+        id: tree
+        run: |
+          tree=$(git rev-parse 'HEAD^{tree}')
+          mkdir tested-tree
+          echo "{\"tree\":\"$tree\",\"pr\":${{ github.event.pull_request.number }}}" > tested-tree/tested-tree.json
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v5
+        if: ${{ success() && github.event_name == 'pull_request' }}
+        with:
+          name: tested-tree-${{ github.event.pull_request.number }}-${{ steps.tree.outputs.tree }}
+          path: tested-tree/
+          retention-days: 30
 
   deploy:
     needs: ci-passed
-    if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
+    if: ${{ success() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
     runs-on: ubuntu-24.04
     environment: production
     concurrency:
