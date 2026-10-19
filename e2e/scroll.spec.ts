@@ -228,6 +228,11 @@ test.describe('T-31-02 spot panel', () => {
       await expect(panel).toBeVisible()
       const body = panel.locator('[data-modal-body]')
       await expect(body).toBeVisible()
+      // Opening the spot eases the map to zoom >= 12; on a slow browser that
+      // can start after a first quiet sample, so wait for it to arrive.
+      await expect
+        .poll(async () => (await mapView(page)).zoom, { timeout: 15_000 })
+        .toBeGreaterThanOrEqual(12)
       const before = await stableMapView(page)
 
       const header = panel.locator('h2')
