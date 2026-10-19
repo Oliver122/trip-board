@@ -24,6 +24,7 @@
 | Proof, not trust | `main` skips tests only when it can prove the commit's tree equals the tree a successful pull request run tested. Anything else (direct push, a failed or missing run, a different tree, an API error) runs the full pipeline as today |
 | Tree, not SHA | The merge commit's SHA differs from the PR run's merge ref, but the tree is the same for merge, squash and rebase merges when the branch was up to date. The PR run records its tree; `main` compares trees |
 | Two workers | `workers: 2` only in CI; locally Playwright keeps its default. Retries stay at 1 (C-OPS-22), so a new flake from parallelism shows up as flaky in the summary and is fixed, not hidden |
+| Firefox shards | The first PR run with two workers (PR #16) starved Firefox: software WebGL under Xvfb fills both vCPUs, so 9 tests timed out and the job hit 30 minutes. Firefox runs with `--workers=1` split into two shards on separate runners (`blob-report-firefox-<n>`), which also parallelizes it |
 
 ## Requirements
 

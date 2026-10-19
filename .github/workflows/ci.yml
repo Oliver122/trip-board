@@ -122,8 +122,14 @@ jobs:
         include:
           - project: chromium
             browser: chromium
+          # Software WebGL fills both vCPUs, so Firefox runs one worker per
+          # job and is split into two shards on separate runners instead.
           - project: firefox
             browser: firefox
+            shard: 1/2
+          - project: firefox
+            browser: firefox
+            shard: 2/2
           - project: webkit
             browser: webkit
           - project: mobile
@@ -192,14 +198,16 @@ jobs:
           if [ "${{ matrix.project }}" = "firefox" ]; then
             export LIBGL_ALWAYS_SOFTWARE=1
             export GALLIUM_DRIVER=llvmpipe
-            xvfb-run -a pnpm test:e2e --project=firefox --headed
+            shard="${{ matrix.shard }}"
+            export PLAYWRIGHT_BLOB_FILE_NAME="report-firefox-${shard%/*}.zip"
+            xvfb-run -a pnpm test:e2e --project=firefox --headed --workers=1 --shard=${{ matrix.shard }}
           else
             pnpm test:e2e --project=${{ matrix.project }}
           fi
       - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
-          name: blob-report-${{ matrix.project }}
+          name: blob-report-${{ matrix.project }}${{ matrix.shard && format('-{0}', strategy.job-index) || '' }}
           path: blob-report/
           retention-days: 1
 
