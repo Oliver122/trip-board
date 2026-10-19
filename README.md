@@ -6,13 +6,14 @@ A shared, map-first travel planner: create a trip scoped to a region (e.g. _Japa
 
 Visual source: [Figma — Untitled](https://www.figma.com/design/hk3ksysV5sSUlMddhU0SME/Untitled?node-id=0-1&m=dev).
 
-| Document                                                     | Contents                                                                  |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| [`docs/PROJECT_SCOPE.md`](docs/PROJECT_SCOPE.md)             | Decisions, stack, repo structure, features (incl. admin area), API sketch |
-| [`docs/DESIGN.md`](docs/DESIGN.md)                           | Visual direction, wireframes, flow diagrams                               |
-| [`docs/STITCH_DESIGN_GUIDE.md`](docs/STITCH_DESIGN_GUIDE.md) | Prompts to paste into Stitch, plus a review checklist                     |
-| [`docs/database/`](docs/database/DATABASE.md)                | Database design, reference `schema.sql`, `checks.sql`                     |
-| [`requirements/`](requirements/README.md)                    | 23 build steps, each with a test-based Definition of Done                 |
+| Document                                                     | Contents                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| [`docs/SYSTEM_OVERVIEW.md`](docs/SYSTEM_OVERVIEW.md)         | How the system works end to end, outside integrations, ranked issue review |
+| [`docs/PROJECT_SCOPE.md`](docs/PROJECT_SCOPE.md)             | Decisions, stack, repo structure, features (incl. admin area), API sketch  |
+| [`docs/DESIGN.md`](docs/DESIGN.md)                           | Visual direction, wireframes, flow diagrams                                |
+| [`docs/STITCH_DESIGN_GUIDE.md`](docs/STITCH_DESIGN_GUIDE.md) | Prompts to paste into Stitch, plus a review checklist                      |
+| [`docs/database/`](docs/database/DATABASE.md)                | Database design, reference `schema.sql`, `checks.sql`                      |
+| [`requirements/`](requirements/README.md)                    | 23 build steps, each with a test-based Definition of Done                  |
 
 Planned stack: React + TypeScript (Vite, Tailwind, shadcn/ui, MapLibre), Node.js (Fastify), PostgreSQL 16 (Drizzle), Discord OAuth2.
 
@@ -216,7 +217,11 @@ The `e2e-report` job merges all browsers into one HTML report, uploaded as the `
 
 `ci-passed` succeeds only when every other check succeeded. It is the only required check. Set up a ruleset on `main` under **Settings → Rules → Rulesets** with these rules: require a pull request before merging, require the status check `ci-passed`, require the branch to be up to date, block force pushes and deletion, and leave the bypass list empty.
 
-A push to `main` (a merge) runs the same checks and then `deploy`, which calls `scripts/deploy.sh` with the GitHub environment `production`. Deploys run one at a time. To roll back, re-run the `deploy` job of an earlier green run on `main`; database migrations are not reverted. Pull request checks need no secrets.
+[Step 36](requirements/36-faster-ci.md) keeps `main` from running the same tests twice. When a pull request run is green, its `ci-passed` job uploads an artifact `tested-tree-<pr>-<tree>` (30 days) naming the git tree it tested. On a push to `main`, the `pr-verified` job (`scripts/ci-pr-verified.mjs`) checks that the commit belongs to exactly one merged pull request, that the latest run for that PR's head ended `success`, and that the recorded tree equals the pushed commit's tree. If so, `static`, `build`, `e2e` and `e2e-report` are skipped, `ci-passed` accepts the skips, `deploy` starts right away, and the run summary links the pull request run it reused. Otherwise the full pipeline runs as before; the summary shows the reason: `no_pull_request` (direct push, or more than one PR), `run_not_green`, `no_tested_tree`, `tree_mismatch` or `api_error`.
+
+To run everything on `main` anyway, start the **CI** workflow by hand (**Actions → CI → Run workflow**, branch `main`): `pr-verified` is skipped, every job runs, and `deploy` follows. In CI, Playwright runs with two workers (`using 2 workers` in each e2e log; locally it keeps its default), and failed tests are retried once.
+
+A push to `main` (a merge) runs the full checks only when `pr-verified` is false (or when the workflow is started by hand), and then `deploy`, which calls `scripts/deploy.sh` with the GitHub environment `production`. Deploys run one at a time. To roll back, re-run the `deploy` job of an earlier green run on `main`; database migrations are not reverted. Pull request checks need no secrets.
 
 Set these on **Settings → Environments → production**. Optional keys that are left unset keep the value already in the server’s `.env`.
 
