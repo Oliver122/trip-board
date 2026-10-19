@@ -12,6 +12,7 @@ export default defineConfig({
   snapshotPathTemplate:
     '{testDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
   fullyParallel: true,
+  workers: process.env.CI ? 2 : undefined,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['blob'], ['github']] : 'list',
   use: {
