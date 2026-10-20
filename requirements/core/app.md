@@ -82,6 +82,5 @@ The web shell that every page shares: routes, header, design tokens, theme, Engl
 
 ## Known gaps
 
-- C-APP-07: R-03-04 says the strings live in `public/locales/{en,de}/common.json`; the app imports them from `apps/web/src/locales/` and `apps/web/public/locales/` is a mirror that `apps/web/src/locales.test.ts` keeps identical. The rule describes the code.
 - C-APP-14: R-20-09 also lists `role="menuitem"` and `role="option"`, but `apps/web/src/hover-lint.ts` only inspects `<button>`, `<a>`, `<Link>` and `<NavLink>` tags; the rule describes the code.
 - C-APP-18: T-26-17 is manual and checked by T-27-10; nothing automated verifies that `docs/DESIGN.md` still lists every shared component.

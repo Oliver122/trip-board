@@ -4,24 +4,13 @@ import {
   kindSymbols,
   placeLinkErrorCodes,
 } from '@tripboard/shared'
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import de from './locales/de/common.json'
 import en from './locales/en/common.json'
 import i18n from './i18n'
-
-const publicEn = JSON.parse(
-  readFileSync(
-    new URL('../public/locales/en/common.json', import.meta.url),
-    'utf8',
-  ),
-)
-const publicDe = JSON.parse(
-  readFileSync(
-    new URL('../public/locales/de/common.json', import.meta.url),
-    'utf8',
-  ),
-)
 
 describe('locales', () => {
   it('T-03-01 en and de have the same keys', () => {
@@ -33,8 +22,57 @@ describe('locales', () => {
       missingInDe: [],
       missingInEn: [],
     })
-    expect(publicEn).toEqual(en)
-    expect(publicDe).toEqual(de)
+  })
+
+  it('T-39-01 keeps one locale source', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url))
+    const self = fileURLToPath(import.meta.url)
+    const mirror = join(root, 'apps', 'web', 'public', 'locales')
+    expect({
+      mirror: existsSync(mirror) ? relative(root, mirror) : null,
+    }).toEqual({ mirror: null })
+
+    const needle = ['public', 'locales'].join('/')
+    const skipDirs = new Set([
+      'node_modules',
+      'dist',
+      'coverage',
+      'test-results',
+      'playwright-report',
+      'blob-report',
+      '.turbo',
+    ])
+    const skipExt =
+      /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|pdf|zip|gz|mp4|webm)$/i
+    const offenders: string[] = []
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (!skipDirs.has(entry.name)) walk(path)
+        } else if (entry.isFile() && path !== self && !skipExt.test(path)) {
+          if (statSync(path).size >= 2 * 1024 * 1024) continue
+          if (readFileSync(path, 'utf8').includes(needle)) {
+            offenders.push(relative(root, path))
+          }
+        }
+      }
+    }
+    for (const top of ['apps', 'packages', 'e2e', 'scripts', 'docs']) {
+      const dir = join(root, top)
+      if (existsSync(dir)) walk(dir)
+    }
+    expect(offenders).toEqual([])
+
+    const app = readFileSync(
+      join(root, 'requirements', 'core', 'app.md'),
+      'utf8',
+    )
+    const gaps = app.split(/^## Known gaps$/m)[1] ?? ''
+    const bullets = gaps
+      .split('\n')
+      .filter((line) => line.startsWith('- C-APP-07'))
+    expect(bullets).toEqual([])
   })
 
   it('T-28-20 has the step 28 keys in en and de', () => {

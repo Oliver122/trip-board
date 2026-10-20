@@ -54,6 +54,10 @@ test('T-36-02 deploy keeps main-only conditions and runs after dispatch', () => 
   assert.match(j, /github\.repository == 'Oliver122\/trip-board'/)
 })
 
+test('T-39-02 build job checks that no locale copy is built', () => {
+  assert.match(job('build'), /run: test ! -e apps\/web\/dist\/locales/)
+})
+
 test('T-36-02 pull_request has no branch filter (R-35-11)', () => {
   assert.match(text, /^ {2}pull_request:\n(?! {4})/m)
 })
