@@ -3,8 +3,8 @@
 **Goal:** fix the two severe points of the roast that are still open: the translation strings live in one place only, and `pnpm push` deploys the checked-out commit instead of whatever is on disk.
 **Depends on:** 03, 21, 37
 **Result:** `ls apps/web/public/locales` fails and the app still shows English and German. Edit any tracked file without committing and run `pnpm push`: it stops before connecting to the server and names the changed file. Commit it and run `pnpm push` again: it prints the short commit id it uploads, an untracked file next to it is not on the server, and `cat $DEPLOY_PATH/REVISION` on the server shows that commit
-**Core:** —
-**Status:** planned
+**Core:** C-APP-38, C-OPS-25, C-OPS-48
+**Status:** integrated 2026-10-20
 
 ## Scope
 - In: removing the mirror `apps/web/public/locales/`, the test that keeps the one source and stops the mirror from returning, the paths in `docs/DESIGN.md` §7 and `docs/PROJECT_SCOPE.md`; a new `scripts/deploy-archive.sh` that checks the working tree and writes the commit as a tar stream, used by `scripts/deploy.sh`; the `REVISION` file on the server; the line references to `scripts/deploy.sh` in `docs/SYSTEM_OVERVIEW.md`; the C-APP-07 *Known gaps* bullet.
