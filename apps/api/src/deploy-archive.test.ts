@@ -17,8 +17,12 @@ import { repoRoot } from './db/paths.js'
 
 const execFileAsync = promisify(execFile)
 
+// Drop inherited GIT_* variables: under a hook or `git rebase -x`, GIT_DIR
+// would point every git call here at the real repository.
 const gitEnv = {
-  ...process.env,
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
+  ),
   GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_AUTHOR_NAME: 'Test',

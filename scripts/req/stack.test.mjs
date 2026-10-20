@@ -11,6 +11,12 @@ import { buildPlan, parseParts, renderStackSection, slugify } from './stack.mjs'
 // with real steps, and prettier leaves temp files alone).
 const CLI = fileURLToPath(new URL('./stack.mjs', import.meta.url))
 
+// Drop inherited GIT_* variables: under a hook or `git rebase -x`, GIT_DIR
+// would point the fixture repo's git calls at the real repository.
+const env = Object.fromEntries(
+  Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
+)
+
 function stepFile(num, title, { depends = '—', status = 'planned' } = {}) {
   return `# Step ${num} — ${title}
 
@@ -45,7 +51,7 @@ function fixtureDir(overrides = {}) {
 function run(args, { cwd, dir } = {}) {
   const r = spawnSync(process.execPath, [CLI, ...args], {
     cwd,
-    env: { ...process.env, ...(dir ? { REQ_DIR: dir } : {}) },
+    env: { ...env, ...(dir ? { REQ_DIR: dir } : {}) },
     encoding: 'utf8',
   })
   return { code: r.status, out: r.stdout, err: r.stderr }
@@ -124,7 +130,7 @@ test('T-35-01 cli: unknown, integrated and cyclic steps exit 1 naming the step',
 })
 
 function git(cwd, ...args) {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  const r = spawnSync('git', args, { cwd, env, encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
 }
 
