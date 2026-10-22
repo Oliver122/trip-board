@@ -245,7 +245,7 @@ Set these on **Settings → Environments → production**. Optional keys that ar
 | `COMMONS_BASE_URL`                           | variable | no           | Wikimedia Commons API for photo suggestions; defaults to `https://commons.wikimedia.org`                           |
 | `WEB_PORT`, `API_PORT`                       | variable | no           | Keep `WEB_PORT` at `5180`; nginx and the server health check expect it                                             |
 
-`pnpm push` from a laptop still works with a local `deploy.env` (copy `deploy.env.example`). Do not set `DEV_LOGIN` for a deploy. The script never copies that key, and it stops before restart when the server `.env` already has `DEV_LOGIN=1`.
+`pnpm push` from a laptop still works with a local `deploy.env` (copy `deploy.env.example`). It needs a clean working tree: uncommitted changes to tracked files stop it before it connects, and untracked files are ignored and never uploaded. It uploads the checked-out commit and writes its id to `REVISION` in the deploy path on the server. Do not set `DEV_LOGIN` for a deploy. The script never copies that key, and it stops before restart when the server `.env` already has `DEV_LOGIN=1`.
 
 ## Verify the database design
 

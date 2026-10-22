@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Upload the working tree and restart Trip Board.
+# Upload the checked-out commit and restart Trip Board.
 # Connection and the values written into the server .env come from deploy.env.
 set -euo pipefail
 
@@ -8,6 +8,12 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 if [[ ${1:-} == --apply-env ]]; then
   bash "$root/scripts/server-env.sh"
   exit $?
+fi
+
+archive=$(mktemp)
+trap 'rm -f "$archive"' EXIT
+if ! bash "$root/scripts/deploy-archive.sh" > "$archive"; then
+  exit 1
 fi
 
 env_file=${DEPLOY_ENV:-$root/deploy.env}
@@ -61,17 +67,7 @@ fi
 remote="${DEPLOY_USER}@${DEPLOY_HOST}"
 
 echo "Uploading to ${remote}:${DEPLOY_PATH}"
-tar -C "$root" -cf - \
-  --exclude node_modules \
-  --exclude dist \
-  --exclude .git \
-  --exclude .env \
-  --exclude deploy.env \
-  --exclude coverage \
-  --exclude test-results \
-  --exclude playwright-report \
-  --exclude blob-report \
-  . | ssh "${ssh_opts[@]}" "$remote" "mkdir -p $(printf '%q' "$DEPLOY_PATH") && tar -xf - -C $(printf '%q' "$DEPLOY_PATH")"
+ssh "${ssh_opts[@]}" "$remote" "mkdir -p $(printf '%q' "$DEPLOY_PATH") && tar -xf - -C $(printf '%q' "$DEPLOY_PATH")" < "$archive"
 
 echo "Updating server .env and restarting"
 ssh "${ssh_opts[@]}" "$remote" "DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") ${remote_env[*]} bash -s" << 'REMOTE'

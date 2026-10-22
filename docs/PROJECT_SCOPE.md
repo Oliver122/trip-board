@@ -68,10 +68,10 @@ A shared, map-first travel planning board: create a trip (e.g. *Japan 2026*), pi
 trip-board/
 ├─ apps/
 │  ├─ web/
-│  │  ├─ public/locales/
-│  │  │  ├─ en/common.json         # translation files
-│  │  │  └─ de/common.json
 │  │  └─ src/
+│  │     ├─ locales/
+│  │     │  ├─ en/common.json      # translation files
+│  │     │  └─ de/common.json
 │  │     ├─ app/                   # routes, providers, layout, i18n setup
 │  │     ├─ features/
 │  │     │  ├─ auth/               # login, session hook

@@ -551,7 +551,7 @@ Shared UI pieces live in `apps/web/src/components/`. **Rule: reuse a shared comp
 
 ## 7. Translation files
 
-`apps/web/public/locales/en/common.json`
+`apps/web/src/locales/en/common.json`
 
 ```json
 {
@@ -584,7 +584,7 @@ Shared UI pieces live in `apps/web/src/components/`. **Rule: reuse a shared comp
 }
 ```
 
-`apps/web/public/locales/de/common.json`
+`apps/web/src/locales/de/common.json`
 
 ```json
 {
