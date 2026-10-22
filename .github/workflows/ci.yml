@@ -273,7 +273,7 @@ jobs:
 
   deploy:
     needs: ci-passed
-    if: ${{ success() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
+    if: ${{ !cancelled() && needs.ci-passed.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
     runs-on: ubuntu-24.04
     environment: production
     concurrency:
