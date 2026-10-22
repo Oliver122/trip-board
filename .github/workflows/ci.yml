@@ -32,6 +32,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
       - id: verify
         env:
           GITHUB_TOKEN: ${{ github.token }}
