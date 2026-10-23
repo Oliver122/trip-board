@@ -1,0 +1,57 @@
+# UI review
+
+- Date: 2026-10-22
+- Commit: abc1234 (of `docs/ui-review/findings.json`)
+- Screens: 16
+- Screenshots: 101
+- Automated groups: 3
+
+Fixture report for the checker tests.
+
+## Screens
+| Screen | 1280 | 768 | 390 |
+| --- | --- | --- | --- |
+| `login` | 0 | 0 | 1 |
+| `trips` | 0 | 0 | 0 |
+| `board-map` | 1 | 0 | 1 |
+| `board-list` | — | — | 0 |
+| `spot-panel` | 0 | 0 | 0 |
+| `add-spot` | 0 | 0 | 0 |
+| `schedule` | 0 | 1 | 0 |
+| `trip-settings` | 0 | 0 | 0 |
+| `members` | 0 | 0 | 0 |
+| `export` | 0 | 0 | — |
+| `more-sheet` | — | — | 0 |
+| `account` | 0 | 0 | 0 |
+| `join-invalid` | 0 | 0 | 0 |
+| `not-found` | 0 | 0 | 0 |
+| `admin-dashboard` | 0 | 0 | 0 |
+| `admin-users` | 0 | 0 | 0 |
+
+## Automated findings
+| Key | Where | Element | Finding |
+| --- | --- | --- | --- |
+| `target-size/board-map/[data-testid="zoom"] button` | 1280-dark, 390-light | Zoom in | U-01 |
+| `overflow-x/login/html` | 390-light | | accepted: the fixture page scrolls on purpose |
+| `small-text/schedule/[data-testid="day"] span \| b` | 768-dark | Day 1 | U-02 |
+
+## Findings
+| ID | Severity | Category | Screen | Widths | Issue | Evidence | Suggested fix | Step |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| U-01 | high | mobile | `board-map` | 390 | Zoom buttons are 30 px high | [board-map-390-light](ui-review/board-map-390-light.jpg), `target-size/board-map/[data-testid="zoom"] button`, package.json:1, C-APP-25 | Make them 44 px | — |
+| U-02 | medium | text | `schedule` | 768 | Day label is 11 px | [schedule-768-dark](ui-review/schedule-768-dark.jpg), `small-text/schedule/[data-testid="day"] span \| b` | Use 12 px | step 41 |
+
+## Mobile
+- **Bottom bar and safe area:** U-01
+- **Header and trip name truncation:** fine: `login`, `trips`, `spot-panel`, `add-spot` show the whole name
+- **Spot panel sections:** fine: `trip-settings`, `members` stack in one column
+- **Dialogs and sheets at 390×844:** fine: `more-sheet`, `board-list` fit
+- **German labels at 390 px:** fine: `account`, `join-invalid` fit
+- **Touch targets:** U-01
+- **Horizontal scroll:** fine: `schedule`, `not-found`, `admin-dashboard`, `admin-users` do not scroll
+- **Loading, empty and error states:** U-02
+- **Dark theme beyond axe:** fine: checked on every screenshot
+- **Admin and export notices:** fine: short
+
+## How to repeat
+Run `pnpm dev:e2e`, then `pnpm ui:review`, then `node scripts/ui-review/summarize.mjs --docs` and copy the cited JPEGs from test-results/ui-review/ into docs/ui-review/. Mark a row `step NN` when a step takes it and `fixed in step NN` when fixed; never delete rows.

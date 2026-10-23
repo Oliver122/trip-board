@@ -46,6 +46,7 @@ flowchart LR
     S37["37 System overview and issue review"]
     S38["38 Phone layout, low-data mode and “Open in Google Maps”"]
     S39["39 One locale source and deploys from a commit"]
+    S40["40 UI review from screenshots"]
     S00 --> S01
     S01 --> S02
     S00 --> S03
@@ -124,6 +125,10 @@ flowchart LR
     S03 --> S39
     S21 --> S39
     S37 --> S39
+    S15 --> S40
+    S27 --> S40
+    S37 --> S40
+    S38 --> S40
 ```
 
 ## Steps
@@ -170,6 +175,7 @@ flowchart LR
 | 37  | [System overview and issue review](./37-system-overview-and-issue-review.md)                              | integrated 2026-10-16 | C-OPS-47                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Open `docs/SYSTEM_OVERVIEW.md`: it has a section for each of the 17 core areas and each outside service (Discord, Nominatim, OpenFreeMap, S3/MinIO, Google Maps, Google Images, Wikimedia Commons, GitHub Actions and the deploy host), and an _Issues_ table sorted high → low where every row points at a file or core ID that exists; `pnpm test` fails when an area, an integration or an evidence link goes missing                                                                                                                        |
 | 38  | [Phone layout, low-data mode and “Open in Google Maps”](./38-phone-ui-low-data-open-in-maps.md)           | integrated 2026-10-16 | C-APP-25, C-APP-35, C-APP-36, C-APP-37, C-IMG-18, C-IMG-20, C-LIST-16, C-MAP-10, C-MAP-18, C-SPOT-28, C-SPOT-29                                                                                                                                                                                                                                                                                                                                                                                                                        | At 390 px open _Japan 2026_: a bottom bar shows _Map · List · Schedule · More_, _List_ shows the cards full-screen, and _Import_, _Export_ and the schedule's drag handles are not shown. Turn on _Low data_ in the avatar menu and reload: the board opens on _List_, a spot's photos are grey placeholders with _Load photo_, and the network tab shows no tile, photo or avatar request until you tap _Map_ or _Load photo_. In any spot, _Open in Google Maps_ opens the place in the Maps app on the phone and in a new tab on the desktop |
 | 39  | [One locale source and deploys from a commit](./39-one-locale-source-and-commit-deploys.md)               | integrated 2026-10-20 | C-APP-38, C-OPS-25, C-OPS-48                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `ls apps/web/public/locales` fails and the app still shows English and German. Edit any tracked file without committing and run `pnpm push`: it stops before connecting to the server and names the changed file. Commit it and run `pnpm push` again: it prints the short commit id it uploads, an untracked file next to it is not on the server, and `cat $DEPLOY_PATH/REVISION` on the server shows that commit                                                                                                                             |
+| 40  | [UI review from screenshots](./40-ui-review-from-screenshots.md)                                          | planned               | C-OPS-49, C-OPS-50                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | With `pnpm dev:e2e` and a seeded database, run `pnpm ui:review`: `test-results/ui-review/` holds 101 screenshots, `findings.json` and `summary.md` grouping the automated findings. Open `docs/UI_REVIEW.md`: a _Findings_ table sorted high → low where every row shows a screenshot from `docs/ui-review/`, a _Mobile_ section with one line per phone topic, and every automated finding either mapped to a finding or accepted with a reason. Delete one cited screenshot and `pnpm test` fails naming it                                   |
 
 ## Core rules
 
