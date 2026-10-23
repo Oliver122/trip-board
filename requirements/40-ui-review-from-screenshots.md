@@ -4,7 +4,7 @@
 **Depends on:** 15, 27, 37, 38
 **Result:** With `pnpm dev:e2e` and a seeded database, run `pnpm ui:review`: `test-results/ui-review/` holds 101 screenshots, `findings.json` and `summary.md` grouping the automated findings. Open `docs/UI_REVIEW.md`: a *Findings* table sorted high → low where every row shows a screenshot from `docs/ui-review/`, a *Mobile* section with one line per phone topic, and every automated finding either mapped to a finding or accepted with a reason. Delete one cited screenshot and `pnpm test` fails naming it
 **Core:** C-OPS-49, C-OPS-50
-**Status:** planned
+**Status:** integrated 2026-10-23
 
 ## Scope
 - In: a Playwright project `ui-review` and its spec `e2e/ui-review/capture.spec.ts` with the screen list `e2e/ui-review/screens.ts`; the in-page layout checks `e2e/ui-review/checks.ts`; `scripts/ui-review/summarize.mjs` and the root script `ui:review`; the report `docs/UI_REVIEW.md` with the screenshots it cites in `docs/ui-review/`; the check `scripts/ui-review.test.mjs`; links from `README.md` and `docs/DESIGN.md`.
