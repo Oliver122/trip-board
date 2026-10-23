@@ -80,7 +80,7 @@ const findingColumns = [
 const dir = 'docs/ui-review'
 
 /** Splits markdown into `## ` sections; fenced code is never read as headings. */
-function splitByHeading(lines, prefix) {
+export function splitByHeading(lines, prefix) {
   const blocks = []
   let fenced = false
   lines.forEach((line, index) => {
@@ -98,7 +98,7 @@ function splitByHeading(lines, prefix) {
   return blocks
 }
 
-function tableRows(lines) {
+export function tableRows(lines) {
   const rows = []
   for (const line of lines) {
     const text = line.trim()
@@ -114,9 +114,9 @@ function tableRows(lines) {
   return rows
 }
 
-const plain = (cell) => cell.replace(/[*_`]/g, '').trim()
+export const plain = (cell) => cell.replace(/[*_`]/g, '').trim()
 
-function coreIds(root) {
+export function coreIds(root) {
   const ids = new Set()
   const coreDir = join(root, 'requirements', 'core')
   for (const file of readdirSync(coreDir)) {
@@ -161,7 +161,7 @@ const pathToken =
   /^(?:(?:apps|packages|e2e|scripts|docs|requirements|\.github)\/|[A-Za-z][\w.-]*\.(?:md|json|ts|tsx|mjs|yml|yaml|sh)(?::\d+)?$)[\w.@/-]*(?::\d+)?$/
 
 /** Screenshot files a cell cites, as links to ui-review/<file>.jpg or as docs/ui-review/<file>.jpg text. */
-function citedScreenshots(cell) {
+export function citedScreenshots(cell) {
   const files = new Set()
   for (const match of cell.matchAll(/\]\((?:\.\/)?ui-review\/([^)\s]+)\)/g)) {
     files.add(match[1])

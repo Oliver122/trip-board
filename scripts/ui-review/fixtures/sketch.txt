@@ -1,0 +1,282 @@
+# Mobile sketch
+
+Fixture sketch for the checker tests.
+
+## Principles
+- Keeps C-APP-25 (bottom tab bar), C-APP-35 (one 48 px header row) and C-APP-36 (no setup work on a phone).
+- 44 px targets, a 16 px edge and the safe area stay.
+
+## Shared parts
+### Phone header
+```
+┌──────────────────────────────────┐
+│ Phone header                     │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Page header
+```
+┌──────────────────────────────────┐
+│ Page header                      │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Bottom bar
+```
+┌──────────────────────────────────┐
+│ Bottom bar                       │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: U-01
+
+### Full-screen sheet
+```
+┌──────────────────────────────────┐
+│ Full-screen sheet                │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Dialog
+```
+┌──────────────────────────────────┐
+│ Dialog                           │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Buttons
+```
+┌──────────────────────────────────┐
+│ Buttons                          │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Text link
+```
+┌──────────────────────────────────┐
+│ Text link                        │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+### Empty and error messages
+```
+┌──────────────────────────────────┐
+│ Empty and error messages         │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+
+## Screens
+### login
+Today: [login-390-light](ui-review/notes/login-390-light.md)
+```
+┌──────────────────────────────────┐
+│ login                            │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The login screen follows the shared parts.
+Longest German label: "Mit Discord fortfahren"
+
+### trips
+Today: [trips-390-light](ui-review/notes/trips-390-light.md)
+```
+┌──────────────────────────────────┐
+│ trips                            │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The trips screen follows the shared parts.
+Longest German label: "Meine Reisen"
+
+### board-map
+Today: [board-map-390-light](ui-review/notes/board-map-390-light.md)
+```
+┌──────────────────────────────────┐
+│ board-map                        │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: U-01
+Changes:
+- The board-map screen follows the shared parts.
+Longest German label: "Reiseeinstellungen"
+
+### board-list
+Today: [board-list-390-light](ui-review/notes/board-list-390-light.md)
+```
+┌──────────────────────────────────┐
+│ board-list                       │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The board-list screen follows the shared parts.
+Longest German label: "Mitglieder"
+
+### spot-panel
+Today: [spot-panel-390-light](ui-review/notes/spot-panel-390-light.md)
+```
+┌──────────────────────────────────┐
+│ spot-panel                       │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The spot-panel screen follows the shared parts.
+Longest German label: "Kommentar löschen?"
+
+### add-spot
+Today: [add-spot-390-light](ui-review/notes/add-spot-390-light.md)
+```
+┌──────────────────────────────────┐
+│ add-spot                         │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The add-spot screen follows the shared parts.
+Longest German label: "Optionen suchen"
+
+### schedule
+Today: [schedule-390-light](ui-review/notes/schedule-390-light.md)
+```
+┌──────────────────────────────────┐
+│ schedule                         │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: U-02
+Changes:
+- The schedule screen follows the shared parts.
+Longest German label: "Erneut versuchen"
+
+### trip-settings
+Today: [trip-settings-390-light](ui-review/notes/trip-settings-390-light.md)
+```
+┌──────────────────────────────────┐
+│ trip-settings                    │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The trip-settings screen follows the shared parts.
+Longest German label: "Reise löschen"
+
+### members
+Today: [members-390-light](ui-review/notes/members-390-light.md)
+```
+┌──────────────────────────────────┐
+│ members                          │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The members screen follows the shared parts.
+Longest German label: "Mitglieder"
+
+### more-sheet
+Today: [more-sheet-390-light](ui-review/notes/more-sheet-390-light.md)
+```
+┌──────────────────────────────────┐
+│ more-sheet                       │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The more-sheet screen follows the shared parts.
+Longest German label: "Kontomenü"
+
+### account
+Today: [account-390-light](ui-review/notes/account-390-light.md)
+```
+┌──────────────────────────────────┐
+│ account                          │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The account screen follows the shared parts.
+Longest German label: "Darstellung"
+
+### join-invalid
+Today: [join-invalid-390-light](ui-review/notes/join-invalid-390-light.md)
+```
+┌──────────────────────────────────┐
+│ join-invalid                     │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The join-invalid screen follows the shared parts.
+Longest German label: "Abbrechen"
+
+### not-found
+Today: [not-found-390-light](ui-review/notes/not-found-390-light.md)
+```
+┌──────────────────────────────────┐
+│ not-found                        │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The not-found screen follows the shared parts.
+Longest German label: "Hier ist noch nichts."
+
+### admin-dashboard
+Today: [admin-dashboard-390-light](ui-review/notes/admin-dashboard-390-light.md)
+```
+┌──────────────────────────────────┐
+│ admin-dashboard                  │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The admin-dashboard screen follows the shared parts.
+Longest German label: "Board-Admin"
+
+### admin-users
+Today: [admin-users-390-light](ui-review/notes/admin-users-390-light.md)
+```
+┌──────────────────────────────────┐
+│ admin-users                      │
+│ [ Button ]                       │
+└──────────────────────────────────┘
+```
+Fixes: —
+Changes:
+- The admin-users screen follows the shared parts.
+Longest German label: "Dev-Anmeldung"
+
+## Implementation set
+| Set | Title | U- IDs | Screens | Core rules | Depends on |
+| --- | --- | --- | --- | --- | --- |
+| S-01 | Touch targets on the map | U-01 | `board-map` | C-APP-25 | — |
+| S-02 | Day label size | U-02 | `schedule` | — | S-01 |
