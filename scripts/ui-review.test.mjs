@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -16,11 +17,21 @@ import { Buffer } from 'node:buffer'
 import { test } from 'node:test'
 import { fileURLToPath, URL } from 'node:url'
 import { checkLinks, checkReport, screens } from './ui-review/check.mjs'
+import {
+  checkBrief,
+  checkNote,
+  checkNotes,
+  imageNames,
+  parseImage,
+} from './ui-review/notes.mjs'
+import { orderImages, stubFor } from './ui-review/queue.mjs'
+import { checkSketch, checkSketchLinks } from './ui-review/sketch.mjs'
 import { groupResults } from './ui-review/summarize.mjs'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const fixtures = join(root, 'scripts', 'ui-review', 'fixtures')
 const summarize = join(root, 'scripts', 'ui-review', 'summarize.mjs')
+const queue = join(root, 'scripts', 'ui-review', 'queue.mjs')
 const validReport = readFileSync(join(fixtures, 'report.txt'), 'utf8')
 
 function tempDir() {
@@ -525,4 +536,935 @@ test('T-40-07 How to repeat without pnpm ui:review fails', () => {
 
 test('T-40-07 README lists pnpm ui:review and DESIGN.md links UI_REVIEW.md', () => {
   assert.deepEqual(checkLinks(root), [])
+})
+
+// Step 41: per-screenshot review notes and the phone sketch.
+
+test('T-41-01 the image names are the 101 of the screen list, in order', () => {
+  const names = imageNames()
+  assert.equal(names.length, 101)
+  assert.equal(new Set(names).size, 101)
+  assert.deepEqual(names.slice(0, 7), [
+    'login-1280-light',
+    'login-1280-dark',
+    'login-768-light',
+    'login-768-dark',
+    'login-390-light',
+    'login-390-dark',
+    'login-390-light-de',
+  ])
+  for (const name of names) assert.notEqual(parseImage(name), null, name)
+  assert.deepEqual(parseImage('board-map-390-light-de'), {
+    screen: 'board-map',
+    width: 390,
+    theme: 'light',
+    locale: 'de',
+  })
+  for (const bad of [
+    'board-map-640-light',
+    'unknown-390-dark',
+    'export-390-light',
+    'board-list-1280-light',
+    'login-768-light-de',
+    'login-390-dark-de',
+  ]) {
+    assert.equal(parseImage(bad), null, bad)
+  }
+})
+
+test('T-41-01 queue.mjs prints the images in order and writes stubs without overwriting', () => {
+  const dir = tempDir()
+  const notes = join(tempDir(), 'notes')
+  try {
+    for (const name of [
+      'login-390-light-de',
+      'trips-1280-dark',
+      'login-1280-light',
+      'login-390-light',
+      'login-1280-dark',
+      'login-768-light',
+    ]) {
+      writeFileSync(join(dir, `${name}.jpg`), '')
+    }
+    const expected = [
+      'login-1280-light',
+      'login-1280-dark',
+      'login-768-light',
+      'login-390-light',
+      'login-390-light-de',
+      'trips-1280-dark',
+    ]
+    const run = spawnSync('node', [queue, dir, '--notes', notes], {
+      encoding: 'utf8',
+    })
+    assert.equal(run.status, 0, run.stderr)
+    assert.deepEqual(run.stdout.trim().split('\n'), expected)
+    assert.deepEqual(
+      readdirSync(notes).sort(),
+      expected.map((name) => `${name}.md`).sort(),
+    )
+    assert.equal(
+      readFileSync(join(notes, 'login-390-light-de.md'), 'utf8'),
+      stubFor('login-390-light-de'),
+    )
+    assert.match(
+      readFileSync(join(notes, 'login-390-light-de.md'), 'utf8'),
+      /- Width: 390\n- Theme: light\n- Locale: de\n/,
+    )
+
+    writeFileSync(join(notes, 'login-390-light.md'), 'edited by a reviewer\n')
+    const again = spawnSync('node', [queue, dir, '--notes', notes], {
+      encoding: 'utf8',
+    })
+    assert.equal(again.status, 0, again.stderr)
+    assert.equal(
+      readFileSync(join(notes, 'login-390-light.md'), 'utf8'),
+      'edited by a reviewer\n',
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(join(notes, '..'), { recursive: true, force: true })
+  }
+})
+
+test('T-41-01 queue.mjs names every bad file, creates nothing and exits 1', () => {
+  const dir = tempDir()
+  const notes = join(tempDir(), 'notes')
+  try {
+    for (const file of [
+      'board-640-light.jpg',
+      'unknown-390-dark.jpg',
+      'login-390-light.jpg',
+    ]) {
+      writeFileSync(join(dir, file), '')
+    }
+    const run = spawnSync('node', [queue, dir, '--notes', notes], {
+      encoding: 'utf8',
+    })
+    assert.equal(run.status, 1)
+    assert.match(
+      run.stderr,
+      /board-640-light\.jpg: not <screen>-<width>-<light\|dark>\[-de\]\.jpg for a known screen and width/,
+    )
+    assert.match(run.stderr, /unknown-390-dark\.jpg: not /)
+    assert.doesNotMatch(run.stderr, /login-390-light/)
+    assert.equal(existsSync(notes), false)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(join(notes, '..'), { recursive: true, force: true })
+  }
+})
+
+test('T-41-01 orderImages splits valid names from invalid files', () => {
+  assert.deepEqual(
+    orderImages(['trips-1280-light.jpg', 'x.jpg', 'login-390-dark.jpg']),
+    {
+      ordered: ['login-390-dark', 'trips-1280-light'],
+      invalid: ['x.jpg'],
+    },
+  )
+})
+
+test('T-41-01 a stub fails the note check because Seen has no bullets', () => {
+  const found = checkNote('board-map-390-light', stubFor('board-map-390-light'))
+  assertProblem(found, /Seen has 0 bullets, it needs 3 to 8/)
+})
+
+const seenBullets = '- The title\n- The main control\n- The data'
+
+function noteText(name, problems = 'None.', raw = 'None.') {
+  const image = parseImage(name)
+  return `# ${name}
+
+- Screen: ${image.screen}
+- Width: ${image.width}
+- Theme: ${image.theme}
+- Locale: ${image.locale}
+
+## Seen
+
+${seenBullets}
+
+## Problems
+
+${problems}
+
+## Raw checks
+
+${raw}
+`
+}
+
+const problemTable = (known, severity = 'medium') =>
+  `| # | Severity | Category | Issue | Where | Known |
+| --- | --- | --- | --- | --- | --- |
+| 1 | ${severity} | touch | Zoom buttons are small | bottom right, above the tab bar | ${known} |`
+
+const specialNotes = {
+  'board-map-390-light': noteText(
+    'board-map-390-light',
+    problemTable('U-01'),
+    '- `target-size` Zoom in (`div.flex > button`) → U-01',
+  ),
+  'schedule-768-dark': noteText(
+    'schedule-768-dark',
+    problemTable('U-02', 'low'),
+    '- `small-text` Day 1 (`span.day`) → U-02',
+  ),
+  'login-390-light': noteText(
+    'login-390-light',
+    problemTable('rejected: the credit is meant to be small', 'low'),
+    '- `small-text` OpenFreeMap (`p.absolute > a`) → accepted: credit line',
+  ),
+}
+
+/** A temp directory with all 101 valid notes and a report that cites and counts them. */
+function notesFixture() {
+  const dir = tempDir()
+  const notesDir = join(dir, 'notes')
+  mkdirSync(notesDir)
+  for (const name of imageNames()) {
+    writeFileSync(
+      join(notesDir, `${name}.md`),
+      specialNotes[name] ?? noteText(name),
+    )
+  }
+  const reportNotes = readFileSync(join(fixtures, 'report-notes.txt'), 'utf8')
+  const markdown = validReport
+    .replace(
+      '(ui-review/schedule-768-dark.jpg)',
+      '(ui-review/schedule-768-dark.jpg), docs/ui-review/notes/schedule-768-dark.md',
+    )
+    .replace('## How to repeat', `${reportNotes}## How to repeat`)
+    .replace(
+      /(## How to repeat\n.*)$/s,
+      '$1 List the images with `node scripts/ui-review/queue.mjs`, brief one worker per image and check the notes with `node scripts/ui-review/notes.mjs`.',
+    )
+  return { dir, notesDir, markdown }
+}
+
+function editNote(fixture, name, change) {
+  const file = join(fixture.notesDir, `${name}.md`)
+  writeFileSync(file, change(readFileSync(file, 'utf8')))
+}
+
+/** Runs checkNotes on a fixture; `mutate` may change the notes and return a new report. */
+function checkFixtureNotes(mutate = () => {}) {
+  const fixture = notesFixture()
+  try {
+    const markdown = mutate(fixture) ?? fixture.markdown
+    return checkNotes({ notesDir: fixture.notesDir, markdown, root })
+  } finally {
+    rmSync(fixture.dir, { recursive: true, force: true })
+  }
+}
+
+test('T-41-02 notes.mjs passes on the committed notes', () => {
+  assert.deepEqual(
+    checkNotes({
+      notesDir: join(root, 'docs', 'ui-review', 'notes'),
+      markdown: readFileSync(join(root, 'docs', 'UI_REVIEW.md'), 'utf8'),
+      root,
+    }),
+    [],
+  )
+})
+
+test('T-41-02 the valid fixture notes and report pass', () => {
+  assert.deepEqual(checkFixtureNotes(), [])
+})
+
+test('T-41-02 a missing note and an extra note fail', () => {
+  assertProblem(
+    checkFixtureNotes((f) => rmSync(join(f.notesDir, 'trips-1280-dark.md'))),
+    /docs\/ui-review\/notes\/trips-1280-dark\.md: missing/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      writeFileSync(join(f.notesDir, 'export-390-light.md'), 'x'),
+    ),
+    /docs\/ui-review\/notes\/export-390-light\.md: is not a screenshot of the screen list/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      writeFileSync(join(f.notesDir, 'login-390-light.txt'), 'x'),
+    ),
+    /login-390-light\.txt: is not a screenshot of the screen list/,
+  )
+  assert.deepEqual(
+    checkFixtureNotes((f) =>
+      writeFileSync(join(f.notesDir, '_BRIEF.md'), 'ignored'),
+    ),
+    [],
+  )
+})
+
+test('T-41-02 a note that breaks the format fails with a message naming it', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'trips-1280-light', (md) => md.replace('- The data', '')),
+    ),
+    /notes\/trips-1280-light\.md: Seen has 2 bullets, it needs 3 to 8/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'trips-1280-light', (md) =>
+        md.replace(
+          seenBullets,
+          `${seenBullets}\n`.repeat(1) + '- a\n- b\n- c\n- d\n- e\n- f',
+        ),
+      ),
+    ),
+    /trips-1280-light\.md: Seen has 9 bullets/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'trips-1280-light', (md) =>
+        md
+          .replace('## Problems', '## TMP')
+          .replace('## Raw checks', '## Problems')
+          .replace('## TMP', '## Raw checks'),
+      ),
+    ),
+    /trips-1280-light\.md: section "## Raw checks" is out of order/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'trips-390-light', (md) =>
+        md.replace('- Width: 390', '- Width: 768'),
+      ),
+    ),
+    /trips-390-light\.md: header line 2 must be "- Width: 390", found "- Width: 768"/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'trips-390-light', (md) =>
+        md.replace('# trips-390-light', '# trips'),
+      ),
+    ),
+    /trips-390-light\.md: first line must be "# trips-390-light"/,
+  )
+})
+
+test('T-41-02 a bad severity, category or problem table fails', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('| medium |', '| urgent |'),
+      ),
+    ),
+    /board-map-390-light\.md: problem 1: invalid severity "urgent"/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('| touch |', '| colour |'),
+      ),
+    ),
+    /problem 1: invalid category "colour"/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) => md.replace('| 1 |', '| 2 |')),
+    ),
+    /problem 1: # must be 1/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('| Where |', '| Place |'),
+      ),
+    ),
+    /Problems table columns must be: #, Severity, Category, Issue, Where, Known/,
+  )
+})
+
+test('T-41-02 Known = new, an unknown U- ID or rejected: without a reason fails', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('| U-01 |', '| new |'),
+      ),
+    ),
+    /board-map-390-light\.md: Known is "new" in problem 1; replace it with the U- ID it became or rejected: <reason>/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('| U-01 |', '| U-99 |'),
+      ),
+    ),
+    /board-map-390-light\.md: Known in problem 1: U-99 is not in docs\/UI_REVIEW\.md Findings/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'login-390-light', (md) =>
+        md.replace('rejected: the credit is meant to be small', 'rejected:'),
+      ),
+    ),
+    /login-390-light\.md: Known "rejected:" in problem 1 has no reason/,
+  )
+})
+
+test('T-41-02 Raw checks lines need an outcome', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('→ U-01', '→ later'),
+      ),
+    ),
+    /board-map-390-light\.md: Raw checks line 1 must be a bullet ending in/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) => md.replace('→ U-01', '→ new')),
+    ),
+    /board-map-390-light\.md: Raw checks line 1 ends in → new/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'board-map-390-light', (md) =>
+        md.replace('→ U-01', '→ U-98'),
+      ),
+    ),
+    /Raw checks line 1: U-98 is not in docs\/UI_REVIEW\.md Findings/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      editNote(f, 'login-390-light', (md) =>
+        md.replace('→ accepted: credit line', '→ accepted:'),
+      ),
+    ),
+    /login-390-light\.md: Raw checks line 1 must be a bullet/,
+  )
+})
+
+test('T-41-02 checkNote allows new while a reviewer works, but not an unknown U- ID', () => {
+  const findingIds = new Set(['U-01'])
+  const text = noteText(
+    'board-map-390-light',
+    problemTable('new'),
+    '- `target-size` Zoom in (`button`) → new',
+  )
+  assert.deepEqual(
+    checkNote('board-map-390-light', text, { findingIds, allowNew: true }),
+    [],
+  )
+  assert.equal(checkNote('board-map-390-light', text, { findingIds }).length, 2)
+  assertProblem(
+    checkNote('board-map-390-light', text.replaceAll('new', 'U-77'), {
+      findingIds,
+      allowNew: true,
+    }),
+    /U-77 is not in docs\/UI_REVIEW\.md Findings/,
+  )
+})
+
+test('T-41-02 the committed brief has {{image}} and a row for every screen', () => {
+  const brief = join(root, 'docs', 'ui-review', 'notes', '_BRIEF.md')
+  assert.ok(existsSync(brief), 'docs/ui-review/notes/_BRIEF.md exists')
+  assert.deepEqual(checkBrief(readFileSync(brief, 'utf8')), [])
+})
+
+test('T-41-02 a brief without {{image}} or without a screen row fails', () => {
+  const brief = [
+    'Read test-results/ui-review/{{image}}.jpg only.',
+    '',
+    '| Screen | Section | Core rules |',
+    '| --- | --- | --- |',
+    ...screens.map((screen) => `| \`${screen.id}\` | §3.1 | C-APP-25 |`),
+  ].join('\n')
+  assert.deepEqual(checkBrief(brief), [])
+  assertProblem(
+    checkBrief(brief.replace('{{image}}', '<image>')),
+    /_BRIEF\.md: does not contain \{\{image\}\}/,
+  )
+  assertProblem(
+    checkBrief(brief.replace(/^\| `more-sheet`.*\n/m, '')),
+    /_BRIEF\.md: has no table row for `more-sheet`/,
+  )
+})
+
+test('T-41-03 the committed report passes check.mjs and notes.mjs', () => {
+  const markdown = readFileSync(join(root, 'docs', 'UI_REVIEW.md'), 'utf8')
+  assert.deepEqual(
+    [
+      ...checkReport(markdown, { root }),
+      ...checkLinks(root),
+      ...checkNotes({
+        notesDir: join(root, 'docs', 'ui-review', 'notes'),
+        markdown,
+        root,
+      }),
+    ],
+    [],
+  )
+})
+
+test('T-41-03 the fixture report with notes passes check.mjs too', () => {
+  const fixture = notesFixture()
+  const docsDir = docsFixture()
+  try {
+    mkdirSync(join(docsDir, 'notes'))
+    assert.deepEqual(checkReport(fixture.markdown, { root, docsDir }), [])
+    const swapped = fixture.markdown
+      .replace('| U-01 | high |', '| U-01 | low |')
+      .replace('| U-02 | medium |', '| U-02 | high |')
+    assertProblem(
+      checkReport(swapped, { root, docsDir }),
+      /Finding U-02: out of sort order/,
+    )
+  } finally {
+    rmSync(fixture.dir, { recursive: true, force: true })
+    rmSync(docsDir, { recursive: true, force: true })
+  }
+})
+
+test('T-41-03 a report without Review notes, or with it after How to repeat, fails', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace(/## Review notes\n[\s\S]*?(?=## How to repeat)/, ''),
+    ),
+    /Missing section "## Review notes"/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) => {
+      const section = /## Review notes\n[\s\S]*?(?=## How to repeat)/.exec(
+        f.markdown,
+      )[0]
+      return `${f.markdown.replace(section, '').trimEnd()}\n\n${section}`
+    }),
+    /Section "## Review notes" must be between Mobile and How to repeat/,
+  )
+})
+
+test('T-41-03 the Review notes counts must match the notes', () => {
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace('- Problems: 3', '- Problems: 4'),
+    ),
+    /Review notes line "- Problems" says 4, the notes give 3/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) => f.markdown.replace('- New U-: 1', '- New U-: 0')),
+    /Review notes line "- New U-" says 0, the notes give 1/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace('- Notes: 101', '- Notes: 100'),
+    ),
+    /Review notes line "- Notes" says 100, the notes give 101/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) => f.markdown.replace(/^- Run:.*\n/m, '')),
+    /Review notes line "- Run: <text>" is missing or empty/,
+  )
+})
+
+test('T-41-03 a row with no citing note needs a Review notes line', () => {
+  assertProblem(
+    checkFixtureNotes((f) => f.markdown.replace(/^- U-01: confirmed.*\n/m, '')),
+    /Finding U-01 has no line in Review notes and no note cites it/,
+  )
+  assert.deepEqual(
+    checkFixtureNotes((f) =>
+      f.markdown.replace(
+        /^- U-01: confirmed.*$/m,
+        '- U-01: not seen: fixed by the capture of this run',
+      ),
+    ),
+    [],
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace(
+        'confirmed in docs/ui-review/notes/board-map-390-light.md',
+        'confirmed in docs/ui-review/notes/not-there.md',
+      ),
+    ),
+    /U-01 is confirmed in docs\/ui-review\/notes\/not-there\.md, which does not exist/,
+  )
+})
+
+test('T-41-03 on a copy of the committed report and notes, U-05 without a line and a new Known fail', () => {
+  const markdown = readFileSync(join(root, 'docs', 'UI_REVIEW.md'), 'utf8')
+  const notesDir = tempDir()
+  try {
+    const source = join(root, 'docs', 'ui-review', 'notes')
+    for (const file of readdirSync(source)) {
+      copyFileSync(join(source, file), join(notesDir, file))
+    }
+    assertProblem(
+      checkNotes({
+        notesDir,
+        markdown: markdown.replace(/^- U-05: .*\n/m, ''),
+        root,
+      }),
+      /Finding U-05 has no line in Review notes and no note cites it/,
+    )
+    const note = join(notesDir, 'schedule-390-light.md')
+    writeFileSync(
+      note,
+      readFileSync(note, 'utf8').replace(/\| U-05 \|$/m, '| new |'),
+    )
+    assertProblem(
+      checkNotes({ notesDir, markdown, root }),
+      /schedule-390-light\.md: Known is "new"/,
+    )
+  } finally {
+    rmSync(notesDir, { recursive: true, force: true })
+  }
+})
+
+test('T-41-03 a row citing a note that does not exist fails', () => {
+  const row =
+    '| U-03 | low | text | `schedule` | 768 | Another | [x](ui-review/schedule-768-dark.jpg), docs/ui-review/notes/not-there.md | Fix | — |\n'
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace(/^(\| U-02 \|.*\n)/m, `$1${row}`),
+    ),
+    /Finding U-03: cited note docs\/ui-review\/notes\/not-there\.md does not exist/,
+  )
+  const link = row.replace(
+    'docs/ui-review/notes/not-there.md',
+    '[n](ui-review/notes/not-there.md)',
+  )
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown.replace(/^(\| U-02 \|.*\n)/m, `$1${link}`),
+    ),
+    /Finding U-03: cited note docs\/ui-review\/notes\/not-there\.md does not exist/,
+  )
+  const noJpg = row.replace('[x](ui-review/schedule-768-dark.jpg), ', '')
+  assertProblem(
+    checkFixtureNotes((f) =>
+      f.markdown
+        .replace(/^(\| U-02 \|.*\n)/m, `$1${noJpg}`)
+        .replace(
+          'docs/ui-review/notes/not-there.md',
+          'docs/ui-review/notes/login-390-light.md',
+        ),
+    ),
+    /Finding U-03: cites a note but no screenshot/,
+  )
+})
+
+test('T-41-03 How to repeat must name queue.mjs and notes.mjs', () => {
+  assertProblem(
+    checkFixtureNotes((f) => f.markdown.replace('queue.mjs', 'queue')),
+    /"How to repeat" does not mention queue\.mjs/,
+  )
+  assertProblem(
+    checkFixtureNotes((f) => f.markdown.replace('notes.mjs', 'notes')),
+    /"How to repeat" does not mention notes\.mjs/,
+  )
+})
+
+test('T-41-03 notes.mjs --note checks one note and allows new', () => {
+  const notes = join(root, 'docs', 'ui-review', 'notes')
+  const script = join(root, 'scripts', 'ui-review', 'notes.mjs')
+  const missing = spawnSync('node', [script, '--note', 'no-such-image'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+  assert.equal(missing.status, 1)
+  assert.match(missing.stderr, /no-such-image\.md: missing/)
+  if (existsSync(join(notes, 'login-390-light.md'))) {
+    const run = spawnSync('node', [script, '--note', 'login-390-light'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+    assert.match(run.stdout + run.stderr, /login-390-light\.md/)
+  }
+})
+
+// The sketch fixtures: a temp root with the 15 notes the sketch links, the de locale and the core rules.
+const sketchText = readFileSync(join(fixtures, 'sketch.txt'), 'utf8')
+const sketchReport = validReport.replace(
+  '| `schedule` | 768 |',
+  '| `schedule` | 768, 390 |',
+)
+
+function sketchRoot() {
+  const dir = tempDir()
+  const notes = join(dir, 'docs', 'ui-review', 'notes')
+  mkdirSync(notes, { recursive: true })
+  for (const screen of screens.filter((entry) => entry.widths.includes(390))) {
+    writeFileSync(join(notes, `${screen.id}-390-light.md`), '')
+  }
+  const locales = join(dir, 'apps', 'web', 'src', 'locales', 'de')
+  mkdirSync(locales, { recursive: true })
+  copyFileSync(
+    join(root, 'apps', 'web', 'src', 'locales', 'de', 'common.json'),
+    join(locales, 'common.json'),
+  )
+  cpSync(
+    join(root, 'requirements', 'core'),
+    join(dir, 'requirements', 'core'),
+    {
+      recursive: true,
+    },
+  )
+  return dir
+}
+
+/** Runs checkSketch on the fixture; `mutate` returns the sketch text, or `{ sketch, report }`. */
+function checkFixtureSketch(mutate = (text) => text) {
+  const dir = sketchRoot()
+  try {
+    const changed = mutate(sketchText)
+    const sketch = typeof changed === 'string' ? changed : changed.sketch
+    const reportMarkdown =
+      typeof changed === 'string' ? sketchReport : changed.report
+    return checkSketch(sketch, { root: dir, reportMarkdown })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+const wideFrame = (columns) => `┌${'─'.repeat(columns - 2)}┐`
+
+test('T-41-04 the committed sketch passes', () => {
+  assert.deepEqual(
+    checkSketch(readFileSync(join(root, 'docs', 'MOBILE_SKETCH.md'), 'utf8'), {
+      root,
+      reportMarkdown: readFileSync(join(root, 'docs', 'UI_REVIEW.md'), 'utf8'),
+    }),
+    [],
+  )
+})
+
+test('T-41-04 docs/DESIGN.md links MOBILE_SKETCH.md', () => {
+  assert.deepEqual(checkSketchLinks(root), [])
+})
+
+test('T-41-04 checkSketchLinks needs a link, not a mention', () => {
+  const dir = tempDir()
+  try {
+    mkdirSync(join(dir, 'docs'))
+    writeFileSync(join(dir, 'docs', 'DESIGN.md'), 'See MOBILE_SKETCH.md.\n')
+    assertProblem(
+      checkSketchLinks(dir),
+      /docs\/DESIGN\.md does not link MOBILE_SKETCH\.md/,
+    )
+    writeFileSync(
+      join(dir, 'docs', 'DESIGN.md'),
+      'See [the sketch](MOBILE_SKETCH.md).\n',
+    )
+    assert.deepEqual(checkSketchLinks(dir), [])
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('T-41-04 the valid fixture sketch passes', () => {
+  assert.deepEqual(checkFixtureSketch(), [])
+})
+
+test('T-41-04 sections out of order, a missing screen and a missing field fail', () => {
+  assertProblem(
+    checkFixtureSketch((text) => {
+      const [pre, rest] = text.split('## Shared parts\n')
+      const [shared, rest2] = rest.split('## Screens\n')
+      const [screensPart, set] = rest2.split('## Implementation set\n')
+      return `${pre}## Screens\n${screensPart}## Shared parts\n${shared}## Implementation set\n${set}`
+    }),
+    /Section "## Screens" is out of order/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(/### more-sheet\n[\s\S]*?(?=### account)/, ''),
+    ),
+    /Screen "more-sheet" is missing/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(/### Dialog\n[\s\S]*?(?=### Buttons)/, ''),
+    ),
+    /Shared part "Dialog" is missing/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text
+        .replace('### login\n', '### login\n')
+        .replace(/(### trips\n)/, '### zzz\n$1'),
+    ),
+    /Screen "zzz" is not in the list/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text
+        .replace(/### trips\n[\s\S]*?(?=### board-map)/, '')
+        .replace('### login', '### trips\nToday: x\n### login'),
+    ),
+    /Screen "trips"/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(/^Longest German label: "Erneut versuchen"\n/m, ''),
+    ),
+    /Screen "schedule" has no Longest German label:/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace('"Erneut versuchen"', '"Zzz nicht da"'),
+    ),
+    /Screen "schedule": Longest German label "Zzz nicht da" is not in apps\/web\/src\/locales\/de\/common\.json/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(
+        '(ui-review/notes/members-390-light.md)',
+        '(ui-review/notes/nope.md)',
+      ),
+    ),
+    /Screen "members": Today: must link ui-review\/notes\/members-390-light\.md/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(
+        /Changes:\n- .*\n(?=Longest German label: "Dev-Anmeldung")/,
+        'Changes:\n',
+      ),
+    ),
+    /Screen "admin-users": Changes: has no bullets/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('C-APP-35', 'C-APP-3')),
+    /Principles do not name C-APP-35/,
+  )
+})
+
+test('T-41-04 a Today link needs the note to exist', () => {
+  const dir = sketchRoot()
+  try {
+    rmSync(join(dir, 'docs', 'ui-review', 'notes', 'account-390-light.md'))
+    assertProblem(
+      checkSketch(sketchText, { root: dir, reportMarkdown: sketchReport }),
+      /Screen "account": Today: docs\/ui-review\/notes\/account-390-light\.md does not exist/,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('T-41-04 a wireframe 40 columns wide or 51 lines long fails', () => {
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(
+        /(### board-map\nToday:.*\n```\n)[^\n]*\n/,
+        `$1${wideFrame(40)}\n`,
+      ),
+    ),
+    /Screen "board-map" wireframe is 40 columns wide, the frame must be 36/,
+  )
+  const blank = `│${' '.repeat(34)}│`
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(
+        /(### board-map\nToday:.*\n```\n)[\s\S]*?(\n```)/,
+        `$1${[wideFrame(36), ...Array(50).fill(blank)].join('\n')}$2`,
+      ),
+    ),
+    /Screen "board-map" wireframe has 51 lines, at most 50/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace(/(### Dialog\n```\n[^\n]*\n)/, `$1│ ${'x'.repeat(40)} │\n`),
+    ),
+    /Shared part "Dialog" wireframe line 2 is 44 columns, at most 36/,
+  )
+})
+
+test('T-41-04 Fixes: naming a U- ID that is not in Findings fails', () => {
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('Fixes: U-02', 'Fixes: U-99')),
+    /Screen "schedule": Fixes: U-99 is not in docs\/UI_REVIEW\.md Findings/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('Fixes: U-02', 'Fixes: soon')),
+    /Screen "schedule": Fixes: "soon" must be U- IDs or —/,
+  )
+})
+
+test('T-41-04 a 390 px row must be in exactly one set or later: line', () => {
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace('| U-01 | `board-map`', '| U-01, U-02 | `board-map`'),
+    ),
+    /U-02 is in S-01 and S-02/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text.replace('| Day label size | U-02 |', '| Day label size | — |'),
+    ),
+    /U-02 \(390 px\) is in no set and no later: line/,
+  )
+  assert.deepEqual(
+    checkFixtureSketch((text) =>
+      text
+        .replace('| Day label size | U-02 |', '| Day label size | — |')
+        .concat('later: U-02 only seen in the schedule at 768\n'),
+    ),
+    [],
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text
+        .replace('| Day label size | U-02 |', '| Day label size | — |')
+        .concat('later: U-02\n'),
+    ),
+    /later: U-02 has no reason/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.concat('later: U-01 not now\n')),
+    /U-01 is in S-01 and a later: line/,
+  )
+})
+
+test('T-41-04 a set with 7 U- IDs, a bad core rule, bad order or bad columns fails', () => {
+  const extra = [3, 4, 5, 6, 7, 8]
+    .map(
+      (n) =>
+        `| U-0${n} | low | text | \`schedule\` | 390 | Extra ${n} | [x](ui-review/x.jpg) | Fix | — |\n`,
+    )
+    .join('')
+  assertProblem(
+    checkFixtureSketch((text) => ({
+      sketch: text.replace(
+        '| U-01 | `board-map`',
+        '| U-01, U-03, U-04, U-05, U-06, U-07, U-08 | `board-map`',
+      ),
+      report: sketchReport.replace(/^(\| U-02 \|.*\n)/m, `$1${extra}`),
+    })),
+    /Set S-01 has 7 U- IDs, at most 6/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('| C-APP-25 |', '| C-APP-99 |')),
+    /Set S-01: core ID C-APP-99 is not in requirements\/core\//,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('| S-01 |', '| S-02 |')),
+    /Set IDs must run S-01, S-02, … without gaps/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text
+        .replace('| S-01 |\n', '| S-01 |\n')
+        .replace('| — | S-01 |', '| — | S-03 |'),
+    ),
+    /Set S-02: Depends on "S-03" must be an earlier set/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) =>
+      text
+        .replace('| U-01 | `board-map`', '| U-02 | `board-map`')
+        .replace('| U-02 | `schedule`', '| U-01 | `schedule`'),
+    ),
+    /Set S-02: highest severity high comes after S-01 with medium/,
+  )
+  assertProblem(
+    checkFixtureSketch((text) => text.replace('| Depends on |', '| After |')),
+    /Implementation set columns must be: Set, Title, U- IDs, Screens, Core rules, Depends on/,
+  )
 })

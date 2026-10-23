@@ -1,0 +1,9 @@
+## Review notes
+- Notes: 101
+- Problems: 3
+- Existing U-: 1
+- New U-: 1
+- Rejected: 1
+- Run: 101 images, 4 workers, claude-sonnet-5-5 (fixture)
+- U-01: confirmed in docs/ui-review/notes/board-map-390-light.md
+
