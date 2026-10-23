@@ -4,7 +4,7 @@
 **Depends on:** 40
 **Result:** Open `docs/ui-review/notes/`: 101 notes, one per screenshot, each naming its image, what it shows and its problems, every problem mapped to a `U-` row or rejected with a reason. `docs/UI_REVIEW.md` has a *Review notes* section with the counts and new `U-` rows that cite the notes. Open `docs/MOBILE_SKETCH.md`: one 390 px wireframe per phone screen with the `U-` IDs it fixes, and an *Implementation set* table that gives every phone finding to exactly one proposed step. Change a note's `Known` cell to `new` and `pnpm test` fails naming the note
 **Core:** C-OPS-51, C-OPS-52
-**Status:** planned
+**Status:** integrated 2026-10-23
 
 ## Scope
 - In: a fresh capture with `pnpm ui:review` against a freshly seeded database; `scripts/ui-review/queue.mjs` (work list and note stubs); the one-image brief `docs/ui-review/notes/_BRIEF.md`; 101 notes `docs/ui-review/notes/<image>.md`; the merge into `docs/UI_REVIEW.md` (new `U-` rows, the *Review notes* section, refreshed *Screens* and *Automated findings*); `docs/MOBILE_SKETCH.md`; the checks `scripts/ui-review/notes.mjs`, `scripts/ui-review/sketch.mjs` and their tests; links from `docs/DESIGN.md` §3.7 and *How to repeat*.
