@@ -7,6 +7,11 @@ const webPort = Number(process.env.WEB_PORT || 5180)
 // browser's other specs, so the two never overlap.
 const devLogin = /dev-login\.spec\.ts/
 
+// The UI review (step 40) only runs through `pnpm ui:review`, which sets
+// UI_REVIEW=1 and picks the ui-review project. No other project runs it.
+const uiReviewDir = /[\\/]ui-review[\\/]/
+const uiReview = process.env.UI_REVIEW === '1'
+
 export default defineConfig({
   testDir: './e2e',
   snapshotPathTemplate:
@@ -28,7 +33,7 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
       },
-      testIgnore: devLogin,
+      testIgnore: [devLogin, uiReviewDir],
       teardown: 'dev-login-chromium',
     },
     {
@@ -41,7 +46,7 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
       },
-      testIgnore: devLogin,
+      testIgnore: [devLogin, uiReviewDir],
       teardown: 'dev-login-firefox',
       grepInvert: /@chromium/,
     },
@@ -52,7 +57,7 @@ export default defineConfig({
         baseURL: `http://127.0.0.1:${webPort}`,
         locale: 'en-US',
       },
-      testIgnore: devLogin,
+      testIgnore: [devLogin, uiReviewDir],
       teardown: 'dev-login-webkit',
       grepInvert: /@chromium/,
     },
@@ -65,6 +70,7 @@ export default defineConfig({
     ).map(([browser, device]) => ({
       name: `dev-login-${browser}`,
       testMatch: devLogin,
+      testIgnore: uiReviewDir,
       use: {
         ...devices[device],
         baseURL: `http://127.0.0.1:${webPort}`,
@@ -80,7 +86,21 @@ export default defineConfig({
         locale: 'en-US',
       },
       grep: /@mobile/,
+      testIgnore: uiReviewDir,
     },
+    ...(uiReview
+      ? [
+          {
+            name: 'ui-review',
+            testMatch: /[\\/]ui-review[\\/][^\\/]+\.spec\.ts$/,
+            use: {
+              ...devices['Desktop Chrome'],
+              baseURL: `http://127.0.0.1:${webPort}`,
+              locale: 'en-US',
+            },
+          },
+        ]
+      : []),
   ],
   webServer: {
     command: 'pnpm dev:e2e',

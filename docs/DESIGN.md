@@ -227,6 +227,7 @@ Phone panel (full screen), sections collapsed except *Details*:
 - *Low data* holds back photos, the map and avatars until asked for; the header shows a *Low data* badge.
 - Every saved spot has *Open in Google Maps* next to its address, and each phone list card has a map-pin link.
 - Hidden on the phone (still reachable by URL, and back at ≥ 640 px): import, export, spot kinds, schedule drag-and-drop, the bookmarklet, the admin area.
+- Known UI problems, found from screenshots at 1280, 768 and 390 px, are listed in [UI_REVIEW.md](UI_REVIEW.md).
 
 ### 3.8 Admin — layout and dashboard
 

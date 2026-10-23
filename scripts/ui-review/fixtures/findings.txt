@@ -1,0 +1,31 @@
+{
+  "commit": "abc1234",
+  "date": "2026-10-22",
+  "screenshots": 101,
+  "groups": [
+    {
+      "key": "target-size/board-map/[data-testid=\"zoom\"] button",
+      "check": "target-size",
+      "screen": "board-map",
+      "selector": "[data-testid=\"zoom\"] button",
+      "name": "Zoom in",
+      "occurrences": ["1280-dark", "390-light"]
+    },
+    {
+      "key": "overflow-x/login/html",
+      "check": "overflow-x",
+      "screen": "login",
+      "selector": "html",
+      "name": "",
+      "occurrences": ["390-light"]
+    },
+    {
+      "key": "small-text/schedule/[data-testid=\"day\"] span | b",
+      "check": "small-text",
+      "screen": "schedule",
+      "selector": "[data-testid=\"day\"] span | b",
+      "name": "Day 1",
+      "occurrences": ["768-dark"]
+    }
+  ]
+}
