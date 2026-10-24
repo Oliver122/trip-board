@@ -88,7 +88,7 @@ describe('SpotList empty states', () => {
 
   it('shows a scheduled time as the trip wall clock', () => {
     renderList([{ ...kyoto, firstScheduledAt: '2026-04-13T18:00:00' }])
-    expect(screen.getByText('13 Apr 2026 18:00')).toBeInTheDocument()
+    expect(screen.getByText('Must go · 13 Apr 2026 18:00')).toBeInTheDocument()
     expect(screen.getByTestId('spot-count')).toHaveTextContent('1 spot')
   })
 

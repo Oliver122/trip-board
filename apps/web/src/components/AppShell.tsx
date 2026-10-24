@@ -164,8 +164,16 @@ export function AppShell() {
         <>
           <TabBar
             tripId={tripId}
-            active={activeTab(Boolean(schedule), Boolean(settings), view)}
-            onView={(next) => setView(next)}
+            active={
+              moreOpen
+                ? 'more'
+                : activeTab(Boolean(schedule), Boolean(settings), view)
+            }
+            onNavigate={() => setMoreOpen(false)}
+            onView={(next) => {
+              setMoreOpen(false)
+              setView(next)
+            }}
             onMore={() => setMoreOpen(true)}
           />
           {moreOpen ? (

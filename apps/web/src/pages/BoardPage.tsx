@@ -11,7 +11,8 @@ import {
   type SpotListQuery,
   type SpotPlan,
 } from '@tripboard/shared'
-import { Plus } from 'lucide-react'
+import { Crosshair, Plus } from 'lucide-react'
+import { mapCenter } from '../map/center'
 import {
   useCallback,
   useEffect,
@@ -180,6 +181,8 @@ export function BoardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [panel, setPanel] = useState<Panel | null>(null)
+  // Phone: the sheet is hidden while the pin is picked on the full map.
+  const [picking, setPicking] = useState(false)
   const detailEpoch = useRef(0)
   const [saving, setSaving] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -890,16 +893,50 @@ export function BoardPage() {
     onViewport: setBounds,
   })
 
-  const addButton = canEdit ? (
-    <Button
-      data-testid="add-new"
-      className="pointer-events-auto absolute bottom-4 left-4 z-10 shadow-panel sm:bottom-12"
-      onClick={openAdd}
-    >
-      <Plus aria-hidden="true" className="size-4" />
-      {t('board.addNew')}
-    </Button>
+  const pickingNow = picking && panel?.mode === 'add'
+  const picker = pickingNow ? (
+    <>
+      <Crosshair
+        aria-hidden="true"
+        data-testid="pick-cross"
+        className="pointer-events-none absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-foreground"
+      />
+      <div className="pointer-events-auto absolute inset-x-4 top-4 flex flex-col gap-2 rounded-card border border-border bg-card p-3 shadow-panel">
+        <p className="m-0 text-sm">{t('board.pickHint')}</p>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            data-testid="pick-cancel"
+            onClick={() => setPicking(false)}
+          >
+            {t('board.cancel')}
+          </Button>
+          <Button
+            data-testid="pick-use"
+            onClick={() => {
+              const center = mapCenter()
+              setPicking(false)
+              if (center) void place(center.lng, center.lat)
+            }}
+          >
+            {t('board.usePoint')}
+          </Button>
+        </div>
+      </div>
+    </>
   ) : null
+
+  const addButton =
+    canEdit && !pickingNow ? (
+      <Button
+        data-testid="add-new"
+        className="pointer-events-auto absolute bottom-12 left-4 z-10 shadow-panel"
+        onClick={openAdd}
+      >
+        <Plus aria-hidden="true" className="size-4" />
+        {t('board.addNew')}
+      </Button>
+    ) : null
 
   if (!remote || listStatus === 'ready') keepList.current = true
   const blockList = remote && !filtered && !keepList.current
@@ -907,6 +944,7 @@ export function BoardPage() {
   return (
     <>
       {overlay && addButton ? createPortal(addButton, overlay) : null}
+      {overlay && picker ? createPortal(picker, overlay) : null}
       {listStatus === 'error' && blockList ? (
         <div className="p-4">
           <ErrorState retry={() => setListStatus('loading')} />
@@ -937,7 +975,7 @@ export function BoardPage() {
           onAuthError={reload}
         />
       )}
-      {panel ? (
+      {panel && !pickingNow ? (
         <SpotPanel
           mode={panel.mode}
           draft={panel.draft}
@@ -954,6 +992,7 @@ export function BoardPage() {
           onLinkPlace={fillFromLink}
           linkUnplaced={Boolean(panel.unplaced) && panel.draft.lat == null}
           onShowOnMap={phone && panel.spot ? () => void showOnMap() : undefined}
+          onPickOnMap={phone ? () => setPicking(true) : undefined}
           onClose={() => void requestClose()}
           onSubmit={() => {
             void save()

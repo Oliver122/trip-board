@@ -22,6 +22,7 @@ import { Button } from '../components/ui/button'
 import { ChipGroup } from '../components/ui/chip-group'
 import { hoverClass } from '../components/ui/hover'
 import { Select } from '../components/ui/select'
+import { Switch } from '../components/ui/switch'
 import { useListFollowsMap } from '../list-follows-map'
 import { phoneQuery, useMediaQuery } from '../lib/media'
 import { cn } from '../lib/utils'
@@ -121,7 +122,7 @@ export function SpotToolbar({
       className="relative flex min-h-0 flex-col border-b border-border"
     >
       {phone ? (
-        <div className="px-3 py-2">
+        <div className="flex items-center justify-between gap-3 px-3 py-2">
           <Button
             variant="outline"
             data-testid="filters"
@@ -132,6 +133,14 @@ export function SpotToolbar({
             <ListFilter aria-hidden="true" className="size-4" />
             {t('board.filters')}
           </Button>
+          <Switch
+            checked={query.visible}
+            onChange={(visible) => onQuery({ ...query, visible })}
+            testId="only-visible"
+            className="text-sm"
+          >
+            {t('board.onlyVisible')}
+          </Switch>
         </div>
       ) : null}
       <div
@@ -378,16 +387,15 @@ export function SpotToolbar({
               ) : null}
             </Select>
           </div>
-          <label className="mt-3 flex min-h-11 items-center gap-2">
-            <input
-              type="checkbox"
+          {phone ? null : (
+            <Switch
               checked={query.visible}
-              onChange={(event) =>
-                onQuery({ ...query, visible: event.target.checked })
-              }
-            />
-            {t('board.onlyVisible')}
-          </label>
+              onChange={(visible) => onQuery({ ...query, visible })}
+              className="mt-3"
+            >
+              {t('board.onlyVisible')}
+            </Switch>
+          )}
           <Button variant="outline" className="mt-3" onClick={reset}>
             {t('board.reset')}
           </Button>

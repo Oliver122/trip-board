@@ -4,7 +4,9 @@ import { focusByKeyboard } from './keyboard'
 
 const xss = '<img src=x onerror=alert(1)>'
 
-test('T-15-01 at 800 px the list stays visible beside the side sheet', async ({
+// R-42-20: from 640 to 1023 px the side sheet covers the list column and the
+// map stays visible to its left.
+test('T-15-01 at 800 px the side sheet covers the list and leaves the map', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 800, height: 900 })
@@ -17,14 +19,14 @@ test('T-15-01 at 800 px the list stays visible beside the side sheet', async ({
   await list.getByRole('button', { name: /Kyoto tower/ }).click()
   const sheet = page.getByRole('dialog')
   await expect(sheet).toBeVisible()
-  await expect(list).toBeVisible()
   const listBox = await list.boundingBox()
   const sheetBox = await sheet.boundingBox()
   expect(listBox?.width).toBeGreaterThan(200)
   expect(listBox?.width).toBeLessThan(360)
   expect(sheetBox && listBox).toBeTruthy()
   if (!sheetBox || !listBox) return
-  expect(sheetBox.x + sheetBox.width).toBeLessThanOrEqual(listBox.x + 8)
+  expect(sheetBox.x).toBeGreaterThanOrEqual(480)
+  expect(sheetBox.x + sheetBox.width).toBeCloseTo(800, 0)
   expect(sheetBox.height).toBeGreaterThan(400)
 })
 
@@ -41,7 +43,7 @@ test(
     await expect(list).toHaveAttribute('data-layout', 'full')
     await expect(page.getByTestId('sheet-handle')).toHaveCount(0)
     await expect(page.getByTestId('filters')).toBeVisible()
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     const card = list.getByRole('button', { name: /Dotonbori/ })
     await expect(card).toBeVisible()
     await card.click()

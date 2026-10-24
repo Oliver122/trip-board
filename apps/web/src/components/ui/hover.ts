@@ -18,4 +18,5 @@ export const hoverClass = {
   link: `${pointer} ${motion} text-foreground hover:underline`,
   grab: `cursor-grab ${motion} text-muted hover:bg-hover hover:text-foreground active:cursor-grabbing active:bg-hover`,
   pin: pointer,
+  switch: `group ${pointer} ${motion} disabled:cursor-not-allowed`,
 } as const

@@ -15,7 +15,12 @@ import {
 } from '../components/category'
 import { activeLocale } from '../i18n'
 import { useDark } from '../theme'
-import { maxBoundsFor, toMaxBoundsTuple, type LngLatBounds } from './bounds'
+import {
+  boundsForPoints,
+  maxBoundsFor,
+  toMaxBoundsTuple,
+  type LngLatBounds,
+} from './bounds'
 import { clusterSpots, type MapSpot } from './clusters'
 import { Pin } from './Pin'
 import { mapLandColor, mapStyle } from './style'
@@ -33,6 +38,9 @@ setWorkerUrl(maplibreWorkerUrl)
 type BoardWindow = Window & { __tripboardMap?: MaplibreMap }
 
 const separator = ' · '
+
+/** A fit to the spots never goes closer than this (R-42-07). */
+const spotFitMaxZoom = 15
 
 export function TripMap({
   bbox,
@@ -105,6 +113,21 @@ export function TripMap({
   )
   const focusRef = useRef(focus)
   focusRef.current = focus
+  const spotsRef = useRef(spots)
+  spotsRef.current = spots
+  // R-42-07: the first view shows the spots; the region stays the pan limit.
+  // A view from the URL hash or the stored board view is never replaced.
+  const fitted = useRef(
+    initialView != null ||
+      spots.length > 0 ||
+      (viewportScope === 'schedule' && focus != null),
+  )
+  const [openingBox] = useState<LngLatBounds>(
+    () =>
+      (viewportScope === 'schedule' ? focus?.bounds : null) ??
+      boundsForPoints(spots) ??
+      bbox,
+  )
   const flyRef = useRef(flyTo)
   flyRef.current = flyTo
   const bboxRef = useRef(bbox)
@@ -182,6 +205,10 @@ export function TripMap({
     })
   }
 
+  function spotsBox() {
+    return boundsForPoints(spotsRef.current)
+  }
+
   function animateTo(map: MaplibreMap, scope: ViewportScope) {
     const reduced = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
@@ -210,7 +237,7 @@ export function TripMap({
           duration,
         })
       } else {
-        fitBox(map, bboxRef.current, duration, 48)
+        fitBox(map, spotsBox() ?? bboxRef.current, duration, 48, spotFitMaxZoom)
       }
     } else {
       const frame = focusRef.current
@@ -219,7 +246,7 @@ export function TripMap({
         fitBox(map, frame.bounds, duration, 80, 13)
       } else {
         appliedFocus.current = null
-        fitBox(map, bboxRef.current, duration, 48)
+        fitBox(map, spotsBox() ?? bboxRef.current, duration, 48, spotFitMaxZoom)
       }
     }
     if (duration === 0) finish()
@@ -309,15 +336,23 @@ export function TripMap({
               }
             : {
                 bounds: [
-                  [bbox.minLng, bbox.minLat],
-                  [bbox.maxLng, bbox.maxLat],
+                  [openingBox.minLng, openingBox.minLat],
+                  [openingBox.maxLng, openingBox.maxLat],
                 ],
-                fitBoundsOptions: { padding: 48 },
+                fitBoundsOptions: {
+                  padding: 48,
+                  ...(openingBox !== bbox ? { maxZoom: spotFitMaxZoom } : {}),
+                },
               }
         }
         style={{ width: '100%', height: '100%', background: land }}
         onLoad={(event) => {
           const map = event.target
+          // Fit before the map is published, so nothing moves it first.
+          const box = fitted.current ? null : boundsForPoints(spotsRef.current)
+          if (box) fitBox(map, box, 0, 48, spotFitMaxZoom)
+          // The fit is for the first view only; spots that arrive later never move the map.
+          fitted.current = true
           ;(window as BoardWindow).__tripboardMap = map
           setLoaded(true)
           if (scopeRef.current === openingScope.current) {

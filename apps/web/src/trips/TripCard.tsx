@@ -1,7 +1,9 @@
 import type { Trip, TripRole } from '@tripboard/shared'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { MoreHorizontal } from 'lucide-react'
 import { hoverClass } from '../components/ui/hover'
+import { Menu, MenuLink } from '../components/ui/menu'
 import { activeLocale } from '../i18n'
 import { useDataSaver } from '../lib/data-saver'
 import { cn } from '../lib/utils'
@@ -14,7 +16,7 @@ export function TripCard({ trip }: { trip: Trip }) {
   const roleLabel = roleName(t, trip.role)
 
   return (
-    <article className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-panel transition-[border-color,box-shadow] duration-150 motion-reduce:duration-0 hover:border-foreground/40 hover:shadow-lift">
+    <article className="relative flex flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-panel transition-[border-color,box-shadow] duration-150 motion-reduce:duration-0 hover:border-foreground/40 hover:shadow-lift">
       <Link
         to={`/trips/${trip.id}`}
         className={cn(
@@ -22,9 +24,12 @@ export function TripCard({ trip }: { trip: Trip }) {
           'flex flex-col gap-3 text-foreground no-underline',
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-semibold">{trip.name}</h2>
-          <span className="rounded-full bg-background px-2 py-0.5 text-xs">
+        <div className="flex items-center gap-3 pr-11">
+          <h2 className="min-w-0 text-base font-semibold">{trip.name}</h2>
+          <span
+            data-testid="role-badge"
+            className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-xs leading-4 text-foreground"
+          >
             {roleLabel}
           </span>
         </div>
@@ -41,12 +46,17 @@ export function TripCard({ trip }: { trip: Trip }) {
           </p>
         ) : null}
       </Link>
-      <Link
-        to={`/trips/${trip.id}/settings`}
-        className={cn(hoverClass.link, 'text-sm')}
-      >
-        {t('trips.settings')}
-      </Link>
+      <div className="absolute right-2 top-2">
+        <Menu
+          label={t('trips.actionsFor', { name: trip.name })}
+          testId={`trip-actions-${trip.id}`}
+          trigger={<MoreHorizontal aria-hidden="true" className="size-5" />}
+        >
+          <MenuLink to={`/trips/${trip.id}/settings`}>
+            {t('trips.settings')}
+          </MenuLink>
+        </Menu>
+      </div>
     </article>
   )
 }

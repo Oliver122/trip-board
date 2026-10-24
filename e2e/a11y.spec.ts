@@ -167,6 +167,102 @@ test('T-31-11 axe finds no serious issues with the delete confirmations open in 
   }
 })
 
+// T-42-19: the phone pages of step 42 in both themes
+for (const scheme of ['light', 'dark'] as const) {
+  test(`T-42-19 axe finds no serious issues on the 390 px pages in ${scheme} mode`, async ({
+    page,
+  }) => {
+    test.setTimeout(300_000)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.emulateMedia({ colorScheme: scheme })
+    await page.addInitScript((theme) => {
+      try {
+        localStorage.setItem('theme', theme)
+      } catch {
+        // storage can be blocked
+      }
+    }, scheme)
+    // Own trip and user: other specs flip Sven's locale while this runs.
+    await login(page, '100000000000000002')
+    const trip = await page.evaluate(async (mode) => {
+      const post = async (path: string, body: unknown) => {
+        const response = await fetch(path, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (!response.ok) throw new Error(await response.text())
+        return (await response.json()) as { id: string }
+      }
+      const created = await post('/api/trips', {
+        name: `Phone a11y ${mode} ${Date.now().toString(36)}`,
+        timezone: 'Asia/Tokyo',
+        region: { bbox: { minLng: 135, minLat: 34, maxLng: 140, maxLat: 36 } },
+      })
+      const spot = await post(`/api/trips/${created.id}/spots`, {
+        title: 'Shibuya Sky',
+        lat: 35.658,
+        lng: 139.702,
+        baseCategory: 'maybe',
+        address: 'Tokyo',
+      })
+      const entry = await post(`/api/trips/${created.id}/plan`, {
+        type: 'bucket',
+        title: 'Tokyo',
+        startDate: '2026-04-12',
+        endDate: '2026-04-16',
+      })
+      await post(`/api/plan/${entry.id}/spots`, {
+        spotId: spot.id,
+        visitDate: '2026-04-13',
+      })
+      return `/trips/${created.id}`
+    }, scheme)
+
+    await page.goto('/trips')
+    await expect(page.getByText(`Phone a11y ${scheme}`).first()).toBeVisible({
+      timeout: 15_000,
+    })
+    await expectNoSeriousViolations(page, `${scheme} trips`)
+
+    await page.goto(`${trip}?view=list`)
+    const list = page.getByTestId('spot-list')
+    await expect(list.getByText('Shibuya Sky').first()).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} board list`)
+
+    await list.getByText('Shibuya Sky').first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} spot panel`)
+
+    await page.goto(`${trip}/schedule`)
+    await expect(page.getByTestId('schedule-list')).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} schedule`)
+
+    await page.goto(trip)
+    const bar = page.getByRole('navigation', { name: 'Trip sections' })
+    await bar.getByRole('button', { name: 'More' }).click()
+    const more = page.getByRole('dialog', { name: 'More' })
+    await expect(more).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} More sheet`)
+    await more.getByRole('button', { name: 'Members' }).click()
+    await expect(page.getByRole('dialog', { name: 'Members' })).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} members dialog`)
+
+    await page.goto('/account')
+    await expect(
+      page.getByRole('heading', { name: 'Account & settings' }),
+    ).toBeVisible()
+    await expectNoSeriousViolations(page, `${scheme} account`)
+
+    await page.goto('/no-such-page')
+    await expectNoSeriousViolations(page, `${scheme} not found`)
+
+    await page.goto('/join/unknown')
+    await expectNoSeriousViolations(page, `${scheme} invalid invite`)
+  })
+}
+
 async function login(page: Page, discordId: string) {
   await page.goto('/login')
   await page.evaluate(async (id) => {

@@ -3,10 +3,9 @@ import { phoneQuery, useMediaQuery } from '../lib/media'
 import {
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   GripVertical,
+  MoreHorizontal,
   Pencil,
-  X,
 } from 'lucide-react'
 import {
   useEffect,
@@ -20,12 +19,14 @@ import {
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { Menu, MenuItem } from '../components/ui/menu'
 import { hoverClass } from '../components/ui/hover'
 import { activeLocale } from '../i18n'
 import { formatDate } from '../lib/format'
 import type { AppLocale } from '../lib/locale'
 import { cn } from '../lib/utils'
 import { scheduleHome } from './home'
+import { RowStrip, RowSymbol } from './RowKind'
 import { VisitDatePicker } from './VisitDatePicker'
 
 const inputClass =
@@ -84,7 +85,34 @@ export function ScheduleList({
               selectedId === entry.id && 'bg-background',
             )}
           >
-            <div className="flex items-start gap-1 px-2 py-2">
+            <div className="flex items-start gap-1 py-2 pl-4 pr-2">
+              <button
+                type="button"
+                data-testid={`entry-${entry.id}`}
+                className={cn(
+                  hoverClass.item,
+                  'min-h-11 min-w-0 flex-1 rounded-[8px] py-1 text-left',
+                )}
+                onClick={() => onSelect(entry.id)}
+              >
+                <span className="block font-semibold">
+                  {entry.title}
+                  {home ? (
+                    <span className="ml-2 font-normal text-muted">
+                      {t('schedule.home', { title: home.title })}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="block text-sm text-muted">{range}</span>
+                {entry.info ? (
+                  <span className="mt-1 block text-sm">{entry.info}</span>
+                ) : null}
+                {entry.outsideTripDates ? (
+                  <span className="mt-1 block text-sm text-muted">
+                    {t('schedule.outsideTrip')}
+                  </span>
+                ) : null}
+              </button>
               {entry.type === 'bucket' ? (
                 <button
                   type="button"
@@ -112,41 +140,7 @@ export function ScheduleList({
                     <ChevronRight aria-hidden="true" className="size-4" />
                   )}
                 </button>
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-11 shrink-0 items-center justify-center"
-                >
-                  <span className="size-2 rounded-full bg-foreground" />
-                </span>
-              )}
-              <button
-                type="button"
-                data-testid={`entry-${entry.id}`}
-                className={cn(
-                  hoverClass.item,
-                  'min-h-11 min-w-0 flex-1 rounded-[8px] px-2 py-1 text-left',
-                )}
-                onClick={() => onSelect(entry.id)}
-              >
-                <span className="block font-semibold">
-                  {entry.title}
-                  {home ? (
-                    <span className="ml-2 font-normal text-muted">
-                      {t('schedule.home', { title: home.title })}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="block text-sm text-muted">{range}</span>
-                {entry.info ? (
-                  <span className="mt-1 block text-sm">{entry.info}</span>
-                ) : null}
-                {entry.outsideTripDates ? (
-                  <span className="mt-1 block text-sm text-muted">
-                    {t('schedule.outsideTrip')}
-                  </span>
-                ) : null}
-              </button>
+              ) : null}
               {canEdit ? (
                 <button
                   type="button"
@@ -178,7 +172,7 @@ export function ScheduleList({
               />
             ) : null}
             {open && entry.type === 'single' ? (
-              <div className="pb-3 pl-14 pr-3">
+              <div className="pb-3 pl-4 pr-3">
                 {entry.spots.length > 0 ? (
                   <ul className="m-0 list-none pb-2">
                     {entry.spots.map((link) => (
@@ -249,7 +243,7 @@ function BucketSpots({
   const [overId, setOverId] = useState<string | null>(null)
   const rowRefs = useRef(new Map<string, HTMLLIElement>())
   const beforeTops = useRef<Map<string, number> | null>(null)
-  const focusTarget = useRef<{ id: string; which: 'up' | 'down' } | null>(null)
+  const focusTarget = useRef<string | null>(null)
   const order = entry.spots.map((link) => link.id).join('\n')
 
   useLayoutEffect(() => {
@@ -260,9 +254,7 @@ function BucketSpots({
     focusTarget.current = null
     if (!pending) return
     document
-      .querySelector<HTMLButtonElement>(
-        `[data-testid="move-${pending.which}-${pending.id}"]`,
-      )
+      .querySelector<HTMLButtonElement>(`[data-testid="row-menu-${pending}"]`)
       ?.focus()
   }, [order])
 
@@ -289,7 +281,7 @@ function BucketSpots({
     ids.splice(index, 1)
     ids.splice(target, 0, link.id)
     rememberRows()
-    focusTarget.current = { id: link.id, which: delta < 0 ? 'up' : 'down' }
+    focusTarget.current = link.id
     setHighlightId(link.id)
     setAnnouncement(
       t('schedule.moved', {
@@ -336,12 +328,7 @@ function BucketSpots({
       </p>
       <ul className="m-0 list-none p-0">
         {entry.spots.map((link, index) => {
-          const upLabel = t('schedule.moveUp', { spot: link.title })
-          const downLabel = t('schedule.moveDown', { spot: link.title })
-          const removeLabel = t('schedule.removeVisit', {
-            spot: link.title,
-            entry: entry.title,
-          })
+          const rowSpot = spots.find((spot) => spot.id === link.spotId)
           return (
             <li
               key={link.id}
@@ -373,6 +360,7 @@ function BucketSpots({
                 />
               ) : null}
               <div className="flex items-center gap-1">
+                <RowStrip spot={rowSpot} />
                 {canEdit && !phone ? (
                   <button
                     type="button"
@@ -410,52 +398,40 @@ function BucketSpots({
                     <span className="block text-sm">{link.info}</span>
                   ) : null}
                 </div>
+                <RowSymbol spot={rowSpot} />
                 {canEdit ? (
-                  <div className="flex shrink-0">
-                    <button
-                      type="button"
-                      data-testid={`move-up-${link.id}`}
-                      aria-label={upLabel}
-                      title={upLabel}
-                      disabled={index === 0}
-                      className={cn(
-                        hoverClass.ghost,
-                        'inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40',
-                      )}
-                      onClick={() => move(index, -1)}
-                    >
-                      <ChevronUp aria-hidden="true" className="size-4" />
-                    </button>
-                    <button
-                      type="button"
-                      data-testid={`move-down-${link.id}`}
-                      aria-label={downLabel}
-                      title={downLabel}
-                      disabled={index === entry.spots.length - 1}
-                      className={cn(
-                        hoverClass.ghost,
-                        'inline-flex size-11 items-center justify-center rounded-[8px] disabled:opacity-40',
-                      )}
-                      onClick={() => move(index, 1)}
-                    >
-                      <ChevronDown aria-hidden="true" className="size-4" />
-                    </button>
-                    <button
-                      type="button"
-                      data-testid={`remove-visit-${link.id}`}
-                      aria-label={removeLabel}
-                      title={removeLabel}
-                      className={cn(
-                        hoverClass.danger,
-                        'inline-flex size-11 items-center justify-center rounded-[8px]',
-                      )}
-                      onClick={() => {
+                  <Menu
+                    label={t('schedule.rowActions', { spot: link.title })}
+                    testId={`row-menu-${link.id}`}
+                    trigger={
+                      <MoreHorizontal aria-hidden="true" className="size-4" />
+                    }
+                  >
+                    {index > 0 ? (
+                      <MenuItem
+                        testId={`move-up-${link.id}`}
+                        onSelect={() => move(index, -1)}
+                      >
+                        {t('schedule.menuMoveUp')}
+                      </MenuItem>
+                    ) : null}
+                    {index < entry.spots.length - 1 ? (
+                      <MenuItem
+                        testId={`move-down-${link.id}`}
+                        onSelect={() => move(index, 1)}
+                      >
+                        {t('schedule.menuMoveDown')}
+                      </MenuItem>
+                    ) : null}
+                    <MenuItem
+                      testId={`remove-visit-${link.id}`}
+                      onSelect={() => {
                         void onRemoveSpot(entry.id, link.id)
                       }}
                     >
-                      <X aria-hidden="true" className="size-4" />
-                    </button>
-                  </div>
+                      {t('schedule.removeFromBucket')}
+                    </MenuItem>
+                  </Menu>
                 ) : null}
               </div>
             </li>
