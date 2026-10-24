@@ -35,7 +35,7 @@
 | T-42-18 | e2e | pass | e2e/account-and-cards.spec.ts |
 | T-42-19 | a11y | pass | e2e/a11y.spec.ts, a11y-phone.spec.ts |
 | T-42-20 | unit | pass | scripts/ui-review.test.mjs |
-| T-42-21 | manual | manual/ci | per head agent: before = a38ee84 (21 groups), after = fresh seed `tripboard_after` (13 groups); both commits are a38ee84 because nothing is committed yet, so "a later commit" is not yet true |
+| T-42-21 | manual | pass | before: `a38ee84`, 21 groups; after: `69f802d` (this branch), 13 groups, a fresh `tripboard_pr22` database migrated and seeded from empty; the summary of `docs/UI_REVIEW.md` names the after run; the U-02 and U-03 groups are gone |
 | T-42-22 | manual | pass | owner review in `test-results/ui-changes/index.html`: all 29 cards accepted (2026-10-24) |
 
 ## Failures

@@ -1,7 +1,7 @@
 # UI review
 
-- Date: 2026-10-23
-- Commit: a38ee84 (of `docs/ui-review/findings.json`)
+- Date: 2026-10-24
+- Commit: 69f802d (of `docs/ui-review/findings.json`)
 - Screens: 16
 - Screenshots: 101
 - Automated groups: 13
