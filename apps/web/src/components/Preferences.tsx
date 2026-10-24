@@ -20,7 +20,7 @@ export function LanguageSwitch() {
     <div
       role="group"
       aria-label={t('header.language')}
-      className="flex overflow-hidden rounded-[8px] border border-border"
+      className="inline-flex overflow-hidden rounded-[8px] border border-border"
     >
       <LocaleButton
         locale="en"
@@ -55,7 +55,7 @@ function LocaleButton({
       type="button"
       aria-pressed={selected}
       className={cn(
-        'min-h-11 cursor-pointer px-3 text-sm',
+        'min-h-11 min-w-11 cursor-pointer px-3 text-sm',
         selected
           ? 'bg-accent text-accent-foreground'
           : cn(hoverClass.tab, 'bg-card text-foreground'),
@@ -76,7 +76,7 @@ export function ThemeSwitch() {
     <div
       role="group"
       aria-label={t('header.theme')}
-      className="flex overflow-hidden rounded-[8px] border border-border"
+      className="inline-flex overflow-hidden rounded-[8px] border border-border"
     >
       {themeOrder.map((choice) => {
         const selected = theme === choice
@@ -86,7 +86,7 @@ export function ThemeSwitch() {
             type="button"
             aria-pressed={selected}
             className={cn(
-              'min-h-11 cursor-pointer px-3 text-sm',
+              'min-h-11 min-w-11 cursor-pointer px-3 text-sm',
               selected
                 ? 'bg-accent text-accent-foreground'
                 : cn(hoverClass.tab, 'bg-card text-foreground'),

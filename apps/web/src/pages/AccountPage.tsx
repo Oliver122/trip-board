@@ -12,6 +12,8 @@ import { phoneQuery, useMediaQuery } from '../lib/media'
 import { useListFollowsMap } from '../list-follows-map'
 import { ErrorNotice } from '../components/notice'
 import { Button } from '../components/ui/button'
+import { SettingControlRow } from '../components/ui/setting-row'
+import { Switch } from '../components/ui/switch'
 import { getQuota } from '../images/client'
 import { megabytes } from '../images/format'
 import { GoogleMapsSection } from '../share/GoogleMapsSection'
@@ -71,8 +73,22 @@ export function AccountPage() {
               aria-label={t('account.storage')}
               value={quota.usedBytes}
               max={Math.max(quota.maxBytes, 1)}
-              className="h-2 w-full"
+              className="sr-only"
             />
+            {/* The look of the meter (R-42-29); the progress above carries its value. */}
+            <div
+              aria-hidden="true"
+              data-testid="storage-meter"
+              className="h-2 w-full overflow-hidden rounded-full bg-border"
+            >
+              <div
+                data-testid="storage-meter-fill"
+                className="h-full rounded-full bg-accent"
+                style={{
+                  width: `${Math.min(100, (quota.usedBytes / Math.max(quota.maxBytes, 1)) * 100)}%`,
+                }}
+              />
+            </div>
             <p data-testid="account-quota">
               {t('account.quota', {
                 used: quota.usedImages,
@@ -108,23 +124,20 @@ export function AccountPage() {
         <h2 id={settingsId} className="text-base font-semibold">
           {t('account.settings')}
         </h2>
-        <div>
-          <p className="mb-2 text-sm font-semibold">{t('header.language')}</p>
+        <SettingControlRow label={t('header.language')}>
           <LanguageSwitch />
-        </div>
-        <div>
-          <p className="mb-2 text-sm font-semibold">{t('header.theme')}</p>
+        </SettingControlRow>
+        <SettingControlRow label={t('header.theme')}>
           <ThemeSwitch />
-        </div>
-        <label className="flex min-h-11 items-center gap-2">
-          <input
-            type="checkbox"
-            data-testid="list-follows-map"
-            checked={listFollowsMap}
-            onChange={(event) => setListFollowsMap(event.target.checked)}
-          />
+        </SettingControlRow>
+        <Switch
+          checked={listFollowsMap}
+          onChange={setListFollowsMap}
+          testId="list-follows-map"
+          className="text-sm"
+        >
           {t('account.listFollowsMap')}
-        </label>
+        </Switch>
       </section>
       {phone ? null : <GoogleMapsSection />}
     </main>

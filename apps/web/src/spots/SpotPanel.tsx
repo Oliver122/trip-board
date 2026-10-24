@@ -9,7 +9,13 @@ import {
   type Spot,
   type SpotPlan,
 } from '@tripboard/shared'
-import { ExternalLink, LoaderCircle, MapPin, Trash2 } from 'lucide-react'
+import {
+  Crosshair,
+  ExternalLink,
+  LoaderCircle,
+  MapPin,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
@@ -18,7 +24,7 @@ import { Button } from '../components/ui/button'
 import { ChipGroup } from '../components/ui/chip-group'
 import { useConfirm } from '../components/ui/confirm'
 import { hoverClass } from '../components/ui/hover'
-import { CategoryBadge, CategoryDot } from '../components/category'
+import { CategoryDot } from '../components/category'
 import { kindLabel } from '../kinds/label'
 import { useTripKinds } from '../kinds/store'
 import { activeLocale } from '../i18n'
@@ -36,7 +42,7 @@ import { DraftPhotos } from '../images/DraftPhotos'
 import { SpotDiscussion } from '../comments/SpotDiscussion'
 import { useTripData } from '../trips/trip-context'
 import { InPlans } from './InPlans'
-import { draftKinds, type Draft } from './model'
+import type { Draft } from './model'
 
 const inputClass =
   'w-full min-h-11 rounded-[8px] border border-border bg-card px-3 text-foreground'
@@ -57,6 +63,7 @@ export function SpotPanel({
   onLinkPlace,
   linkUnplaced = false,
   onShowOnMap,
+  onPickOnMap,
   onClose,
   onSubmit,
   onDelete,
@@ -83,6 +90,8 @@ export function SpotPanel({
   linkUnplaced?: boolean
   /** Phone only: close the panel, show the map and fly to the pin (R-38-02). */
   onShowOnMap?: () => void
+  /** Phone, add panel: hide the sheet and pick the pin on the full map (R-42-20). */
+  onPickOnMap?: () => void
   onClose: () => void
   onSubmit: () => void
   onDelete: () => void
@@ -123,7 +132,7 @@ export function SpotPanel({
   const [addressFocused, setAddressFocused] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const skipSearch = useRef(false)
-  const deleteRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
   const refocusDelete = useRef(false)
   const ready =
     draft.title.trim().length > 0 && draft.lat != null && draft.lng != null
@@ -145,7 +154,7 @@ export function SpotPanel({
   useEffect(() => {
     if (!confirming && refocusDelete.current) {
       refocusDelete.current = false
-      deleteRef.current
+      formRef.current
         ?.querySelector<HTMLButtonElement>('[data-testid="spot-delete"]')
         ?.focus()
     }
@@ -286,12 +295,6 @@ export function SpotPanel({
         <p aria-hidden="true" className="mb-1">
           {t('board.category')}
         </p>
-        <div className="mb-2">
-          <CategoryBadge
-            category={draft.baseCategory === 'home' ? 'home' : 'kind'}
-            kinds={draftKinds(draft, kinds ?? [])}
-          />
-        </div>
         <div data-testid="kind-picker" className="flex flex-wrap gap-2">
           <ChipGroup
             label={t('board.category')}
@@ -328,11 +331,6 @@ export function SpotPanel({
           />
         </div>
       </div>
-      {spot && spot.displayCategory === 'planned' ? (
-        <p className="pb-3">
-          {t('board.plannedBadge', { count: spot.planCount })}
-        </p>
-      ) : null}
     </div>
   )
 
@@ -341,8 +339,20 @@ export function SpotPanel({
       title={title}
       closeLabel={phone ? t('board.back') : t('board.close')}
       onClose={onClose}
+      overList
+      badge={
+        spot && spot.displayCategory === 'planned' ? (
+          <p data-testid="planned-badge" className="m-0 text-sm text-muted">
+            {t('board.plannedBadge', { count: spot.planCount })}
+          </p>
+        ) : null
+      }
     >
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={submit}>
+      <form
+        ref={formRef}
+        className="flex min-h-0 flex-1 flex-col"
+        onSubmit={submit}
+      >
         <div
           data-modal-body
           data-testid="spot-panel-body"
@@ -423,22 +433,52 @@ export function SpotPanel({
             <label htmlFor={addressId} className="block">
               {t('board.address')}
             </label>
-            <div className="flex gap-2">
-              <input
-                id={addressId}
-                value={draft.address}
-                readOnly={readOnly}
-                onFocus={() => setAddressFocused(true)}
-                onBlur={() => setAddressFocused(false)}
-                onChange={(event) =>
-                  onDraft({ ...draft, address: event.target.value })
-                }
-                className={inputClass}
-                role="combobox"
-                aria-expanded={results.length > 0}
-                aria-controls="address-results"
-              />
-              {draft.address ? <CopyAddress address={draft.address} /> : null}
+            <div className="flex items-start gap-2">
+              {phone ? (
+                // R-42-18: a long address wraps instead of being cut.
+                <textarea
+                  id={addressId}
+                  rows={1}
+                  value={draft.address}
+                  readOnly={readOnly}
+                  onFocus={() => setAddressFocused(true)}
+                  onBlur={() => setAddressFocused(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.preventDefault()
+                  }}
+                  onChange={(event) =>
+                    onDraft({
+                      ...draft,
+                      address: event.target.value.replace(/\n/g, ' '),
+                    })
+                  }
+                  className={cn(
+                    inputClass,
+                    'min-w-0 flex-1 resize-none py-2.5 [field-sizing:content]',
+                  )}
+                  role="combobox"
+                  aria-expanded={results.length > 0}
+                  aria-controls="address-results"
+                />
+              ) : (
+                <input
+                  id={addressId}
+                  value={draft.address}
+                  readOnly={readOnly}
+                  onFocus={() => setAddressFocused(true)}
+                  onBlur={() => setAddressFocused(false)}
+                  onChange={(event) =>
+                    onDraft({ ...draft, address: event.target.value })
+                  }
+                  className={inputClass}
+                  role="combobox"
+                  aria-expanded={results.length > 0}
+                  aria-controls="address-results"
+                />
+              )}
+              {draft.address ? (
+                <CopyAddress address={draft.address} iconOnly={phone} />
+              ) : null}
             </div>
             {spot ? (
               <a
@@ -479,7 +519,18 @@ export function SpotPanel({
                 ))}
               </ul>
             ) : null}
-            {readOnly ? null : (
+            {readOnly ? null : phone ? (
+              onPickOnMap ? (
+                <Button
+                  variant="outline"
+                  data-testid="pick-on-map"
+                  onClick={onPickOnMap}
+                >
+                  <Crosshair aria-hidden="true" className="size-4" />
+                  {t('board.pickOnMap')}
+                </Button>
+              ) : null
+            ) : (
               <p className="text-sm text-muted">{t('board.placeHint')}</p>
             )}
             {linkUnplaced ? (
@@ -561,7 +612,7 @@ export function SpotPanel({
               onChange={(event) =>
                 onDraft({ ...draft, info: event.target.value })
               }
-              className={inputClass}
+              className={cn(inputClass, 'py-2')}
             />
 
             <label htmlFor={linkId} className="block">
@@ -584,6 +635,7 @@ export function SpotPanel({
                 id={linkId}
                 value={draft.link}
                 readOnly={readOnly}
+                placeholder="https://…"
                 onChange={(event) =>
                   onDraft({ ...draft, link: event.target.value })
                 }
@@ -687,13 +739,21 @@ export function SpotPanel({
               />
             </Section>
           ) : null}
+          {phone && mode === 'edit' && !confirming ? (
+            <Button
+              variant="danger"
+              className="w-full"
+              data-testid="spot-delete"
+              onClick={() => setConfirming(true)}
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              {t('board.deleteSpot')}
+            </Button>
+          ) : null}
         </div>
 
         {readOnly ? null : (
-          <div
-            ref={deleteRef}
-            className="flex flex-col gap-2 border-t border-border px-4 py-3"
-          >
+          <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
             {formError ? (
               <ErrorNotice testId="form-error">{formError}</ErrorNotice>
             ) : null}
@@ -730,7 +790,7 @@ export function SpotPanel({
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2">
-                {mode === 'edit' ? (
+                {mode === 'edit' && !phone ? (
                   <Button
                     variant="danger"
                     size="icon"

@@ -65,7 +65,7 @@ test('T-18-04 the list ignores the map until List follows map is on', async ({
   await expect(page.getByTestId(`card-${shibuya}`)).toBeVisible()
 
   await page.goto('/account')
-  await page.getByRole('checkbox', { name: 'List follows map' }).check()
+  await page.getByRole('switch', { name: 'List follows map' }).check()
   await page.goto(japanTrip)
   await waitForMap(page)
   await jumpToTokyo(page)
@@ -98,7 +98,8 @@ test('T-18-07 move down keeps focus, highlights the row, and announces it', asyn
 
   const first = links[0]
   if (!first) throw new Error('missing link')
-  const down = page.getByTestId(`move-down-${first}`)
+  // R-42-22: the row's ⋯ menu holds Move down; focus returns to its button
+  const down = page.getByRole('button', { name: 'Actions for Alpha' })
   await move(page, down)
   await expect
     .poll(() => visitTitles(page))
@@ -142,7 +143,8 @@ test('T-18-08 a failed reorder restores the order and shows a toast', async ({
       body: '{}',
     }),
   )
-  await page.getByTestId(`move-down-${firstLink}`).click()
+  await page.getByTestId(`row-menu-${firstLink}`).click()
+  await page.getByRole('menuitem', { name: 'Move down' }).click()
   await expect(page.getByTestId('toast')).toBeVisible()
   await expect.poll(() => visitTitles(page)).toEqual(['Alpha', 'Beta'])
 })
@@ -301,37 +303,45 @@ test('T-18-15 reduced motion jumps to the schedule view', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto(japanTrip)
   await waitForMap(page)
-  await jumpToTokyo(page)
-  await expect.poll(async () => (await mapView(page)).zoom).toBeGreaterThan(9)
+  // Start in Kyoto, away from the schedule's frame: its first entry's spots
+  // or, when it has none, all spots (R-42-07), both further east.
   await page.evaluate(() => {
     const map = (
       window as unknown as {
-        __tripboardMap?: {
-          on: (type: string, listener: () => void) => void
-          getZoom: () => number
-        }
+        __tripboardMap?: { jumpTo: (options: object) => void }
       }
     ).__tripboardMap
-    const samples: number[] = []
-    ;(window as unknown as { __moveZooms?: number[] }).__moveZooms = samples
-    map?.on('move', () => {
-      samples.push(map.getZoom())
-    })
+    map?.jumpTo({ center: [135.77, 35.0], zoom: 11 })
+  })
+  await expect.poll(async () => (await mapView(page)).lng).toBeLessThan(136)
+  await page.evaluate(() => {
+    const map = (
+      window as unknown as {
+        __tripboardMap?: { on: (type: string, listener: () => void) => void }
+      }
+    ).__tripboardMap
+    const events: string[] = []
+    ;(window as unknown as { __moveEvents?: string[] }).__moveEvents = events
+    for (const type of ['movestart', 'move', 'moveend']) {
+      map?.on(type, () => events.push(type))
+    }
   })
   await page.getByRole('link', { name: 'Schedule', exact: true }).click()
+  await expect(page.getByTestId('schedule-list')).toBeVisible()
   await expect
-    .poll(async () => (await mapView(page)).zoom, { timeout: 1_000 })
-    .toBeLessThan(8)
-  const zooms = await page.evaluate(
-    () => (window as unknown as { __moveZooms?: number[] }).__moveZooms ?? [],
+    .poll(async () => (await mapView(page)).lng, { timeout: 2_000 })
+    .toBeGreaterThan(136.5)
+  const events = await page.evaluate(
+    () => (window as unknown as { __moveEvents?: string[] }).__moveEvents ?? [],
   )
-  expect(zooms.length).toBeGreaterThan(0)
-  for (const zoom of zooms) {
-    expect(
-      zoom >= 8 && zoom < 11,
-      `zoom ${zoom} is between the start and the jump`,
-    ).toBe(false)
+  // A jump is one move between start and end; an animation has many.
+  const moves: number[] = []
+  for (const type of events) {
+    if (type === 'movestart') moves.push(0)
+    else if (type === 'move' && moves.length > 0) moves[moves.length - 1] += 1
   }
+  expect(moves.length).toBeGreaterThan(0)
+  for (const count of moves) expect(count).toBeLessThanOrEqual(1)
 })
 
 test('T-18-16 a board draft does not carry onto the schedule', async ({
@@ -449,6 +459,7 @@ async function move(page: Page, down: ReturnType<Page['getByTestId']>) {
       response.ok(),
   )
   await down.click()
+  await page.getByRole('menuitem', { name: 'Move down' }).click()
   await saved
 }
 

@@ -1,8 +1,40 @@
 {
-  "commit": "0089a6d",
+  "commit": "a38ee84",
   "date": "2026-10-23",
   "screenshots": 101,
   "groups": [
+    {
+      "key": "overlap/board-map/button[data-testid=\"pin-<id>\"]",
+      "check": "overlap",
+      "screen": "board-map",
+      "selector": "button[data-testid=\"pin-<id>\"]",
+      "name": "Shibuya Sky, Must go / teamLab Borderless, Must go",
+      "occurrences": [
+        "1280-dark",
+        "1280-light",
+        "390-dark",
+        "390-light",
+        "390-light-de",
+        "768-dark",
+        "768-light"
+      ]
+    },
+    {
+      "key": "overlap/trips/main.mx-auto > div.grid > article.relative > a.cursor-pointer",
+      "check": "overlap",
+      "screen": "trips",
+      "selector": "main.mx-auto > div.grid > article.relative > a.cursor-pointer",
+      "name": "Japan 2026Owner12 Apr 2026 – 24 Apr 2026SATCreated by Sven /",
+      "occurrences": [
+        "1280-dark",
+        "1280-light",
+        "390-dark",
+        "390-light",
+        "390-light-de",
+        "768-dark",
+        "768-light"
+      ]
+    },
     {
       "key": "small-text/board-map/div.relative > div.absolute > p.absolute > a.cursor-pointer",
       "check": "small-text",
@@ -36,49 +68,27 @@
       ]
     },
     {
-      "key": "target-size/not-found/div.flex > div.flex > main.mx-auto > a.cursor-pointer",
-      "check": "target-size",
-      "screen": "not-found",
-      "selector": "div.flex > div.flex > main.mx-auto > a.cursor-pointer",
-      "name": "Back home",
+      "key": "overlap/add-spot/button[data-testid=\"pin-<id>\"]",
+      "check": "overlap",
+      "screen": "add-spot",
+      "selector": "button[data-testid=\"pin-<id>\"]",
+      "name": "Fushimi Inari, Must go / Kyoto Ryokan",
       "occurrences": [
         "1280-dark",
         "1280-light",
-        "390-dark",
-        "390-light",
-        "390-light-de",
         "768-dark",
         "768-light"
       ]
     },
     {
-      "key": "target-size/trip-settings/[data-testid=\"settings-scroll\"] a",
-      "check": "target-size",
-      "screen": "trip-settings",
-      "selector": "[data-testid=\"settings-scroll\"] a",
-      "name": "My trips",
+      "key": "overlap/schedule/button[data-testid=\"pin-<id>\"]",
+      "check": "overlap",
+      "screen": "schedule",
+      "selector": "button[data-testid=\"pin-<id>\"]",
+      "name": "Shibuya Sky, Must go / teamLab Borderless, Must go",
       "occurrences": [
         "1280-dark",
         "1280-light",
-        "390-dark",
-        "390-light",
-        "390-light-de",
-        "768-dark",
-        "768-light"
-      ]
-    },
-    {
-      "key": "target-size/trips/main.mx-auto > div.grid > article.flex > a.cursor-pointer",
-      "check": "target-size",
-      "screen": "trips",
-      "selector": "main.mx-auto > div.grid > article.flex > a.cursor-pointer",
-      "name": "Trip settings",
-      "occurrences": [
-        "1280-dark",
-        "1280-light",
-        "390-dark",
-        "390-light",
-        "390-light-de",
         "768-dark",
         "768-light"
       ]
@@ -166,126 +176,10 @@
       "check": "overlap",
       "screen": "board-list",
       "selector": "button[data-testid=\"card-<id>\"]",
-      "name": "Shibuya Sky13 Apr 2026 18:00 / Open Shibuya Sky in Google Ma",
+      "name": "Shibuya SkyPlanned · 13 Apr 2026 18:00 / Open Shibuya Sky in",
       "occurrences": [
         "390-dark",
         "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "overlap/board-map/div.relative > div.absolute > p.absolute > a.cursor-pointer",
-      "check": "overlap",
-      "screen": "board-map",
-      "selector": "div.relative > div.absolute > p.absolute > a.cursor-pointer",
-      "name": "OpenFreeMap / Add new",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/account/section.space-y-4 > div > div.flex > button.min-h-11",
-      "check": "target-size",
-      "screen": "account",
-      "selector": "section.space-y-4 > div > div.flex > button.min-h-11",
-      "name": "EN",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/admin-dashboard/div#root > main.mx-auto > a.cursor-pointer",
-      "check": "target-size",
-      "screen": "admin-dashboard",
-      "selector": "div#root > main.mx-auto > a.cursor-pointer",
-      "name": "My trips",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/admin-users/div#root > main.mx-auto > a.cursor-pointer",
-      "check": "target-size",
-      "screen": "admin-users",
-      "selector": "div#root > main.mx-auto > a.cursor-pointer",
-      "name": "My trips",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/board-map/button[data-testid=\"pin-<id>\"]",
-      "check": "target-size",
-      "screen": "board-map",
-      "selector": "button[data-testid=\"pin-<id>\"]",
-      "name": "Hotel Gracery",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/join-invalid/section.w-full > div.mb-4 > div.flex > button.min-h-11",
-      "check": "target-size",
-      "screen": "join-invalid",
-      "selector": "section.w-full > div.mb-4 > div.flex > button.min-h-11",
-      "name": "EN",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "target-size/login/main.mx-auto > div.mb-4 > div.flex > button.min-h-11",
-      "check": "target-size",
-      "screen": "login",
-      "selector": "main.mx-auto > div.mb-4 > div.flex > button.min-h-11",
-      "name": "EN",
-      "occurrences": [
-        "390-dark",
-        "390-light",
-        "390-light-de"
-      ]
-    },
-    {
-      "key": "overlap/spot-panel/button[data-testid=\"add-new\"]",
-      "check": "overlap",
-      "screen": "spot-panel",
-      "selector": "button[data-testid=\"add-new\"]",
-      "name": "Add new / Suggested photos",
-      "occurrences": [
-        "768-dark",
-        "768-light"
-      ]
-    },
-    {
-      "key": "overlap/spot-panel/div.relative > div.absolute > p.absolute > a.cursor-pointer",
-      "check": "overlap",
-      "screen": "spot-panel",
-      "selector": "div.relative > div.absolute > p.absolute > a.cursor-pointer",
-      "name": "OpenFreeMap / Delete spot",
-      "occurrences": [
-        "768-dark",
-        "768-light"
-      ]
-    },
-    {
-      "key": "overlap/add-spot/[data-testid=\"spot-panel-body\"] input",
-      "check": "overlap",
-      "screen": "add-spot",
-      "selector": "[data-testid=\"spot-panel-body\"] input",
-      "name": "Link / Abbrechen",
-      "occurrences": [
         "390-light-de"
       ]
     }

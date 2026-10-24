@@ -5,13 +5,14 @@ import type {
   TripInvite,
   TripRole,
 } from '@tripboard/shared'
-import { Copy, Trash2 } from 'lucide-react'
+import { Copy, Ellipsis, Trash2 } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button } from '../components/ui/button'
+import { Menu, MenuItem } from '../components/ui/menu'
 import { Select } from '../components/ui/select'
 import { useDataSaver } from '../lib/data-saver'
 import { onMembersRefresh } from '../live/bus'
@@ -52,6 +53,7 @@ export function MembersDialog({
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState<
     | { kind: 'transfer'; userId: string; name: string }
+    | { kind: 'remove'; userId: string; name: string }
     | { kind: 'leave' }
     | null
   >(null)
@@ -116,11 +118,6 @@ export function MembersDialog({
 
   return (
     <DialogFrame title={t('members.title')} onClose={onClose}>
-      <div className="mb-4 flex justify-end">
-        <Button variant="ghost" onClick={onClose}>
-          {t('members.close')}
-        </Button>
-      </div>
       {status === 'loading' ? <LoadingState /> : null}
       {status === 'error' ? (
         <ErrorState
@@ -142,6 +139,26 @@ export function MembersDialog({
               setMembers(next)
               setRole('planner')
               setInvites([])
+              setConfirm(null)
+            })
+          }}
+        />
+      ) : null}
+      {status === 'ready' && confirm?.kind === 'remove' ? (
+        <Confirm
+          title={t('members.removeTitle')}
+          body={t('members.removeBody', { name: confirm.name })}
+          confirmLabel={t('members.removeConfirm')}
+          danger
+          busy={busy}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            const target = confirm
+            void run(async () => {
+              await removeMember(tripId, target.userId)
+              setMembers((current) =>
+                current.filter((item) => item.userId !== target.userId),
+              )
               setConfirm(null)
             })
           }}
@@ -211,23 +228,24 @@ export function MembersDialog({
                         {t('trips.roles.visitor')}
                       </option>
                     </Select>
-                    <Button
-                      variant="danger"
-                      aria-label={t('members.remove', { name: member.name })}
-                      disabled={busy}
-                      onClick={() => {
-                        void run(async () => {
-                          await removeMember(tripId, member.userId)
-                          setMembers((current) =>
-                            current.filter(
-                              (item) => item.userId !== member.userId,
-                            ),
-                          )
-                        })
-                      }}
+                    <Menu
+                      label={t('members.actions', { name: member.name })}
+                      trigger={
+                        <Ellipsis aria-hidden="true" className="size-4" />
+                      }
                     >
-                      <Trash2 aria-hidden="true" className="size-4" />
-                    </Button>
+                      <MenuItem
+                        onSelect={() =>
+                          setConfirm({
+                            kind: 'remove',
+                            userId: member.userId,
+                            name: member.name,
+                          })
+                        }
+                      >
+                        {t('members.removeFromTrip')}
+                      </MenuItem>
+                    </Menu>
                   </>
                 ) : (
                   <span className="text-muted">{roleName(t, member.role)}</span>
@@ -335,6 +353,16 @@ export function MembersDialog({
                   })}
                 </ul>
               )}
+            </section>
+          ) : null}
+          {role === 'owner' ? (
+            <section
+              aria-labelledby="owner-title"
+              className="space-y-3 border-t border-border pt-4"
+            >
+              <h3 id="owner-title" className="font-semibold">
+                {t('members.ownerTitle')}
+              </h3>
               {others.length > 0 ? (
                 <TransferForm
                   members={others}
@@ -344,9 +372,12 @@ export function MembersDialog({
                   }
                 />
               ) : null}
-              <p className="text-sm text-muted">{t('members.ownerStays')}</p>
+              <p className="text-sm text-muted">
+                {t('members.ownerCannotLeave')}
+              </p>
             </section>
-          ) : (
+          ) : null}
+          {role === 'owner' ? null : (
             <Button
               variant="danger"
               disabled={busy}
@@ -379,11 +410,10 @@ function TransferForm({
   const [userId, setUserId] = useState(members[0]?.userId ?? '')
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-end gap-2">
       <Select
         id={selectId}
-        label={t('members.transfer')}
-        hideLabel
+        label={t('members.newOwner')}
         value={userId}
         disabled={busy}
         onChange={(event) => setUserId(event.target.value)}

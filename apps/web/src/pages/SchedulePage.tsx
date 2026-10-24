@@ -148,7 +148,10 @@ export function SchedulePage() {
   }, [attempt, id, reload, setEntries, t])
 
   const focus = useMemo(() => {
-    const entry = (entries ?? []).find((item) => item.id === selectedEntryId)
+    // R-42-07: with no entry picked, the map frames the first entry.
+    const entry =
+      (entries ?? []).find((item) => item.id === selectedEntryId) ??
+      (entries ?? [])[0]
     if (!entry) return null
     const points = entry.spots.flatMap((link) => {
       const spot = spots.find((item) => item.id === link.spotId)

@@ -26,6 +26,11 @@ import {
 } from './ui-review/notes.mjs'
 import { orderImages, stubFor } from './ui-review/queue.mjs'
 import { checkSketch, checkSketchLinks } from './ui-review/sketch.mjs'
+import {
+  buildPanel,
+  findingsTable,
+  implementationSets,
+} from './ui-review/changes.mjs'
 import { groupResults } from './ui-review/summarize.mjs'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..')
@@ -108,6 +113,7 @@ test('T-40-01 UI_REVIEW=1 lists exactly the 43 tests of the screen list', () => 
   )
   assert.equal(expected.length, 43)
   const { titles } = playwrightList({ UI_REVIEW: '1' }, [
+    'e2e/ui-review/capture.spec.ts',
     '--project',
     'ui-review',
   ])
@@ -119,7 +125,10 @@ test('T-40-01 the ui:review script runs summarize only after a passing playwrigh
     .scripts['ui:review']
   const parts = script.split('&&').map((part) => part.trim())
   assert.equal(parts.length, 2)
-  assert.match(parts[0], /^UI_REVIEW=1 playwright test --project ui-review$/)
+  assert.match(
+    parts[0],
+    /^UI_REVIEW=1 playwright test e2e\/ui-review\/capture\.spec\.ts --project ui-review$/,
+  )
   assert.equal(parts[1], 'node scripts/ui-review/summarize.mjs')
 
   const bin = tempDir()
@@ -1467,4 +1476,243 @@ test('T-41-04 a set with 7 U- IDs, a bad core rule, bad order or bad columns fai
     checkFixtureSketch((text) => text.replace('| Depends on |', '| After |')),
     /Implementation set columns must be: Set, Title, U- IDs, Screens, Core rules, Depends on/,
   )
+})
+
+// Step 42: the change panel (changes.mjs) and the refreshed report
+
+const changesCli = join(root, 'scripts', 'ui-review', 'changes.mjs')
+const reportText = readFileSync(join(root, 'docs', 'UI_REVIEW.md'), 'utf8')
+const realSketch = readFileSync(join(root, 'docs', 'MOBILE_SKETCH.md'), 'utf8')
+const reportRows = findingsTable(reportText)
+const sketchSets = implementationSets(realSketch)
+
+/** A manifest with one entry per U- ID of S-01..S-08; images are 390 where the row has it. */
+function fixtureManifest() {
+  const changes = sketchSets.flatMap((set) =>
+    set.ids.map((id) => {
+      const row = reportRows.find((entry) => entry.id === id)
+      const width = row.widths.includes('390') ? 390 : row.widths[0]
+      return {
+        id,
+        set: set.set,
+        done: `Fixed ${id}.`,
+        files: ['package.json'],
+        images: [`${row.screens[0]}-${width}-light`],
+      }
+    }),
+  )
+  return { step: 42, base: 'abc1234', changes }
+}
+
+/** Before and after dirs holding a stub JPEG for every image the manifest cites. */
+function changesFixture(manifest) {
+  const dir = tempDir()
+  for (const side of ['before', 'after']) {
+    mkdirSync(join(dir, side), { recursive: true })
+    writeFileSync(
+      join(dir, side, 'findings.json'),
+      JSON.stringify({ commit: `${side}01`, groups: [] }),
+    )
+    for (const change of manifest.changes) {
+      for (const image of change.images) {
+        writeFileSync(
+          join(dir, side, `${image}.jpg`),
+          Buffer.from([0xff, 0xd8]),
+        )
+      }
+    }
+  }
+  return dir
+}
+
+function runChanges(dir, manifest) {
+  const manifestPath = join(dir, 'changes.json')
+  writeFileSync(manifestPath, JSON.stringify(manifest))
+  const run = spawnSync(
+    'node',
+    [
+      changesCli,
+      '--before',
+      join(dir, 'before'),
+      '--after',
+      join(dir, 'after'),
+      '--manifest',
+      manifestPath,
+      '--out',
+      join(dir, 'out'),
+    ],
+    { cwd: root, encoding: 'utf8' },
+  )
+  return { ...run, out: join(dir, 'out') }
+}
+
+test('T-42-01 changes.mjs passes on the committed manifest with fixture captures', () => {
+  const file = join(root, 'docs', 'ui-review', 'changes-42.json')
+  assert.ok(existsSync(file), 'docs/ui-review/changes-42.json exists')
+  const manifest = JSON.parse(readFileSync(file, 'utf8'))
+  const dir = changesFixture(manifest)
+  try {
+    const run = runChanges(dir, manifest)
+    assert.equal(run.status, 0, run.stderr)
+    assert.ok(existsSync(join(run.out, 'index.html')))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('T-42-01 changes.mjs fails and writes nothing on a broken manifest', () => {
+  const base = fixtureManifest()
+  assert.equal(base.changes.length, 29)
+  const clone = () => JSON.parse(JSON.stringify(base))
+  const cases = [
+    [
+      /U-99: not in Findings/,
+      (m) => m.changes.push({ ...m.changes[0], id: 'U-99' }),
+    ],
+    [/U-07: in no set/, (m) => m.changes.push({ ...m.changes[0], id: 'U-07' })],
+    [
+      /U-02: set is S-03/,
+      (m) => {
+        m.changes.find((c) => c.id === 'U-02').set = 'S-03'
+      },
+    ],
+    [
+      /U-03: no entry/,
+      (m) => {
+        m.changes = m.changes.filter((c) => c.id !== 'U-03')
+      },
+    ],
+    [
+      /U-24: 2 entries/,
+      (m) => m.changes.push({ ...m.changes.find((c) => c.id === 'U-24') }),
+    ],
+    [
+      /U-02: file no\/such\/file\.ts does not exist/,
+      (m) => {
+        m.changes.find((c) => c.id === 'U-02').files = ['no/such/file.ts']
+      },
+    ],
+    [
+      /U-02: .* is missing in .*after/,
+      (m, dir) => rmSync(join(dir, 'after', 'board-map-390-light.jpg')),
+    ],
+    [
+      /U-02: "images" must have 1 to 6 names/,
+      (m) => {
+        m.changes.find((c) => c.id === 'U-02').images = Array(7).fill(
+          'board-map-390-light',
+        )
+      },
+    ],
+    [
+      /U-02: no image at 390/,
+      (m, dir) => {
+        m.changes.find((c) => c.id === 'U-02').images = ['board-map-1280-light']
+        for (const side of ['before', 'after'])
+          writeFileSync(join(dir, side, 'board-map-1280-light.jpg'), 'x')
+      },
+    ],
+  ]
+  for (const [expected, mutate] of cases) {
+    const manifest = clone()
+    const dir = changesFixture(manifest)
+    try {
+      mutate(manifest, dir)
+      const run = runChanges(dir, manifest)
+      assert.equal(run.status, 1, `${expected}: exit status`)
+      assert.match(run.stderr, expected)
+      assert.equal(existsSync(run.out), false, `${expected}: nothing written`)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+})
+
+test('T-42-02 the panel builder gives sections, cards, images and escaped text', () => {
+  const manifest = fixtureManifest()
+  manifest.changes.find((c) => c.id === 'U-02').done =
+    '<script>alert(1)</script>'
+  const html = buildPanel({
+    manifest,
+    findings: reportRows,
+    sets: sketchSets,
+    before: 'abc1234',
+    after: 'def5678',
+    date: '2026-10-23',
+  })
+  assert.match(html, /<title>UI changes — step 42<\/title>/)
+  const headings = [...html.matchAll(/<h2>(S-\d\d) — /g)].map((m) => m[1])
+  assert.deepEqual(
+    headings,
+    sketchSets.map((set) => set.set),
+  )
+  assert.equal([...html.matchAll(/<article id="U-\d\d"/g)].length, 29)
+  assert.match(html, /<article id="U-02" data-set="S-01">/)
+  assert.match(html, /alt="before: board-map-390-light"/)
+  assert.match(html, /alt="after: board-map-390-light"/)
+  assert.match(html, /loading="lazy"/)
+  assert.match(
+    html,
+    /<a href="img\/after\/board-map-390-light\.jpg" target="_blank"/,
+  )
+  assert.ok(!html.includes('<script>alert(1)</script>'))
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'))
+  assert.doesNotMatch(html, /(?:src|href)="https?:/)
+})
+
+test('T-42-02 changes.mjs copies only the cited images', () => {
+  const manifest = fixtureManifest()
+  const dir = changesFixture(manifest)
+  try {
+    writeFileSync(join(dir, 'before', 'uncited-390-light.jpg'), 'x')
+    writeFileSync(join(dir, 'after', 'uncited-390-light.jpg'), 'x')
+    const run = runChanges(dir, manifest)
+    assert.equal(run.status, 0, run.stderr)
+    const cited = new Set(manifest.changes.flatMap((c) => c.images))
+    for (const side of ['before', 'after']) {
+      const copied = readdirSync(join(run.out, 'img', side)).map((file) =>
+        file.replace(/\.jpg$/, ''),
+      )
+      assert.deepEqual([...copied].sort(), [...cited].sort())
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('T-42-20 the refreshed report marks the 29 rows fixed in step 42', () => {
+  for (const script of ['check.mjs', 'notes.mjs', 'sketch.mjs']) {
+    const run = spawnSync(
+      'node',
+      [join(root, 'scripts', 'ui-review', script)],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    )
+    assert.equal(run.status, 0, `${script}: ${run.stdout}${run.stderr}`)
+  }
+  const inSets = new Set(sketchSets.flatMap((set) => set.ids))
+  assert.equal(inSets.size, 29)
+  const stepOf = new Map()
+  const header = reportText.split('\n').find((l) => l.startsWith('| ID |'))
+  const stepColumn =
+    header
+      .split('|')
+      .map((c) => c.trim())
+      .indexOf('Step') - 1
+  for (const line of reportText.split('\n')) {
+    const cells = line
+      .split(/(?<!\\)\|/)
+      .slice(1, -1)
+      .map((c) => c.trim())
+    if (/^U-\d\d+$/.test(cells[0] ?? '') && cells.length === 9)
+      stepOf.set(cells[0], cells[stepColumn])
+  }
+  for (const [id, step] of stepOf) {
+    if (inSets.has(id)) assert.equal(step, 'fixed in step 42', id)
+    else assert.notEqual(step, 'fixed in step 42', id)
+  }
+  const repeat = reportText.slice(reportText.indexOf('## How to repeat'))
+  assert.match(repeat, /pnpm ui:changes/)
 })

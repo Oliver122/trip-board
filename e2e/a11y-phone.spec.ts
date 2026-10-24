@@ -24,10 +24,9 @@ for (const theme of ['Dark', 'Light'] as const) {
     const { tripId } = await tripWithPhotos(page, `A11y phone ${theme}`)
     await page.goto(`/trips/${tripId}`)
     await page.getByRole('button', { name: 'More' }).click()
-    await page
-      .getByRole('dialog', { name: 'More' })
-      .getByRole('button', { name: theme })
-      .click()
+    const sheet = page.getByRole('dialog', { name: 'More' })
+    await sheet.getByRole('button', { name: /^Theme/ }).click()
+    await sheet.getByRole('radio', { name: theme }).check()
     await expectNoSeriousViolations(page, { label: `${theme} More sheet` })
     await page
       .getByRole('dialog', { name: 'More' })
@@ -36,7 +35,7 @@ for (const theme of ['Dark', 'Light'] as const) {
     await expectNoSeriousViolations(page, { label: `${theme} Map` })
 
     await page.goto(`/trips/${tripId}?view=list`)
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await expectNoSeriousViolations(page, { label: `${theme} List` })
 
     await page

@@ -89,7 +89,7 @@ test('T-07-04 viewport filtering hides spots outside the map', async ({
   await page.goto(japanTrip)
   await waitForMap(page)
   await expect(page.getByTestId(`card-${fushimi}`)).toBeVisible()
-  await page.getByRole('checkbox', { name: 'Only visible on map' }).check()
+  await page.getByRole('switch', { name: 'Only visible on map' }).check()
   await page.evaluate(() => {
     const map = (
       window as unknown as {
@@ -100,7 +100,7 @@ test('T-07-04 viewport filtering hides spots outside the map', async ({
   })
   await expect(page.getByTestId(`card-${fushimi}`)).toHaveCount(0)
   await expect(page.getByTestId(`card-${shibuya}`)).toBeVisible()
-  await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+  await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
   await expect(page.getByTestId(`card-${fushimi}`)).toBeVisible()
 })
 

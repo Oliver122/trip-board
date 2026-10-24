@@ -14,6 +14,9 @@ const uiReview = process.env.UI_REVIEW === '1'
 
 export default defineConfig({
   testDir: './e2e',
+  // Kept out of test-results/ itself, which a run would empty: the captures
+  // in test-results/ui-review*/ must survive later runs (R-42-01).
+  outputDir: 'test-results/playwright',
   snapshotPathTemplate:
     '{testDir}/{testFileName}-snapshots/{arg}-{platform}{ext}',
   fullyParallel: true,

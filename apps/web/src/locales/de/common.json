@@ -113,7 +113,8 @@
       "invalid": "Gib einen gültigen Wert ein.",
       "invalid_date": "Gib ein echtes Datum ein.",
       "required": "Wähle eine Region."
-    }
+    },
+    "actionsFor": "Aktionen für {{name}}"
   },
   "board": {
     "title": "Karte",
@@ -250,7 +251,10 @@
     "cluster": "{{count}} Orte",
     "map": "Karte",
     "attributionOsm": "OpenStreetMap",
-    "attributionOfm": "OpenFreeMap"
+    "attributionOfm": "OpenFreeMap",
+    "pickOnMap": "Auf Karte wählen",
+    "usePoint": "Diesen Punkt verwenden",
+    "pickHint": "Karte so verschieben, dass das Kreuz auf dem Ort liegt"
   },
   "schedule": {
     "title": "Zeitplan",
@@ -310,7 +314,11 @@
       "spans_days": "Ein Einzeltermin bleibt an einem Tag.",
       "end_before_start": "Die Endzeit liegt vor der Startzeit.",
       "end_time_needs_start": "Gib zuerst eine Startzeit ein."
-    }
+    },
+    "rowActions": "Aktionen für {{spot}}",
+    "menuMoveUp": "Nach oben",
+    "menuMoveDown": "Nach unten",
+    "removeFromBucket": "Aus dem Sammelplan entfernen"
   },
   "members": {
     "title": "Mitglieder",
@@ -328,7 +336,15 @@
     "cancel": "Abbrechen",
     "loadError": "Mitglieder konnten nicht geladen werden.",
     "saveError": "Mitglieder konnten nicht aktualisiert werden.",
-    "ownerStays": "Übertrage zuerst den Besitz, bevor du gehst."
+    "ownerStays": "Übertrage zuerst den Besitz, bevor du gehst.",
+    "actions": "Aktionen für {{name}}",
+    "removeFromTrip": "Aus Reise entfernen",
+    "removeTitle": "Aus Reise entfernen",
+    "removeBody": "{{name}} verliert den Zugriff auf diese Reise.",
+    "removeConfirm": "Entfernen",
+    "ownerTitle": "Besitzer",
+    "newOwner": "Neuer Besitzer",
+    "ownerCannotLeave": "Der Besitzer kann die Reise nicht verlassen. Übertrage zuerst den Besitz."
   },
   "invite": {
     "section": "Einladen",
@@ -352,7 +368,8 @@
     "join": "Reise beitreten",
     "unknown": "Dieser Einladungslink ist ungültig.",
     "loadError": "Diese Einladung konnte nicht geladen werden.",
-    "joinError": "Der Reise konnte nicht beigetreten werden."
+    "joinError": "Der Reise konnte nicht beigetreten werden.",
+    "unknownHint": "Bitte die Person, die dich eingeladen hat, um einen neuen Link."
   },
   "account": {
     "title": "Konto & Einstellungen",
@@ -679,7 +696,8 @@
       "set": "Abweichung setzen",
       "clear": "Standard verwenden",
       "saved": "Grenze für Arten gespeichert."
-    }
+    },
+    "phoneTitle": "Admin-Bereich"
   },
   "live": {
     "changed": "{{name}} hat diesen Ort geändert",
@@ -998,6 +1016,10 @@
     "openInMaps": "In Google Maps öffnen",
     "openSpotInMaps": "{{title}} in Google Maps öffnen",
     "kindsNote": "Verwalte Orts-Arten auf einem größeren Bildschirm.",
-    "adminNotice": "Der Admin-Bereich braucht einen größeren Bildschirm."
+    "adminNotice": "Der Admin-Bereich braucht einen größeren Bildschirm.",
+    "valueAuto": "Auto",
+    "valueOn": "An",
+    "valueOff": "Aus",
+    "lowDataHint": "Der Datensparmodus lädt keine Fotos, keine Karte und keine Avatare, bis du sie anforderst. Auto folgt deiner Verbindung."
   }
 }

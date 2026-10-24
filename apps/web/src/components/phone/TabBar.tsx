@@ -35,11 +35,14 @@ export function TabBar({
   active,
   onView,
   onMore,
+  onNavigate,
 }: {
   tripId: string
   active: PhoneTab
   onView: (view: PhoneView) => void
   onMore: () => void
+  /** Called when a tab that leaves the page is followed (closes the More sheet). */
+  onNavigate?: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -74,6 +77,7 @@ export function TabBar({
         to={`/trips/${tripId}/schedule`}
         aria-current={active === 'schedule' ? 'page' : undefined}
         className={cn(hoverClass.tab, tabClass(active === 'schedule'))}
+        onClick={onNavigate}
       >
         <Tab icon={Calendar} label={t('phone.schedule')} />
       </Link>

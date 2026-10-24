@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { expectNoSeriousViolations } from './a11y'
-import { expectHover, paint, visual } from './hover'
+import { expectHover } from './hover'
 
 const japanTrip = '/trips/10000000-0000-0000-0000-000000000001'
 const shibuya = '20000000-0000-0000-0000-000000000001'
@@ -43,20 +43,25 @@ test('T-20-03 hovered controls change and use a pointer', async ({ page }) => {
   await expectHover(page.getByRole('link', { name: 'Users' }))
 })
 
-test('T-20-04 a disabled reorder control does not react to hover', async ({
+// R-42-22: an impossible move is no longer a disabled button but is not shown,
+// so nothing disabled is left on the schedule. The check now covers the
+// absence of the disabled control and the hover rule of the row's ⋯ button.
+test('T-20-04 an impossible reorder move is not offered and the row menu keeps the hover rule', async ({
   page,
 }) => {
   await login(page, sven)
   await setLocale(page, 'en')
   await page.goto(`${japanTrip}/schedule`)
   await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible()
-  const up = page.locator('[data-testid^="move-up-"][disabled]').first()
-  await expect(up).toBeVisible()
-  const before = await paint(up)
-  await up.hover()
-  const after = await paint(up)
-  expect(after.cursor).toBe('not-allowed')
-  expect(visual(after)).toEqual(visual(before))
+  await expect(page.locator('[data-testid^="move-up-"][disabled]')).toHaveCount(
+    0,
+  )
+  const menu = page.locator('[data-testid^="row-menu-"]').first()
+  await expect(menu).toBeVisible()
+  await expectHover(menu)
+  await menu.click()
+  await expect(page.getByRole('menuitem', { name: 'Move up' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
 })
 
 test('T-20-05 reduced motion makes the hover transition instant', async ({
@@ -191,11 +196,16 @@ test('T-20-10 destructive actions use the danger look', async ({ page }) => {
 
   await page.goto(japanTrip)
   await page.getByRole('button', { name: /^Members/ }).click()
-  const remove = page.getByRole('button', { name: 'Remove Aiko' })
+  // R-42-19: removing a member is a neutral menu item; its confirm is danger.
+  await page.getByRole('button', { name: 'Actions for Aiko' }).click()
+  await page.getByRole('menuitem', { name: 'Remove from trip' }).click()
+  const remove = page
+    .getByRole('dialog', { name: 'Members' })
+    .getByRole('button', { name: 'Remove', exact: true })
   await expect(remove).toBeVisible()
-  expect(await remove.evaluate((el) => getComputedStyle(el).color)).toBe(
-    await token(page, '--danger', 'color'),
-  )
+  expect(
+    await remove.evaluate((el) => getComputedStyle(el).backgroundColor),
+  ).toBe(await token(page, '--danger-solid', 'backgroundColor'))
   await page.keyboard.press('Escape')
 
   await login(page, aiko)
