@@ -3,8 +3,8 @@
 **Goal:** fix the 29 findings that `docs/MOBILE_SKETCH.md` gives to the sets S-01..S-08, as the sketch draws them, and generate an HTML change panel that shows every fix with before and after screenshots so the owner can accept it or send it back.
 **Depends on:** 41
 **Result:** Run `pnpm ui:changes` and open `test-results/ui-changes/index.html` (no server needed): one card per fixed `U-` row, grouped by set, with the issue, what was done, the changed files and the before and after screenshots side by side. Mark cards *Accepted* or *Needs work* with a note, reload and the marks are still there, *Export verdicts* saves them as JSON. On a phone-sized window (390 px) the board map opens on the spots, pins are easy to tap, the header outside a trip is one row, schedule rows end in one ⋯ menu and the *More* sheet shows *Theme* and *Low data* as rows. In `docs/UI_REVIEW.md` the 29 rows say `fixed in step 42`
-**Core:** —
-**Status:** planned
+**Core:** C-OPS-53, C-OPS-50, C-MAP-03, C-MAP-08, C-MAP-04, C-APP-03, C-APP-05, C-APP-06, C-TRIP-10, C-APP-35, C-LIST-13, C-LIST-14, C-LIST-12, C-SPOT-18, C-SPOT-28, C-APP-24, C-APP-16, C-MEMB-19, C-PLAN-10, C-PLAN-14, C-PLAN-15, C-APP-36, C-APP-39, C-APP-25, C-APP-37, C-APP-40
+**Status:** integrated 2026-10-24
 
 ## Scope
 - In: the 29 `U-` rows of S-01..S-08 in `docs/MOBILE_SKETCH.md` *Implementation set* (U-01, U-02, U-03, U-04, U-05, U-06, U-09, U-11, U-12, U-13, U-14, U-15, U-16, U-17, U-18, U-22, U-24, U-25, U-26, U-27, U-28, U-33, U-34, U-36, U-37, U-38, U-39, U-42, U-44), fixed at every width in their *Widths* cell; the core rules the sets name; a before capture and an after capture with `pnpm ui:review` on a fresh seed; the manifest `docs/ui-review/changes-42.json`; `scripts/ui-review/changes.mjs` and `pnpm ui:changes`; the generated panel `test-results/ui-changes/`; the refresh of `docs/UI_REVIEW.md`.
