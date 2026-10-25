@@ -273,7 +273,9 @@ jobs:
 
   deploy:
     needs: ci-passed
-    if: ${{ success() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
+    # Not success(): it also counts the test jobs that pr-verified skips on
+    # main, which skipped every deploy. ci-passed already requires them.
+    if: ${{ !cancelled() && needs.ci-passed.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.repository == 'Oliver122/trip-board' }}
     runs-on: ubuntu-24.04
     environment: production
     concurrency:
