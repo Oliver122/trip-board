@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice, FieldError } from '../components/notice'
@@ -37,10 +38,20 @@ export function TripSettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 md:px-8">
-      <Link to="/trips" className={cn(hoverClass.link, 'text-sm text-muted')}>
-        {t('trips.back')}
-      </Link>
+      {phone ? null : (
+        <Link
+          to="/trips"
+          className={cn(
+            hoverClass.link,
+            'inline-flex min-h-11 items-center gap-1 text-sm text-muted',
+          )}
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+          {t('trips.back')}
+        </Link>
+      )}
       <SettingsForm
+        phone={phone}
         trip={trip}
         onUpdated={setTrip}
         onUnauthorized={reload}
@@ -107,12 +118,14 @@ function tripConflictRows(
 }
 
 function SettingsForm({
+  phone,
   trip,
   onUpdated,
   onUnauthorized,
   onDelete,
   kinds,
 }: {
+  phone: boolean
   trip: Trip
   onUpdated: (trip: Trip) => void
   onUnauthorized: () => void
@@ -212,12 +225,16 @@ function SettingsForm({
 
   return (
     <>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{trip.name}</h1>
-        <span className="rounded-full bg-card px-2 py-0.5 text-xs">
-          {roleName(t, trip.role)}
-        </span>
-      </div>
+      {phone ? (
+        <h1 className="sr-only">{trip.name}</h1>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-semibold">{trip.name}</h1>
+          <span className="rounded-full border border-border bg-card px-2 py-0.5 text-xs leading-4 text-foreground">
+            {roleName(t, trip.role)}
+          </span>
+        </div>
+      )}
       {dates ? <p className="mt-2 text-muted">{dates}</p> : null}
       {canEdit ? (
         <form
@@ -248,6 +265,7 @@ function SettingsForm({
           <input
             id="trip-settings-start"
             type="date"
+            lang={locale}
             value={start}
             onChange={(event) => setStart(event.target.value)}
             className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
@@ -259,6 +277,7 @@ function SettingsForm({
             <input
               id="trip-settings-end"
               type="date"
+              lang={locale}
               value={end}
               onChange={(event) => setEnd(event.target.value)}
               className="min-h-11 w-full rounded-[8px] border border-border bg-card px-3"

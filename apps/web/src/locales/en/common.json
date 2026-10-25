@@ -113,7 +113,8 @@
       "invalid": "Enter a valid value.",
       "invalid_date": "Enter a real date.",
       "required": "Choose a region."
-    }
+    },
+    "actionsFor": "Actions for {{name}}"
   },
   "board": {
     "title": "Board",
@@ -250,7 +251,10 @@
     "cluster": "{{count}} spots",
     "map": "Map",
     "attributionOsm": "OpenStreetMap",
-    "attributionOfm": "OpenFreeMap"
+    "attributionOfm": "OpenFreeMap",
+    "pickOnMap": "Pick on map",
+    "usePoint": "Use this point",
+    "pickHint": "Move the map so the cross is on the spot"
   },
   "schedule": {
     "title": "Schedule",
@@ -310,7 +314,11 @@
       "spans_days": "A single entry stays on one day.",
       "end_before_start": "The end time is before the start.",
       "end_time_needs_start": "Add a start time first."
-    }
+    },
+    "rowActions": "Actions for {{spot}}",
+    "menuMoveUp": "Move up",
+    "menuMoveDown": "Move down",
+    "removeFromBucket": "Remove from bucket"
   },
   "members": {
     "title": "Members",
@@ -328,7 +336,15 @@
     "cancel": "Cancel",
     "loadError": "Could not load members.",
     "saveError": "Could not update members.",
-    "ownerStays": "Transfer ownership before leaving."
+    "ownerStays": "Transfer ownership before leaving.",
+    "actions": "Actions for {{name}}",
+    "removeFromTrip": "Remove from trip",
+    "removeTitle": "Remove from trip",
+    "removeBody": "{{name}} will lose access to this trip.",
+    "removeConfirm": "Remove",
+    "ownerTitle": "Owner",
+    "newOwner": "New owner",
+    "ownerCannotLeave": "The owner can't leave the trip. Transfer ownership first."
   },
   "invite": {
     "section": "Invite",
@@ -352,7 +368,8 @@
     "join": "Join trip",
     "unknown": "This invite link is not valid.",
     "loadError": "Could not load this invite.",
-    "joinError": "Could not join the trip."
+    "joinError": "Could not join the trip.",
+    "unknownHint": "Ask the person who invited you for a new link."
   },
   "account": {
     "title": "Account & settings",
@@ -679,7 +696,8 @@
       "set": "Set override",
       "clear": "Use default",
       "saved": "Kind limit saved."
-    }
+    },
+    "phoneTitle": "Admin area"
   },
   "live": {
     "changed": "{{name}} changed this spot",
@@ -998,6 +1016,10 @@
     "openInMaps": "Open in Google Maps",
     "openSpotInMaps": "Open {{title}} in Google Maps",
     "kindsNote": "Manage spot kinds on a larger screen.",
-    "adminNotice": "The admin area needs a larger screen."
+    "adminNotice": "The admin area needs a larger screen.",
+    "valueAuto": "Auto",
+    "valueOn": "On",
+    "valueOff": "Off",
+    "lowDataHint": "Low data loads no photos, no map and no avatars until you ask for them. Auto follows your connection."
   }
 }

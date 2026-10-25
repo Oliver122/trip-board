@@ -1,11 +1,12 @@
 import { type JoinPreview } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { LanguageSwitch } from '../components/Preferences'
 import { ErrorNotice } from '../components/notice'
 import { ErrorState, LoadingState } from '../components/states'
 import { Button, buttonVariants } from '../components/ui/button'
+import { EmptyState } from '../components/ui/empty-state'
 import { cn } from '../lib/utils'
 import { ApiError, isAuth } from '../api/http'
 import { acceptJoin, previewJoin } from '../members/client'
@@ -69,6 +70,26 @@ export function JoinPage() {
 
   const next = `/join/${code}`
 
+  if (state === 'unknown') {
+    return (
+      <main className="flex-1 overflow-auto">
+        <EmptyState
+          testId="join-invalid"
+          title={t('join.unknown')}
+          body={t('join.unknownHint')}
+          action={
+            <Link
+              to="/trips"
+              className={cn(buttonVariants(), 'w-full sm:w-auto')}
+            >
+              {t('phone.back')}
+            </Link>
+          }
+        />
+      </main>
+    )
+  }
+
   return (
     <main className="grid flex-1 place-items-center bg-background px-4 py-8">
       <section className="w-full max-w-md rounded-card border border-border bg-card p-6 text-foreground shadow-panel">
@@ -92,12 +113,6 @@ export function JoinPage() {
           <>
             <h1 className="mb-2 text-xl font-semibold">{t('join.title')}</h1>
             <p>{t('invite.used')}</p>
-          </>
-        ) : null}
-        {state === 'unknown' ? (
-          <>
-            <h1 className="mb-2 text-xl font-semibold">{t('join.title')}</h1>
-            <p>{t('join.unknown')}</p>
           </>
         ) : null}
         {state === 'ready' && preview ? (

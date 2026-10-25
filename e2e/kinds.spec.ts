@@ -171,9 +171,16 @@ test('T-28-27 a spot with Food and Top shows split pin, split strip and both nam
   ).toHaveCSS('background-color', orange)
 
   await card.click()
-  const badge = page.getByRole('dialog').getByTestId('category-badge')
-  await expect(badge).toContainText('Top')
-  await expect(badge).toContainText('Food')
+  // R-42-17: no read-only badge, the choice shows once, in the chips.
+  const picker = page.getByRole('dialog').getByTestId('kind-picker')
+  await expect(picker.getByTestId(`chip-${trip.top}`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(picker.getByTestId(`chip-${trip.food}`)).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await page.getByRole('button', { name: 'Close' }).click()
 
   // A plan entry turns the pin into the Planned pin.
@@ -220,7 +227,11 @@ test('T-28-13 the spot panel lists the kinds in order, saves one, and limits to 
   await dialog.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const pin = page.getByTestId(`pin-${id}`)
-  await expect(pin).toHaveCSS('background-color', orange)
+  // The button is the 44 px hit area on phones; the colour is on its drawing.
+  await expect(pin.locator('[data-pin-drawing]')).toHaveCSS(
+    'background-color',
+    orange,
+  )
   await expect(pin.locator('[data-icon="food"]')).toBeVisible()
   await expect(
     page.getByTestId(`card-${id}`).getByTestId('category-strip'),

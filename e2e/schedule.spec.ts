@@ -108,8 +108,8 @@ test('T-11-03 drag and keyboard reorder persist', async ({ page }) => {
       response.request().method() === 'PUT' &&
       response.ok(),
   )
-  await page.getByTestId(`move-down-${secondLink}`).focus()
-  await page.keyboard.press('Enter')
+  await page.getByTestId(`row-menu-${secondLink}`).click()
+  await page.getByTestId(`move-down-${secondLink}`).click()
   await restored
   await expect
     .poll(() => visitTitles(page))
@@ -224,15 +224,18 @@ test('T-11-09 schedule passes axe and reorders from the keyboard', async ({
 
   await expectNoSeriousViolations(page)
 
-  const down = page.getByTestId(`move-down-${firstLink}`)
+  const menu = page.getByTestId(`row-menu-${firstLink}`)
   await page.getByTestId('add-bucket').focus()
   for (let step = 0; step < 40; step += 1) {
-    if (await down.evaluate((element) => element === document.activeElement)) {
+    if (await menu.evaluate((element) => element === document.activeElement)) {
       break
     }
     await page.keyboard.press('Tab')
   }
-  await expect(down).toBeFocused()
+  await expect(menu).toBeFocused()
+  // Enter opens the menu on its first item, Move down (the first row has no Move up)
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId(`move-down-${firstLink}`)).toBeFocused()
   const reordered = page.waitForResponse(
     (response) =>
       response.url().includes('/spots/order') &&

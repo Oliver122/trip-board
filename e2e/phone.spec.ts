@@ -90,7 +90,7 @@ test(
     await expect(sheet.getByRole('button', { name: 'Members' })).toBeVisible()
     await expect(sheet.getByTestId('more-news')).toBeVisible()
     await expect(sheet.getByTestId('data-saver-switch')).toBeVisible()
-    await expect(sheet.getByRole('group', { name: 'Theme' })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: /^Theme/ })).toBeVisible()
     await sheet.getByRole('button', { name: 'Close' }).click()
 
     await bar.getByRole('link', { name: 'Schedule' }).click()
@@ -128,7 +128,7 @@ test(
       'page',
     )
 
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await page
       .getByTestId('spot-list')
       .getByRole('button', { name: /Kinkaku-ji/ })
@@ -160,7 +160,7 @@ test(
   { tag: '@mobile' },
   async ({ page }) => {
     await openBoard(page, 'Phone panel', '?view=list')
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await page
       .getByTestId('spot-list')
       .getByRole('button', { name: /Kinkaku-ji/ })
@@ -205,7 +205,7 @@ test(
     await expect(page.getByRole('button', { name: 'Export' })).toHaveCount(0)
 
     // Gallery.
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await page
       .getByTestId('spot-list')
       .getByRole('button', { name: /Kinkaku-ji/ })
@@ -230,8 +230,11 @@ test(
     // Schedule.
     await page.goto(`/trips/${tripId}/schedule`)
     await expect(
-      page.getByRole('button', { name: /Move .* up/i }).first(),
+      page.getByRole('button', { name: /Actions for / }).first(),
     ).toBeAttached()
+    await expect(page.getByRole('button', { name: /Move .* up/i })).toHaveCount(
+      0,
+    )
     await expect(page.locator('[data-testid^="drag-"]')).toHaveCount(0)
 
     // Account.
@@ -280,7 +283,7 @@ test(
   { tag: '@mobile' },
   async ({ page }) => {
     const { tripId } = await openBoard(page, 'Phone maps link', '?view=list')
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await page
       .getByTestId('spot-list')
       .getByRole('button', { name: /Kinkaku-ji/ })
@@ -305,7 +308,7 @@ test(
 
     // A dragged, unsaved pin does not change the href.
     await page.goto(`/trips/${tripId}?view=list`)
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await page
       .getByTestId('spot-list')
       .getByRole('button', { name: /Kinkaku-ji/ })
@@ -324,7 +327,7 @@ test(
   { tag: '@mobile' },
   async ({ page }) => {
     await openBoard(page, 'Phone card link', '?view=list')
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     const link = page.getByRole('link', {
       name: 'Open Kinkaku-ji in Google Maps',
     })
@@ -355,7 +358,7 @@ test('G-6 screenshots of the board and the panel at 1280, 768 and 390 px', async
   for (const width of [1280, 768, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 })
     await page.goto(`/trips/${tripId}${width === 390 ? '?view=list' : ''}`)
-    await page.getByRole('checkbox', { name: 'Only visible on map' }).uncheck()
+    await page.getByRole('switch', { name: 'Only visible on map' }).uncheck()
     await expect(page.getByTestId('spot-list')).toBeVisible()
     await page.screenshot({
       path: `test-results/step-38/board-${width}.png`,

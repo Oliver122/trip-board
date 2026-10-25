@@ -1,16 +1,24 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { ChevronLeft, MapPin } from 'lucide-react'
+import { Check, ChevronLeft, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { request } from '../api/http'
 import { cn } from '../lib/utils'
 import { DevLoginBadge } from '../dev-login'
 import { useDataSaver } from '../lib/data-saver'
+import { useMediaQuery } from '../lib/media'
 import { useSession } from '../session'
+import { useTheme, type ThemeChoice } from '../theme'
 import { DataSaverBadge, DataSaverMenuItem } from './DataSaver'
 import { ThemeSwitch } from './Preferences'
 import { hoverClass } from './ui/hover'
 import { Menu, MenuItem, MenuLink } from './ui/menu'
+
+const themeChoices: Array<[ThemeChoice, string]> = [
+  ['light', 'header.themeLight'],
+  ['dark', 'header.themeDark'],
+  ['system', 'header.themeSystem'],
+]
 
 export function Header({
   tabs,
@@ -54,7 +62,7 @@ export function Header({
   }
 
   return (
-    <header className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-background px-4 py-2 md:px-8">
+    <header className="flex min-h-14 items-center gap-x-4 gap-y-2 border-b border-border bg-background px-4 py-2 max-lg:h-14 max-lg:py-0 md:px-8 lg:flex-wrap">
       <Link
         to="/trips"
         className={cn(
@@ -66,12 +74,14 @@ export function Header({
         {t('appName')}
       </Link>
       <div data-slot="tabs">{tabs}</div>
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+      <div className="ml-auto flex items-center gap-2 lg:flex-wrap">
         {news}
         <div data-slot="members">{members}</div>
         <DevLoginBadge />
         <DataSaverBadge />
-        <ThemeSwitch />
+        <div className="max-lg:hidden">
+          <ThemeSwitch />
+        </div>
         {user ? <AvatarMenu /> : null}
       </div>
     </header>
@@ -82,6 +92,9 @@ function AvatarMenu() {
   const { t } = useTranslation()
   const { user } = useSession()
   const { on: lowData } = useDataSaver()
+  const { theme, setTheme } = useTheme()
+  // The header's own theme switch takes over from 1024 px (R-42-10).
+  const narrow = useMediaQuery('(max-width: 1023.98px)')
 
   if (!user) return null
 
@@ -116,7 +129,7 @@ function AvatarMenu() {
               {user.username.slice(0, 1).toUpperCase()}
             </span>
           )}
-          <span data-testid="username" className="max-sm:sr-only">
+          <span data-testid="username" className="max-lg:sr-only">
             {user.username}
           </span>
         </>
@@ -124,6 +137,23 @@ function AvatarMenu() {
     >
       <MenuLink to="/account">{t('account.title')}</MenuLink>
       <DataSaverMenuItem />
+      {narrow ? (
+        <div role="group" aria-label={t('header.theme')}>
+          <p className="px-3 pt-1 text-xs text-muted">{t('header.theme')}</p>
+          {themeChoices.map(([choice, key]) => (
+            <MenuItem
+              key={choice}
+              testId={`menu-theme-${choice}`}
+              onSelect={() => setTheme(choice)}
+            >
+              <span className="flex-1">{t(key)}</span>
+              {theme === choice ? (
+                <Check aria-hidden="true" className="size-4" />
+              ) : null}
+            </MenuItem>
+          ))}
+        </div>
+      ) : null}
       {user.appRole === 'admin' ? (
         <MenuLink to="/admin">{t('header.admin')}</MenuLink>
       ) : null}

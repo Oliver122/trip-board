@@ -1,0 +1,408 @@
+{
+  "step": 42,
+  "base": "a38ee84",
+  "changes": [
+    {
+      "id": "U-02",
+      "set": "S-01",
+      "done": "Below 640 px every pin button is a 44 x 44 px hit area centred on the pin; the drawing inside stays 28 px (36 px selected). Where hit areas overlap, the pin drawn on top gets the tap.",
+      "files": [
+        "apps/web/src/map/Pin.tsx",
+        "apps/web/src/map/Pin.test.tsx",
+        "e2e/phone-map.spec.ts"
+      ],
+      "images": [
+        "board-map-390-light"
+      ]
+    },
+    {
+      "id": "U-03",
+      "set": "S-01",
+      "done": "Add new sits at bottom-12 at every width, above the OpenFreeMap / OpenStreetMap credit line, so nothing overlaps the attribution.",
+      "files": [
+        "apps/web/src/pages/BoardPage.tsx",
+        "e2e/phone-map.spec.ts"
+      ],
+      "images": [
+        "board-map-390-light"
+      ]
+    },
+    {
+      "id": "U-24",
+      "set": "S-01",
+      "done": "The board map opens fitted to all spots (48 px padding, at most zoom 15) and the schedule map frames the first entry's spots, else all spots; the trip region stays the pan limit and a URL-hash view still wins. With no spots both fit the region as before.",
+      "files": [
+        "apps/web/src/map/TripMap.tsx",
+        "apps/web/src/pages/SchedulePage.tsx",
+        "e2e/phone-map.spec.ts"
+      ],
+      "images": [
+        "board-map-390-light",
+        "board-map-768-light",
+        "schedule-390-light",
+        "schedule-768-light"
+      ]
+    },
+    {
+      "id": "U-01",
+      "set": "S-02",
+      "done": "Below 1024 px the page header is one row of 56 px: the logo, the Dev login badge and an avatar-only menu. The theme switch leaves the header there and sits in the avatar menu as Light, Dark and System; from 1024 px the header is unchanged.",
+      "files": [
+        "apps/web/src/components/Header.tsx",
+        "e2e/page-header.spec.ts"
+      ],
+      "images": [
+        "trips-390-light",
+        "board-map-768-light",
+        "schedule-390-light"
+      ]
+    },
+    {
+      "id": "U-04",
+      "set": "S-02",
+      "done": "The trip card's Trip settings link is a 44 × 44 px ⋯ menu button labelled \"Actions for <trip>\" with the item Trip settings. The My trips link above the trip settings title is at least 44 px high and has a leading chevron. Back home on the not-found page is done in the empty-state part.",
+      "files": [
+        "apps/web/src/trips/TripCard.tsx",
+        "apps/web/src/pages/TripSettingsPage.tsx",
+        "e2e/page-header.spec.ts",
+        "apps/web/src/pages/NotFoundPage.tsx",
+        "apps/web/src/components/ui/empty-state.tsx"
+      ],
+      "images": [
+        "trips-390-light",
+        "trip-settings-768-light",
+        "trips-1280-light",
+        "not-found-390-light"
+      ]
+    },
+    {
+      "id": "U-42",
+      "set": "S-02",
+      "done": "Below 640 px trip settings show no visible page heading and no My trips link under the trip header; the heading stays as a visually hidden h1.",
+      "files": [
+        "apps/web/src/pages/TripSettingsPage.tsx",
+        "e2e/page-header.spec.ts"
+      ],
+      "images": [
+        "trip-settings-390-light-de",
+        "trip-settings-390-light"
+      ]
+    },
+    {
+      "id": "U-25",
+      "set": "S-03",
+      "done": "Only visible on map uses the shared Switch (role switch, whole row is the label, 44 px high). Below 640 px it sits at the top of the list beside Filters; from 640 px it stays at the foot of the list and in the filter panel. The account page's List follows map uses the same Switch.",
+      "files": [
+        "apps/web/src/spots/SpotList.tsx",
+        "apps/web/src/spots/SpotToolbar.tsx",
+        "e2e/phone-list.spec.ts",
+        "apps/web/src/components/ui/switch.tsx",
+        "apps/web/src/pages/AccountPage.tsx"
+      ],
+      "images": [
+        "board-list-390-light",
+        "board-list-390-dark",
+        "board-list-390-light-de",
+        "account-390-light"
+      ]
+    },
+    {
+      "id": "U-26",
+      "set": "S-03",
+      "done": "A list card whose first visit has a date but no time shows only the date, formatted like the schedule. The card moved to list/SpotCard.tsx.",
+      "files": [
+        "apps/web/src/list/SpotCard.tsx",
+        "apps/web/src/list/SpotCard.test.tsx",
+        "apps/web/src/spots/SpotList.tsx"
+      ],
+      "images": [
+        "board-list-390-dark",
+        "board-list-390-light"
+      ]
+    },
+    {
+      "id": "U-27",
+      "set": "S-03",
+      "done": "The second line of a list card starts with the kind's name in words (Planned, Home, or the kind name), then a dot and the date or short address. The mark at the right keeps one 16 px icon style.",
+      "files": [
+        "apps/web/src/list/SpotCard.tsx",
+        "apps/web/src/list/SpotCard.test.tsx"
+      ],
+      "images": [
+        "board-list-390-light",
+        "board-list-390-light-de"
+      ]
+    },
+    {
+      "id": "U-28",
+      "set": "S-03",
+      "done": "The Not scheduled yet divider is a 12 px medium section label in the muted token with a rule across the rest of the column; contrast is at least 4.5 : 1 in both themes.",
+      "files": [
+        "apps/web/src/spots/SpotList.tsx",
+        "e2e/phone-list.spec.ts"
+      ],
+      "images": [
+        "board-list-390-dark",
+        "board-list-390-light"
+      ]
+    },
+    {
+      "id": "U-09",
+      "set": "S-04",
+      "done": "Below 640 px the add panel has no click-the-map hint but a Pick on map button that hides the sheet and shows the full map with a centre cross, Use this point (pin at the centre, reverse geocoded like a right-click) and Cancel. From 640 to 1023 px the panel covers the list column, leaving the map 488 px wide at 768 px.",
+      "files": [
+        "apps/web/src/spots/SpotPanel.tsx",
+        "apps/web/src/spots/Dialog.tsx",
+        "apps/web/src/pages/BoardPage.tsx",
+        "apps/web/src/map/center.ts",
+        "apps/web/src/locales/en/common.json",
+        "apps/web/src/locales/de/common.json",
+        "e2e/phone-spot-panel.spec.ts"
+      ],
+      "images": [
+        "add-spot-390-light",
+        "spot-panel-768-light"
+      ]
+    },
+    {
+      "id": "U-13",
+      "set": "S-04",
+      "done": "The category block shows the choice once (the read-only badge is gone), Planned (n) sits in the title row, the Info textarea has vertical padding so its placeholder is not clipped, and Link has the placeholder https://…",
+      "files": [
+        "apps/web/src/spots/SpotPanel.tsx",
+        "apps/web/src/spots/Dialog.tsx",
+        "e2e/phone-spot-panel.spec.ts"
+      ],
+      "images": [
+        "spot-panel-390-light",
+        "add-spot-768-light"
+      ]
+    },
+    {
+      "id": "U-14",
+      "set": "S-04",
+      "done": "Below 640 px the address is a wrapping field that grows to its text, and Copy address is a 44 x 44 px icon button beside it with the label as aria-label and title.",
+      "files": [
+        "apps/web/src/spots/SpotPanel.tsx",
+        "apps/web/src/spots/CopyAddress.tsx",
+        "e2e/phone-spot-panel.spec.ts"
+      ],
+      "images": [
+        "spot-panel-390-light",
+        "spot-panel-390-light-de"
+      ]
+    },
+    {
+      "id": "U-34",
+      "set": "S-04",
+      "done": "Below 640 px Delete spot is a labelled danger button (trash icon and text) at the end of the sheet instead of the icon in the footer beside Cancel and Save; the confirm of C-APP-16 is unchanged. In the members dialog a member is removed through the neutral item Remove from trip in a 44 px ⋯ row menu, and the final confirm stays a danger button.",
+      "files": [
+        "apps/web/src/spots/SpotPanel.tsx",
+        "e2e/phone-spot-panel.spec.ts",
+        "apps/web/src/members/MembersDialog.tsx",
+        "e2e/members-dialog.spec.ts"
+      ],
+      "images": [
+        "spot-panel-390-light",
+        "spot-panel-1280-light",
+        "members-390-light"
+      ]
+    },
+    {
+      "id": "U-05",
+      "set": "S-05",
+      "done": "Each spot row of a bucket now ends in one 44 × 44 px ⋯ menu (Actions for <spot>) with Move up, Move down and Remove from bucket in the neutral text colour; moves that are not possible on the first or last row are not shown. After a move focus returns to the moved row's ⋯ button and the live region still announces the position. Each row shows the kind's colour strip and symbol like a list card.",
+      "files": [
+        "apps/web/src/plan/ScheduleList.tsx",
+        "apps/web/src/plan/RowKind.tsx",
+        "apps/web/src/plan/ScheduleList.test.tsx",
+        "e2e/schedule-rows.spec.ts",
+        "e2e/schedule.spec.ts"
+      ],
+      "images": [
+        "schedule-390-light",
+        "schedule-390-dark",
+        "schedule-768-light",
+        "schedule-1280-light"
+      ]
+    },
+    {
+      "id": "U-39",
+      "set": "S-05",
+      "done": "Entry titles, their spot rows and Add spot now share one 16 px left edge, for buckets and single entries alike. The bucket's expand control moved to the right beside the edit button so the title starts at the same place as its rows.",
+      "files": [
+        "apps/web/src/plan/ScheduleList.tsx",
+        "e2e/schedule-rows.spec.ts"
+      ],
+      "images": [
+        "schedule-390-light",
+        "schedule-768-dark",
+        "schedule-1280-light"
+      ]
+    },
+    {
+      "id": "U-06",
+      "set": "S-06",
+      "done": "Below 640 px /admin/* now renders the page header with the avatar menu and the notice as the shared EmptyState (heading Admin area, the larger-screen line, primary button My trips) instead of a bare text page.",
+      "files": [
+        "apps/web/src/admin/AdminLayout.tsx",
+        "apps/web/src/components/ui/empty-state.tsx"
+      ],
+      "images": [
+        "admin-dashboard-390-light"
+      ]
+    },
+    {
+      "id": "U-11",
+      "set": "S-06",
+      "done": "The language and theme segmented controls are inline-flex so they hug their buttons, and every button is at least 44 x 44 px.",
+      "files": [
+        "apps/web/src/components/Preferences.tsx"
+      ],
+      "images": [
+        "login-390-light",
+        "account-390-light"
+      ]
+    },
+    {
+      "id": "U-12",
+      "set": "S-06",
+      "done": "The login card is the full width minus 16 px edges up to 400 px, the language control sits top right, and Continue with Discord is as wide as the card. The invalid invite no longer sits in a narrow card.",
+      "files": [
+        "apps/web/src/pages/LoginPage.tsx",
+        "apps/web/src/pages/JoinPage.tsx"
+      ],
+      "images": [
+        "login-390-light",
+        "join-invalid-390-light"
+      ]
+    },
+    {
+      "id": "U-15",
+      "set": "S-06",
+      "done": "An invalid invite shows the shared EmptyState: heading, Ask the person who invited you for a new link, and a primary My trips button that goes through login when signed out.",
+      "files": [
+        "apps/web/src/pages/JoinPage.tsx",
+        "apps/web/src/components/ui/empty-state.tsx"
+      ],
+      "images": [
+        "join-invalid-390-light",
+        "join-invalid-1280-light"
+      ]
+    },
+    {
+      "id": "U-38",
+      "set": "S-06",
+      "done": "Not-found uses the same EmptyState as the invalid invite and the admin notice, so all three share one alignment; Back home is a 44 px primary button.",
+      "files": [
+        "apps/web/src/pages/NotFoundPage.tsx",
+        "apps/web/src/components/ui/empty-state.tsx"
+      ],
+      "images": [
+        "not-found-390-light"
+      ]
+    },
+    {
+      "id": "U-18",
+      "set": "S-07",
+      "done": "The members dialog has one title row with the close button; the extra Close row is gone.",
+      "files": [
+        "apps/web/src/members/MembersDialog.tsx"
+      ],
+      "images": [
+        "members-390-light",
+        "members-1280-light"
+      ]
+    },
+    {
+      "id": "U-22",
+      "set": "S-07",
+      "done": "The More sheet rows sit on the 16 px edge, each with its value and a chevron, and the sheet ends above the bottom bar, which stays visible and usable; the account page shows theme and language as rows with the same label style.",
+      "files": [
+        "apps/web/src/components/phone/MoreSheet.tsx",
+        "apps/web/src/components/phone/TabBar.tsx",
+        "apps/web/src/components/AppShell.tsx",
+        "apps/web/src/components/ui/setting-row.tsx",
+        "apps/web/src/pages/AccountPage.tsx"
+      ],
+      "images": [
+        "more-sheet-390-light"
+      ]
+    },
+    {
+      "id": "U-33",
+      "set": "S-07",
+      "done": "The owner's transfer block is its own Owner section with a labelled New owner select and the line that the owner can't leave the trip (en and de).",
+      "files": [
+        "apps/web/src/members/MembersDialog.tsx"
+      ],
+      "images": [
+        "members-390-light",
+        "members-768-light"
+      ]
+    },
+    {
+      "id": "U-36",
+      "set": "S-07",
+      "done": "Theme is a row of the More sheet that opens Light, Dark and System; the segmented control in the sheet is gone.",
+      "files": [
+        "apps/web/src/components/phone/MoreSheet.tsx",
+        "apps/web/src/components/ui/setting-row.tsx"
+      ],
+      "images": [
+        "more-sheet-390-light"
+      ]
+    },
+    {
+      "id": "U-37",
+      "set": "S-07",
+      "done": "Low data is a row showing Auto, On or Off that opens the options with one line of explanation; the header badge appears when it is switched on.",
+      "files": [
+        "apps/web/src/components/DataSaver.tsx",
+        "apps/web/src/components/phone/MoreSheet.tsx",
+        "apps/web/src/components/ui/setting-row.tsx"
+      ],
+      "images": [
+        "more-sheet-390-light"
+      ]
+    },
+    {
+      "id": "U-16",
+      "set": "S-08",
+      "done": "The storage meter is a progressbar with a light track and an accent fill, so 0 MB shows an empty track; it keeps its accessible value.",
+      "files": [
+        "apps/web/src/pages/AccountPage.tsx"
+      ],
+      "images": [
+        "account-390-light",
+        "account-1280-light"
+      ]
+    },
+    {
+      "id": "U-17",
+      "set": "S-08",
+      "done": "The start and end date inputs of trip settings carry lang set to the app locale, so the browser shows them in the app language.",
+      "files": [
+        "apps/web/src/pages/TripSettingsPage.tsx",
+        "e2e/account-and-cards.spec.ts"
+      ],
+      "images": [
+        "trip-settings-390-light",
+        "trip-settings-1280-light"
+      ]
+    },
+    {
+      "id": "U-44",
+      "set": "S-08",
+      "done": "The role badge on a trip card is 12 px text with the border token, and is centred on the title line instead of aligned to the top.",
+      "files": [
+        "apps/web/src/trips/TripCard.tsx",
+        "e2e/account-and-cards.spec.ts"
+      ],
+      "images": [
+        "trips-390-light",
+        "trips-1280-dark"
+      ]
+    }
+  ]
+}

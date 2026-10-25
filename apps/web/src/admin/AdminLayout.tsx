@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { NavLink, Outlet, Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ThemeSwitch } from '../components/Preferences'
+import { Header } from '../components/Header'
+import { buttonVariants } from '../components/ui/button'
+import { EmptyState } from '../components/ui/empty-state'
 import { DevLoginBadge } from '../dev-login'
 import { hoverClass } from '../components/ui/hover'
 import { NotFoundPage } from '../pages/NotFoundPage'
@@ -88,12 +91,24 @@ function AdminLayout() {
 
   if (phone) {
     return (
-      <main className="mx-auto max-w-xl space-y-3 p-6">
-        <p data-testid="admin-phone-notice">{t('phone.adminNotice')}</p>
-        <Link to="/trips" className={hoverClass.link}>
-          {t('phone.back')}
-        </Link>
-      </main>
+      <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
+        <Header />
+        <main className="min-h-0 flex-1 overflow-auto">
+          <EmptyState
+            testId="admin-phone-notice"
+            title={t('admin.phoneTitle')}
+            body={t('phone.adminNotice')}
+            action={
+              <Link
+                to="/trips"
+                className={cn(buttonVariants(), 'w-full sm:w-auto')}
+              >
+                {t('phone.back')}
+              </Link>
+            }
+          />
+        </main>
+      </div>
     )
   }
 

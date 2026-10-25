@@ -68,30 +68,26 @@ describe('schedule reorder controls', () => {
     await i18n.changeLanguage('en')
   })
 
-  it('T-18-06 uses icon buttons and disables the ends', () => {
+  // T-42-13: one ⋯ menu per row, impossible moves are not shown
+  it('T-18-06 ends each row in one menu without the impossible move', () => {
     renderList()
-    const up = screen.getByRole('button', { name: 'Move Alpha up' })
-    const down = screen.getByRole('button', { name: 'Move Beta down' })
-    expect(up).toBeDisabled()
-    expect(up.querySelector('svg')).toBeTruthy()
-    expect(up).toHaveAttribute('title', 'Move Alpha up')
-    expect(down).toBeDisabled()
-    expect(down.querySelector('svg')).toBeTruthy()
     expect(
-      screen.getByRole('button', { name: 'Move Alpha down' }),
-    ).toBeEnabled()
-    expect(screen.queryByText('Up')).not.toBeInTheDocument()
-    expect(screen.queryByText('Remove')).not.toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Move Alpha down' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Alpha' }))
     expect(
-      screen
-        .getByRole('button', { name: 'Remove Alpha from Tokyo' })
-        .querySelector('svg'),
-    ).toBeTruthy()
+      screen.queryByRole('menuitem', { name: 'Move up' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Move down' })).toBeVisible()
+    expect(
+      screen.getByRole('menuitem', { name: 'Remove from bucket' }),
+    ).toBeVisible()
   })
 
   it('announces the move and shows a drop line', () => {
     renderList()
-    fireEvent.click(screen.getByRole('button', { name: 'Move Alpha down' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Alpha' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move down' }))
     expect(screen.getByTestId(`visit-${alpha}`)).toHaveAttribute(
       'data-highlighted',
       'true',

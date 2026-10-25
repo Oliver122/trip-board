@@ -28,16 +28,27 @@ describe('Pin', () => {
     for (const category of ['planned', 'home'] as const) {
       const { unmount } = render(<Pin category={category} label="Spot" />)
       const pin = screen.getByRole('button', { name: 'Spot' })
-      expect(pin.getAttribute('style')).toContain(`var(--cat-${category})`)
+      const drawing = pin.querySelector('[data-pin-drawing]')
+      expect(drawing?.getAttribute('style')).toContain(`var(--cat-${category})`)
       expect(pin.querySelector(`[data-icon="${category}"]`)).not.toBeNull()
       unmount()
     }
   })
 
+  it('T-42-06 the button is the phone hit area around a 28 px drawing', () => {
+    render(<Pin category="planned" label="Spot" />)
+    const pin = screen.getByRole('button', { name: 'Spot' })
+    expect(pin).toHaveClass('max-sm:size-11')
+    expect(pin.querySelector('[data-pin-drawing]')).toHaveClass('size-7')
+  })
+
   it('T-28-26 one kind: a single color and its symbol', () => {
     render(<Pin category="kind" kinds={[mustGo]} label="Spot" />)
     const pin = screen.getByRole('button', { name: 'Spot' })
-    expect(pin.style.backgroundColor).toBe('rgb(229, 72, 77)')
+    expect(
+      pin.querySelector<HTMLElement>('[data-pin-drawing]')?.style
+        .backgroundColor,
+    ).toBe('rgb(229, 72, 77)')
     expect(pin).toHaveAttribute('data-kind-colors', '#E5484D')
     expect(pin.querySelectorAll('[data-half]')).toHaveLength(0)
     expect(pin.querySelector('[data-icon="exclamation"]')).toHaveTextContent(

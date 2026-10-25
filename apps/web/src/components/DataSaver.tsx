@@ -9,6 +9,7 @@ import { useDataSaver, type DataSaverSetting } from '../lib/data-saver'
 import { cn } from '../lib/utils'
 import { hoverClass } from './ui/hover'
 import { MenuItem } from './ui/menu'
+import { SettingRow } from './ui/setting-row'
 
 export const dataSaverAnchor = 'data-saver'
 
@@ -56,27 +57,23 @@ export function DataSaverMenuItem() {
   )
 }
 
-/** Plain on/off switch (`button` with `aria-pressed`) for the phone's More sheet. */
-export function DataSaverSwitch() {
+/** Setting row (value, chevron, Auto / On / Off options) for the phone's More sheet. */
+export function DataSaverRow() {
   const { t } = useTranslation()
-  const { on, setSetting } = useDataSaver()
+  const { setting, setSetting } = useDataSaver()
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      data-testid="data-saver-switch"
-      className={cn(
-        hoverClass.item,
-        'flex min-h-12 w-full items-center gap-3 px-3 text-left text-sm',
-      )}
-      onClick={() => setSetting(on ? 'off' : 'on')}
-    >
-      <ImageOff aria-hidden="true" className="size-4" />
-      <span className="flex-1">{t('lowData.switch')}</span>
-      <span className="text-muted">
-        {on ? t('lowData.on') : t('lowData.off')}
-      </span>
-    </button>
+    <SettingRow<DataSaverSetting>
+      testId="data-saver-switch"
+      label={t('lowData.switch')}
+      hint={t('phone.lowDataHint')}
+      value={setting}
+      options={[
+        { value: 'auto', label: t('phone.valueAuto') },
+        { value: 'on', label: t('phone.valueOn') },
+        { value: 'off', label: t('phone.valueOff') },
+      ]}
+      onChange={setSetting}
+    />
   )
 }
 

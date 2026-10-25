@@ -6,6 +6,7 @@ import { LanguageSwitch } from '../components/Preferences'
 import { ErrorNotice } from '../components/notice'
 import { Button, buttonVariants } from '../components/ui/button'
 import { useDevLogin } from '../dev-login'
+import { cn } from '../lib/utils'
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -39,8 +40,8 @@ export function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-4 py-8 md:px-8">
-      <div className="mb-4">
+    <main className="mx-auto w-full max-w-[432px] px-4 py-8">
+      <div className="mb-4 flex justify-end">
         <LanguageSwitch />
       </div>
       <h1 className="mb-4 text-xl font-semibold">{t('login.title')}</h1>
@@ -50,7 +51,7 @@ export function LoginPage() {
         </ErrorNotice>
       ) : null}
       <a
-        className={buttonVariants()}
+        className={cn(buttonVariants(), 'w-full')}
         href={`/api/auth/discord?next=${encodeURIComponent(next)}`}
       >
         {t('login.continue')}

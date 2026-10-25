@@ -49,56 +49,64 @@ export function Pin({
       data-kind-colors={marks.length > 0 ? kindColorsAttr(marks) : undefined}
       className={cn(
         hoverClass.pin,
-        'relative inline-flex items-center justify-center rounded-full border-0 p-0 text-sm font-semibold text-white',
-        selected
-          ? 'is-selected size-9 shadow-panel ring-[3px] ring-white'
-          : 'size-7',
-        hover && 'is-hover scale-110',
+        // Below 640 px the button is a 44 px hit area around the drawing.
+        'relative inline-flex items-center justify-center border-0 bg-transparent p-0 max-sm:size-11',
+        selected && 'is-selected',
+        hover && 'is-hover',
       )}
-      style={{
-        backgroundColor: primary
-          ? primary.color
-          : categoryColor(category === 'kind' ? 'planned' : category),
-      }}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {second && primary ? (
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 flex overflow-hidden rounded-full"
-        >
+      <span
+        data-pin-drawing
+        className={cn(
+          'relative inline-flex items-center justify-center rounded-full text-sm font-semibold text-white',
+          selected ? 'size-9 shadow-panel ring-[3px] ring-white' : 'size-7',
+          hover && 'scale-110',
+        )}
+        style={{
+          backgroundColor: primary
+            ? primary.color
+            : categoryColor(category === 'kind' ? 'planned' : category),
+        }}
+      >
+        {second && primary ? (
           <span
-            data-half="left"
-            className="block w-1/2"
-            style={{ backgroundColor: primary.color }}
+            aria-hidden="true"
+            className="absolute inset-0 flex overflow-hidden rounded-full"
+          >
+            <span
+              data-half="left"
+              className="block w-1/2"
+              style={{ backgroundColor: primary.color }}
+            />
+            <span
+              data-half="right"
+              className="block w-1/2"
+              style={{ backgroundColor: second.color }}
+            />
+          </span>
+        ) : null}
+        {textured && primary ? (
+          <SymbolMark
+            symbol={primary.symbol}
+            ringColor={primary.color}
+            className={cn('absolute', second ? 'inset-1' : 'inset-0')}
           />
+        ) : (
+          <span className="relative inline-flex items-center justify-center">
+            <PinIcon category={category} primary={primary} filled={filled} />
+          </span>
+        )}
+        {unread ? (
           <span
-            data-half="right"
-            className="block w-1/2"
-            style={{ backgroundColor: second.color }}
+            aria-hidden="true"
+            data-testid="pin-unread"
+            className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-accent ring-2 ring-background"
           />
-        </span>
-      ) : null}
-      {textured && primary ? (
-        <SymbolMark
-          symbol={primary.symbol}
-          ringColor={primary.color}
-          className={cn('absolute', second ? 'inset-1' : 'inset-0')}
-        />
-      ) : (
-        <span className="relative inline-flex items-center justify-center">
-          <PinIcon category={category} primary={primary} filled={filled} />
-        </span>
-      )}
-      {unread ? (
-        <span
-          aria-hidden="true"
-          data-testid="pin-unread"
-          className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-accent ring-2 ring-background"
-        />
-      ) : null}
+        ) : null}
+      </span>
     </button>
   )
 }

@@ -553,6 +553,8 @@ export function checkReport(markdown, { root, docsDir }) {
     for (const file of readdirSync(dirPath).sort()) {
       const full = join(dirPath, file)
       if (statSync(full).isDirectory() || file === 'findings.json') continue
+      // The manifest of a fix step (R-42-02), checked by changes.mjs.
+      if (/^changes-\d+\.json$/.test(file)) continue
       if (findingsSection && !citedFiles.has(file)) {
         problems.push(`File ${dir}/${file} is not cited by any finding`)
       }
