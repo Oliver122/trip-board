@@ -52,6 +52,10 @@ test('T-36-02 deploy keeps main-only conditions and runs after dispatch', () => 
   assert.match(j, /github\.ref == 'refs\/heads\/main'/)
   assert.match(j, /github\.event_name == 'workflow_dispatch'/)
   assert.match(j, /github\.repository == 'Oliver122\/trip-board'/)
+  // success() also counts the test jobs skipped after pr-verified, which
+  // skipped every verified deploy; only ci-passed's own result may decide.
+  assert.match(j, /!cancelled\(\) && needs\.ci-passed\.result == 'success'/)
+  assert.doesNotMatch(j, /if: \$\{\{ success\(\)/)
 })
 
 test('T-39-02 build job checks that no locale copy is built', () => {
