@@ -3,8 +3,8 @@
 **Goal:** a platform admin sets the largest image file per user (default 10 MB, platform default in Settings), and Wikipedia / Commons image links no longer fail because the full original is too big.
 **Depends on:** 16, 34
 **Result:** In `/admin/users/<aiko>` *Extend storage* set *Max file size* to 20 MB: the user detail shows “Max file size 20 MB · override”, aiko can upload a 15 MB photo and tom still gets “The image is larger than 10 MB.” before anything is sent. Drag a large photo from a Wikipedia article (or paste its `upload.wikimedia.org` original link, or a `…/wiki/File:…` or `#/media/File:…` link) into a spot's gallery: it is added, and a page link gets the Commons credit and license
-**Core:** —
-**Status:** planned
+**Core:** C-ADMIN-05, C-ADMIN-06, C-ADMIN-18, C-IMG-01, C-IMG-07, C-IMG-10, C-IMG-13, C-IMG-16, C-IMG-18, C-IMG-21, C-IMG-22
+**Status:** integrated 2026-10-27
 
 ## Scope
 - In: `users.max_file_bytes` override and `app_settings.default_max_file_bytes`; the effective limit in `POST /spots/:id/images`, `from-url` and `from-commons`; `maxFileBytes` in `GET /me/quota` and in the 413 `too_large` body; the admin user detail, *Extend storage* and Settings fields; the client size check before upload and the limit in the error text (en + de); rewriting Wikimedia original and oversized thumbnail URLs to the 2048 px rendition; Wikipedia / Commons `File:` page links stored like a Commons suggestion; docs (`docs/PROJECT_SCOPE.md` §5.7 and decision 15, `docs/database/DATABASE.md`).
