@@ -151,10 +151,12 @@ export async function getAdminUser(pool: Pool, id: string) {
   if (!row) return null
   const [profile, trips, actions, requests, defaults, sparkline] =
     await Promise.all([
-      pool.query<{ suspended_reason: string | null }>(
-        'SELECT suspended_reason FROM users WHERE id = $1',
-        [id],
-      ),
+      pool.query<{
+        suspended_reason: string | null
+        max_file_bytes: string | null
+      }>('SELECT suspended_reason, max_file_bytes FROM users WHERE id = $1', [
+        id,
+      ]),
       pool.query<{
         id: string
         name: string
@@ -184,8 +186,12 @@ export async function getAdminUser(pool: Pool, id: string) {
         [id],
       ),
       listRequestsForUser(pool, id),
-      pool.query<{ default_max_images: number; default_max_bytes: string }>(
-        'SELECT default_max_images, default_max_bytes FROM app_settings WHERE id = true',
+      pool.query<{
+        default_max_images: number
+        default_max_bytes: string
+        default_max_file_bytes: string
+      }>(
+        'SELECT default_max_images, default_max_bytes, default_max_file_bytes FROM app_settings WHERE id = true',
       ),
       activitySparkline(pool, 'actor_id', id),
     ])
@@ -196,7 +202,12 @@ export async function getAdminUser(pool: Pool, id: string) {
     defaults: {
       maxImages: num(settings?.default_max_images),
       maxBytes: num(settings?.default_max_bytes),
+      maxFileBytes: num(settings?.default_max_file_bytes),
     },
+    maxFileBytes: num(
+      profile.rows[0]?.max_file_bytes ?? settings?.default_max_file_bytes,
+    ),
+    maxFileBytesOverride: profile.rows[0]?.max_file_bytes != null,
     trips: trips.rows,
     actions: actions.rows.map(toAction),
     quotaRequests: requests,
@@ -211,6 +222,7 @@ export async function updateQuota(
   input: {
     maxImages?: number
     maxBytes?: number
+    maxFileBytes?: number
     reset?: boolean
     reason?: string
   },
@@ -220,17 +232,21 @@ export async function updateQuota(
     const current = await tx.query<{
       max_images: number | null
       max_bytes: string | null
-    }>('SELECT max_images, max_bytes FROM users WHERE id = $1 FOR UPDATE', [
-      userId,
-    ])
+      max_file_bytes: string | null
+    }>(
+      'SELECT max_images, max_bytes, max_file_bytes FROM users WHERE id = $1 FOR UPDATE',
+      [userId],
+    )
     const before = current.rows[0]
     if (!before) return { ok: false as const, status: 404 }
     const beforeValue = {
       maxImages: before.max_images,
       maxBytes: before.max_bytes === null ? null : num(before.max_bytes),
+      maxFileBytes:
+        before.max_file_bytes === null ? null : num(before.max_file_bytes),
     }
     const afterValue = input.reset
-      ? { maxImages: null, maxBytes: null }
+      ? { maxImages: null, maxBytes: null, maxFileBytes: null }
       : {
           maxImages:
             input.maxImages !== undefined
@@ -240,10 +256,19 @@ export async function updateQuota(
             input.maxBytes !== undefined
               ? input.maxBytes
               : beforeValue.maxBytes,
+          maxFileBytes:
+            input.maxFileBytes !== undefined
+              ? input.maxFileBytes
+              : beforeValue.maxFileBytes,
         }
     await tx.query(
-      'UPDATE users SET max_images = $2, max_bytes = $3 WHERE id = $1',
-      [userId, afterValue.maxImages, afterValue.maxBytes],
+      'UPDATE users SET max_images = $2, max_bytes = $3, max_file_bytes = $4 WHERE id = $1',
+      [
+        userId,
+        afterValue.maxImages,
+        afterValue.maxBytes,
+        afterValue.maxFileBytes,
+      ],
     )
     await writeAudit(tx, {
       adminId,

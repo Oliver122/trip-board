@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { maxFileBytesSchema } from './images.js'
 
 const optionalText = z
   .string()
@@ -119,7 +120,11 @@ export const adminUserDetailSchema = z.object({
   defaults: z.object({
     maxImages: z.number().int().nonnegative(),
     maxBytes: z.number().int().nonnegative(),
+    maxFileBytes: z.number().int().positive(),
   }),
+  /** R-43-05: the effective per-file limit and whether it is an override. */
+  maxFileBytes: z.number().int().positive(),
+  maxFileBytesOverride: z.boolean(),
   trips: z.array(
     z.object({
       id: z.string().uuid(),
@@ -183,6 +188,8 @@ export const appSettingsSchema = z.object({
   signupsEnabled: z.boolean(),
   /** R-29-07: kinds per trip unless the trip has an override. */
   defaultMaxKinds: z.number().int().min(1).max(64),
+  /** R-43-06: the per-file limit for users without an override. */
+  defaultMaxFileBytes: maxFileBytesSchema,
 })
 
 export type AppSettings = z.infer<typeof appSettingsSchema>
@@ -214,6 +221,7 @@ export const quotaPatchSchema = z
   .object({
     maxImages: z.number().int().nonnegative().optional(),
     maxBytes: z.number().int().nonnegative().optional(),
+    maxFileBytes: maxFileBytesSchema.optional(),
     reset: z.boolean().optional(),
     reason: reasonSchema.optional(),
   })
@@ -222,7 +230,8 @@ export const quotaPatchSchema = z
     (body) =>
       body.reset === true ||
       body.maxImages !== undefined ||
-      body.maxBytes !== undefined,
+      body.maxBytes !== undefined ||
+      body.maxFileBytes !== undefined,
     { message: 'empty' },
   )
 

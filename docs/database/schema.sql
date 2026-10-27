@@ -49,7 +49,8 @@ CREATE TABLE users (
   created_at     timestamptz NOT NULL DEFAULT now(),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   last_login_at  timestamptz,
-  last_seen_at   timestamptz  -- updated at most every 5 min by the API
+  last_seen_at   timestamptz, -- updated at most every 5 min by the API
+  max_file_bytes bigint      CHECK (max_file_bytes BETWEEN 1048576 AND 52428800)  -- largest image file override, 1-50 MiB (step 43)
 );
 
 CREATE INDEX users_created_at_idx   ON users (created_at);
@@ -507,7 +508,8 @@ CREATE TABLE app_settings (
   signups_enabled       boolean     NOT NULL DEFAULT true,
   updated_by            uuid        REFERENCES users(id) ON DELETE SET NULL,
   updated_at            timestamptz NOT NULL DEFAULT now(),
-  default_max_kinds     integer     NOT NULL DEFAULT 12 CHECK (default_max_kinds BETWEEN 1 AND 64)
+  default_max_kinds     integer     NOT NULL DEFAULT 12 CHECK (default_max_kinds BETWEEN 1 AND 64),
+  default_max_file_bytes bigint     NOT NULL DEFAULT 10485760 CHECK (default_max_file_bytes BETWEEN 1048576 AND 52428800)  -- 10 MiB per file (step 43)
 );
 INSERT INTO app_settings DEFAULT VALUES;
 
@@ -680,9 +682,11 @@ SELECT
   u.id                                              AS user_id,
   COALESCE(u.max_images, s.default_max_images)      AS max_images,
   COALESCE(u.max_bytes,  s.default_max_bytes)       AS max_bytes,
-  (u.max_images IS NOT NULL OR u.max_bytes IS NOT NULL) AS has_override,
+  (u.max_images IS NOT NULL OR u.max_bytes IS NOT NULL
+    OR u.max_file_bytes IS NOT NULL)                AS has_override,
   COALESCE(i.used_images, 0)                        AS used_images,
-  COALESCE(i.used_bytes, 0)::bigint                 AS used_bytes
+  COALESCE(i.used_bytes, 0)::bigint                 AS used_bytes,
+  COALESCE(u.max_file_bytes, s.default_max_file_bytes) AS max_file_bytes
 FROM users u
 CROSS JOIN app_settings s
 LEFT JOIN (

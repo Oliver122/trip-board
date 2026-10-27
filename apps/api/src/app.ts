@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { enterClientId } from './activity/client.js'
-import { healthResponseSchema, maxUploadBytes } from '@tripboard/shared'
+import { healthResponseSchema, fileSizeLimits } from '@tripboard/shared'
 import Fastify from 'fastify'
 import type { Pool } from 'pg'
 import { readCookie, SESSION_COOKIE } from './auth/cookies.js'
@@ -60,7 +60,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
         ? false
         : { level: 'info' },
     genReqId: () => randomUUID(),
-    bodyLimit: maxUploadBytes + 2 * 1024 * 1024,
+    bodyLimit: fileSizeLimits.default + 2 * 1024 * 1024,
   })
 
   app.setErrorHandler((error: unknown, request, reply) => {

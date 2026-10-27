@@ -31,7 +31,7 @@ A shared, map-first travel planning board: create a trip (e.g. *Japan 2026*), pi
 | 12 | Mobile | **Responsive** from day one; below 640 px a phone layout (bottom tab bar, one view per tab, fewer features) from step 38, with a *Low data* mode and an *Open in Google Maps* link on every spot |
 | 13 | Hosting | Not part of this plan. The app stays provider-agnostic (env-based config, Docker-friendly) |
 | 14 | Invite role | Owner picks the role per invite; **default visitor** |
-| 15 | Quotas | 100 images / 200 MB per user, 10 MB per file. No trip-wide cap for now |
+| 15 | Quotas | 100 images / 200 MB per user, 10 MB per file by default; the platform admin sets the per-file limit per user and as a platform default (1–50 MB, step 43). No trip-wide cap for now |
 | 16 | Owners | **Exactly one owner** per trip, transferable |
 | 17 | Export v1 | **CSV, PDF, iCal**. JSON / GPX / KML later |
 | 18 | Extras | None in v1; backlog in §10 |
@@ -184,7 +184,8 @@ Filters and sort are kept in the URL query (`?q=ramen&cat=must_go&sort=scheduled
 - **Per-user quota**: a platform default (set by admins) that an admin can override per user:
   - images (default **100**)
   - bytes (default **200 MB**, counted after compression)
-  - Hard per-file limit: **10 MB** before compression.
+  - largest file (default **10 MB** before compression, 1–50 MB; a per-user override and a platform default, step 43). The client checks it before sending and the error names the user's limit.
+- Photos from the web: a Wikimedia original or oversized thumbnail link is fetched as its 2048 px rendition (the image is resized to 2048 px anyway), and a Wikipedia / Commons `File:` page link is stored like a Commons suggestion, with credit and license (step 43).
 - Usage shown in account settings and in the upload control (“42 / 100 images · 63 / 200 MB”).
 - Deleting an image or spot frees quota. Images of a deleted trip are removed by a cleanup job.
 - Upload rate limit per user (e.g. 30/min) on top of the quota.

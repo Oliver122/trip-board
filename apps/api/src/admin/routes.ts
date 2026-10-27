@@ -31,6 +31,7 @@ import {
   userListQuerySchema,
 } from '@tripboard/shared'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import type { ZodError } from 'zod'
 import type { Pool } from 'pg'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import { requireAppRole } from '../auth/require-role.js'
@@ -220,7 +221,7 @@ export function registerAdminRoutes(
     const params = parseParams(idParams, request.params, reply)
     if (!params) return
     const body = quotaPatchSchema.safeParse(request.body)
-    if (!body.success) return sendError(reply, 400, 'invalid_request')
+    if (!body.success) return invalidFields(reply, body.error)
     const result = await updateQuota(pool, user.id, params.id, body.data, hooks)
     if (!result.ok) return sendError(reply, result.status, 'not_found')
     return result.user
@@ -479,7 +480,7 @@ export function registerAdminRoutes(
       return sendError(reply, 403, 'forbidden_origin')
     }
     const body = settingsPatchSchema.safeParse(request.body)
-    if (!body.success) return sendError(reply, 400, 'invalid_request')
+    if (!body.success) return invalidFields(reply, body.error)
     const result = await updateSettings(pool, user.id, body.data, hooks)
     if (!result.ok) return sendError(reply, result.status, 'not_found')
     return appSettingsSchema.parse(result.settings)
@@ -532,4 +533,14 @@ export function registerAdminRoutes(
     }).catch(() => undefined)
     return reply.code(201).send(result.request)
   })
+}
+
+// A 400 that names the fields that failed, e.g. maxFileBytes (R-43-05).
+function invalidFields(reply: FastifyReply, error: ZodError) {
+  const fields: Record<string, string> = {}
+  for (const issue of error.issues) {
+    const name = issue.path[0]
+    if (typeof name === 'string') fields[name] = 'invalid'
+  }
+  return sendError(reply, 400, 'invalid_request', { fields })
 }

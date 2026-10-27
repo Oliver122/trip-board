@@ -3,14 +3,16 @@
 // exists.
 import { webImageLimits, type PhotoSuggestion } from '@tripboard/shared'
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorNotice } from '../components/notice'
 import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
+import { getQuota } from './client'
 import type { Dropped } from './drop'
 import { DropZone, onPasteImage } from './DropZone'
 import type { QueuedPhoto } from './queue'
+import { tooLargeMessage } from './reasons'
 import { Suggestions } from './Suggestions'
 
 export type DraftPhotosProps = {
@@ -50,7 +52,16 @@ export function DraftPhotos({
 }: DraftPhotosProps) {
   const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
+  const [maxFileBytes, setMaxFileBytes] = useState<number | null>(null)
   const full = photos.length >= webImageLimits.queued
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getQuota(controller.signal)
+      .then((quota) => setMaxFileBytes(quota.maxFileBytes))
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
 
   function add(next: QueuedPhoto[]) {
     const room = webImageLimits.queued - photos.length
@@ -61,7 +72,7 @@ export function DraftPhotos({
       onChange([...photos, ...next.slice(0, room)])
   }
 
-  function handleDropped(dropped: Dropped) {
+  async function handleDropped(dropped: Dropped) {
     if (disabled) return
     if (dropped.kind === 'none') {
       setError(t('images.webNotAnImage'))
@@ -72,8 +83,18 @@ export function DraftPhotos({
       return
     }
     if (dropped.kind === 'files') {
+      // A drop right after opening may come before the quota read.
+      const limit =
+        maxFileBytes ??
+        (await getQuota().then(
+          (quota) => quota.maxFileBytes,
+          () => null,
+        ))
+      const files = dropped.files.filter(
+        (file) => limit === null || file.size <= limit,
+      )
       add(
-        dropped.files.map((file) => ({
+        files.map((file) => ({
           id: nextId(),
           kind: 'file',
           file,
@@ -81,6 +102,8 @@ export function DraftPhotos({
           label: file.name,
         })),
       )
+      if (limit !== null && files.length < dropped.files.length)
+        setError(tooLargeMessage(t, limit))
       return
     }
     if (

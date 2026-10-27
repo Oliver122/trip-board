@@ -49,6 +49,7 @@ erDiagram
         app_role app_role "user | admin"
         int max_images "override, null = default"
         bigint max_bytes "override, null = default"
+        bigint max_file_bytes "override, null = default"
         timestamptz suspended_at
         text suspended_reason
         timestamptz last_login_at
@@ -167,6 +168,7 @@ erDiagram
         bool id PK "single row"
         int default_max_images
         bigint default_max_bytes
+        bigint default_max_file_bytes
         bigint db_capacity_bytes
         bigint blob_capacity_bytes
         int capacity_warn_pct
@@ -239,7 +241,7 @@ All tables also have `created_at` (and `updated_at` where rows are edited), main
 ### users
 One row per Discord account. `discord_id` is the stable identity; `username`, `display_name` and `avatar_url` are refreshed on every login.
 - `app_role`: `admin` grants access to the admin area. Admins listed in the `ADMIN_DISCORD_IDS` env var are promoted on login, so the first admin never needs a manual SQL step.
-- `max_images` / `max_bytes` are **overrides**. `NULL` means the platform default from `app_settings` (100 images / 200 MiB). Admins extend a user's storage by setting an override.
+- `max_images` / `max_bytes` / `max_file_bytes` are **overrides**. `NULL` means the platform default from `app_settings` (100 images / 200 MiB / 10 MiB per file). Admins extend a user's storage by setting an override. `max_file_bytes` is the largest image file the user may upload or add from the web (`CHECK BETWEEN 1048576 AND 52428800`, 1–50 MiB, step 43).
 - `suspended_at` / `suspended_reason`: a suspended user cannot log in; a trigger deletes their sessions immediately. Their content stays visible to trip members.
 - `last_seen_at`: updated by the API at most every 5 minutes per user, for “active users” without a write on every request.
 
@@ -327,6 +329,7 @@ Cached Wikimedia Commons photo suggestions keyed by the point rounded to 4 decim
 ### app_settings
 Single row (`id = true`). Platform defaults and limits, editable in the admin area:
 - `default_max_images`, `default_max_bytes`: quota for users without an override.
+- `default_max_file_bytes` (default 10 MiB, `CHECK BETWEEN 1048576 AND 52428800`): the largest image file for users without a `max_file_bytes` override (step 43).
 - `db_capacity_bytes`, `blob_capacity_bytes`: the size of your database plan / storage bucket, entered by the admin. The app cannot resize the database itself; these values drive the usage bars and warnings.
 - `capacity_warn_pct`: warning threshold (default 80 %).
 - `default_max_kinds` (default 12, `CHECK BETWEEN 1 AND 64`): kinds per trip unless the trip has a `trips.max_kinds` override.
@@ -377,7 +380,7 @@ One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it
 | View | Purpose |
 | --- | --- |
 | `spots_view` | Every spot plus `display_category` (`home` stays home; otherwise `planned` if in ≥ 1 plan entry, else `kind`), `kinds` (jsonb array of `{id, name, preset, color, symbol}` in trip kind order, first = primary kind; `[]` for home), `primary_kind_order` (the primary kind's `sort_order`, null for home), `plan_count`, and `first_scheduled_at` (earliest visit, falling back to the entry's date/time) for the “scheduled first” sort |
-| `user_quota_usage` | `used_images`, `used_bytes` vs. effective `max_images`, `max_bytes` (override or default), `has_override` |
+| `user_quota_usage` | `used_images`, `used_bytes` vs. effective `max_images`, `max_bytes` (override or default), the effective per-file limit `max_file_bytes`, `has_override` (any of the three overrides set) |
 | `plan_entry_home` | Home spot per plan entry: the home spot whose stay overlaps the entry, falling back to the trip's primary home base |
 | `admin_user_overview` | Admin users table: role, status, quota usage, trips owned/joined, spots created, events in 30 days, last activity |
 | `admin_trip_overview` | Admin trips table: owner, members, spots, plan entries, images, image bytes, last activity |

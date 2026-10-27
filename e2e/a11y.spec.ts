@@ -263,6 +263,32 @@ for (const scheme of ['light', 'dark'] as const) {
   })
 }
 
+test('T-43-13 axe finds no serious issues on Extend storage and the admin Settings with the file size fields', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await login(page, '100000000000000001')
+  await page.goto('/admin/users/00000000-0000-0000-0000-000000000003')
+  await page.getByRole('button', { name: 'Extend storage' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Extend storage' })
+  await expect(
+    dialog.getByRole('spinbutton', { name: 'Max file size (MB)' }),
+  ).toBeVisible()
+  await expectNoSeriousViolations(page, 'Extend storage')
+  await dialog
+    .getByRole('spinbutton', { name: 'Max file size (MB)' })
+    .fill('60')
+  await expect(dialog.getByText('Between 1 and 50 MB')).toBeVisible()
+  await expectNoSeriousViolations(page, 'Extend storage with the range error')
+
+  await page.goto('/admin/settings')
+  await expect(
+    page.getByRole('spinbutton', { name: 'Default max file size (MB)' }),
+  ).toBeVisible()
+  await expectNoSeriousViolations(page, 'admin Settings')
+})
+
 async function login(page: Page, discordId: string) {
   await page.goto('/login')
   await page.evaluate(async (id) => {

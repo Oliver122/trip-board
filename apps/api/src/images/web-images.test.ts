@@ -299,7 +299,10 @@ describe('web photos', () => {
 
     const big = await fromUrl(owner, spotId, url('/big'))
     expect(big.statusCode).toBe(413)
-    expect(big.json()).toEqual({ error: 'too_large' })
+    expect(big.json()).toEqual({
+      error: 'too_large',
+      maxFileBytes: 10 * 1024 * 1024,
+    })
     await waitFor(() => bigClosed)
 
     const missing = await fromUrl(owner, spotId, url('/nothing'))

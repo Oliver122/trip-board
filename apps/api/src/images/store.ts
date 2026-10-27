@@ -96,9 +96,10 @@ export async function readQuota(
     max_images: number
     used_bytes: string | number
     max_bytes: string | number
+    max_file_bytes: string | number
   }>(
     `
-    SELECT used_images, max_images, used_bytes, max_bytes
+    SELECT used_images, max_images, used_bytes, max_bytes, max_file_bytes
     FROM user_quota_usage
     WHERE user_id = $1
     `,
@@ -111,6 +112,7 @@ export async function readQuota(
     maxImages: Number(row.max_images),
     usedBytes: Number(row.used_bytes),
     maxBytes: Number(row.max_bytes),
+    maxFileBytes: Number(row.max_file_bytes),
   }
 }
 

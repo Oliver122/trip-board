@@ -3,7 +3,7 @@ import {
   imageFromUrlSchema,
   imageListSchema,
   imageSchema,
-  maxUploadBytes,
+  fileSizeLimits,
   photoSuggestionListSchema,
   quotaSchema,
   webImageLimits,
@@ -51,6 +51,7 @@ import {
   parseWebUrl,
   type WebFetchOptions,
 } from './web-fetch.js'
+import { wikimediaFileTitle, wikimediaRendition } from './wikimedia.js'
 import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 
@@ -85,7 +86,7 @@ export async function registerImageRoutes(
   const secure = config.NODE_ENV === 'production'
 
   await app.register(multipart, {
-    limits: { fileSize: maxUploadBytes, files: 1 },
+    limits: { fileSize: fileSizeLimits.max, files: 1 },
   })
 
   const inTest = config.NODE_ENV === 'test'
@@ -114,16 +115,21 @@ export async function registerImageRoutes(
     })
   }
 
+  // The caller's effective per-file limit (R-43-02, R-43-03).
+  const maxFileBytesFor = async (userId: string) =>
+    (await readQuota(pool, userId))?.maxFileBytes ?? fileSizeLimits.default
+
   // The shared tail of every upload path: type, size, rate, resize, quota.
   const ingest = async (
     reply: FastifyReply,
     userId: string,
     spotId: string,
     file: Buffer,
+    maxFileBytes: number,
     source?: ImageSource,
   ) => {
-    if (file.length > maxUploadBytes) {
-      return sendError(reply, 413, 'too_large')
+    if (file.length > maxFileBytes) {
+      return sendError(reply, 413, 'too_large', { maxFileBytes })
     }
     if (!sniffImage(file)) {
       return sendError(reply, 415, 'unsupported_media')
@@ -153,6 +159,57 @@ export async function registerImageRoutes(
       return deny(reply, result.status === 413 ? 404 : result.status)
     }
     return reply.code(201).send(imageSchema.parse(result.image))
+  }
+
+  // A Commons file by title: license check, duplicate check, the rendition
+  // download and the credit (R-34-09); shared by from-commons and the File:
+  // page links of from-url (R-43-11).
+  const addCommonsFile = async (
+    reply: FastifyReply,
+    userId: string,
+    spotId: string,
+    fileTitle: string,
+    call: { maxFileBytes: number; missing: () => FastifyReply },
+  ) => {
+    let looked
+    try {
+      looked = await lookupCommonsFile(commonsClient(), fileTitle)
+    } catch (error) {
+      if (error instanceof CommonsError) {
+        return sendError(reply, 502, 'commons_failed')
+      }
+      throw error
+    }
+    if (looked.status === 'missing') return call.missing()
+    if (looked.status === 'rejected') {
+      return sendError(reply, 422, 'license_not_allowed')
+    }
+    const { file } = looked
+    if (await hasSourceImage(pool, spotId, file.descriptionUrl)) {
+      return sendError(reply, 409, 'already_added')
+    }
+
+    const downloaded = await fetchWebImage(
+      file.renditionUrl,
+      { ...webOptions(), maxBytes: call.maxFileBytes },
+      { hostAllowed: (host) => host === commonsRenditionHost },
+    )
+    if (!downloaded.ok) {
+      // A rendition outside upload.wikimedia.org is an unusable answer, not
+      // the user's fault.
+      return downloaded.code === 'url_not_allowed'
+        ? sendError(reply, 422, 'fetch_failed')
+        : sendDownloadFailure(reply, downloaded.code, call.maxFileBytes)
+    }
+    return ingest(reply, userId, spotId, downloaded.bytes, call.maxFileBytes, {
+      kind: 'commons',
+      url:
+        file.descriptionUrl.length <= webImageLimits.sourceUrl
+          ? file.descriptionUrl
+          : null,
+      credit: file.artist ? file.artist.slice(0, webImageLimits.credit) : null,
+      license: file.license.slice(0, webImageLimits.license) || null,
+    })
   }
 
   app.get('/me/quota', async (request, reply) => {
@@ -223,34 +280,46 @@ export async function registerImageRoutes(
       .send(bytes)
   })
 
-  app.post('/spots/:id/images', async (request, reply) => {
-    const user = await requireUser(request, reply, pool, now(), secure)
-    if (!user) return
-    if (!originAllowed(request, config)) {
-      return sendError(reply, 403, 'forbidden_origin')
-    }
-    const params = parseParams(idParams, request.params, reply)
-    if (!params) return
-    if (!(await uploadsEnabled(pool))) {
-      return sendError(reply, 503, 'uploads_paused', {
-        message: 'Uploads are paused',
-      })
-    }
+  app.post(
+    '/spots/:id/images',
+    // The global limit stays 12 MiB; this route takes the largest allowed
+    // file plus the multipart framing (R-43-02).
+    { bodyLimit: fileSizeLimits.max + uploadOverhead },
+    async (request, reply) => {
+      const user = await requireUser(request, reply, pool, now(), secure)
+      if (!user) return
+      if (!originAllowed(request, config)) {
+        return sendError(reply, 403, 'forbidden_origin')
+      }
+      const params = parseParams(idParams, request.params, reply)
+      if (!params) return
+      if (!(await uploadsEnabled(pool))) {
+        return sendError(reply, 503, 'uploads_paused', {
+          message: 'Uploads are paused',
+        })
+      }
 
-    const file = await readUpload(request, reply)
-    if (!file) return
-    if (file.length > maxUploadBytes) {
-      return sendError(reply, 413, 'too_large')
-    }
-    if (!sniffImage(file)) {
-      return sendError(reply, 415, 'unsupported_media')
-    }
-    if (!limiter.allow(user.id, now())) {
-      return sendError(reply, 429, 'rate_limited')
-    }
+      const maxFileBytes = await maxFileBytesFor(user.id)
+      // A declared size beyond the limit is refused before the body is read.
+      const declared = Number(request.headers['content-length'])
+      if (declared > maxFileBytes + uploadOverhead) {
+        return sendError(reply, 413, 'too_large', { maxFileBytes })
+      }
+      const file = await readUpload(request, reply, maxFileBytes)
+      if (!file) return
+      if (file.length > maxFileBytes) {
+        return sendError(reply, 413, 'too_large', { maxFileBytes })
+      }
+      if (!sniffImage(file)) {
+        return sendError(reply, 415, 'unsupported_media')
+      }
+      if (!limiter.allow(user.id, now())) {
+        return sendError(reply, 429, 'rate_limited')
+      }
 
-    return ingest(reply, user.id, params.id, file)
-  })
+      return ingest(reply, user.id, params.id, file, maxFileBytes)
+    },
+  )
 
   app.post('/spots/:id/images/from-url', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
@@ -281,14 +350,35 @@ export async function registerImageRoutes(
       return sendError(reply, 429, 'rate_limited')
     }
 
-    const downloaded = await fetchWebImage(url.toString(), web)
-    if (!downloaded.ok) return sendDownloadFailure(reply, downloaded.code)
-    return ingest(reply, user.id, params.id, downloaded.bytes, {
+    const maxFileBytes = await maxFileBytesFor(user.id)
+    // A Commons or Wikipedia File: page is stored like a Commons pick (R-43-11).
+    const page = wikimediaFileTitle(url)
+    if (page) {
+      return addCommonsFile(reply, user.id, params.id, page.fileTitle, {
+        maxFileBytes,
+        missing: () => sendError(reply, 422, 'fetch_failed'),
+      })
+    }
+
+    // A Wikimedia original or large thumb is fetched as its 2048 px
+    // rendition, and as the original when that rendition does not exist
+    // (R-43-10).
+    const fetchOptions = { ...web, maxBytes: maxFileBytes }
+    const rendition = wikimediaRendition(url)
+    let downloaded = await fetchWebImage(
+      (rendition ?? url).toString(),
+      fetchOptions,
+    )
+    if (rendition && !downloaded.ok && downloaded.code === 'fetch_failed') {
+      downloaded = await fetchWebImage(url.toString(), fetchOptions)
+    }
+    if (!downloaded.ok) {
+      return sendDownloadFailure(reply, downloaded.code, maxFileBytes)
+    }
+    const sourceUrl = rendition ? url.toString() : downloaded.finalUrl
+    return ingest(reply, user.id, params.id, downloaded.bytes, maxFileBytes, {
       kind: 'url',
-      url:
-        downloaded.finalUrl.length <= webImageLimits.sourceUrl
-          ? downloaded.finalUrl
-          : null,
+      url: sourceUrl.length <= webImageLimits.sourceUrl ? sourceUrl : null,
       credit: null,
       license: null,
     })
@@ -319,42 +409,9 @@ export async function registerImageRoutes(
       return sendError(reply, 429, 'rate_limited')
     }
 
-    let looked
-    try {
-      looked = await lookupCommonsFile(commonsClient(), body.data.fileTitle)
-    } catch (error) {
-      if (error instanceof CommonsError) {
-        return sendError(reply, 502, 'commons_failed')
-      }
-      throw error
-    }
-    if (looked.status === 'missing') return deny(reply, 404)
-    if (looked.status === 'rejected') {
-      return sendError(reply, 422, 'license_not_allowed')
-    }
-    const { file } = looked
-    if (await hasSourceImage(pool, params.id, file.descriptionUrl)) {
-      return sendError(reply, 409, 'already_added')
-    }
-
-    const downloaded = await fetchWebImage(file.renditionUrl, webOptions(), {
-      hostAllowed: (host) => host === commonsRenditionHost,
-    })
-    if (!downloaded.ok) {
-      // A rendition outside upload.wikimedia.org is an unusable answer, not
-      // the user's fault.
-      return downloaded.code === 'url_not_allowed'
-        ? sendError(reply, 422, 'fetch_failed')
-        : sendDownloadFailure(reply, downloaded.code)
-    }
-    return ingest(reply, user.id, params.id, downloaded.bytes, {
-      kind: 'commons',
-      url:
-        file.descriptionUrl.length <= webImageLimits.sourceUrl
-          ? file.descriptionUrl
-          : null,
-      credit: file.artist ? file.artist.slice(0, webImageLimits.credit) : null,
-      license: file.license.slice(0, webImageLimits.license) || null,
+    return addCommonsFile(reply, user.id, params.id, body.data.fileTitle, {
+      maxFileBytes: await maxFileBytesFor(user.id),
+      missing: () => deny(reply, 404),
     })
   })
 
@@ -425,22 +482,29 @@ export async function registerImageRoutes(
   })
 }
 
+// Multipart framing and form fields on top of the file itself.
+const uploadOverhead = 2 * 1024 * 1024
+
 function sendDownloadFailure(
   reply: FastifyReply,
   code: 'url_not_allowed' | 'fetch_failed' | 'too_large',
+  maxFileBytes: number,
 ) {
   if (code === 'url_not_allowed') return sendError(reply, 400, code)
-  if (code === 'too_large') return sendError(reply, 413, 'too_large')
+  if (code === 'too_large') {
+    return sendError(reply, 413, 'too_large', { maxFileBytes })
+  }
   return sendError(reply, 422, code)
 }
 
 async function readUpload(
   request: FastifyRequest,
   reply: FastifyReply,
+  maxFileBytes: number,
 ): Promise<Buffer | null> {
   let file
   try {
-    file = await request.file()
+    file = await request.file({ limits: { fileSize: maxFileBytes } })
   } catch {
     sendError(reply, 400, 'invalid_request', { fields: { file: 'invalid' } })
     return null
@@ -452,7 +516,7 @@ async function readUpload(
   const chunks: Buffer[] = []
   for await (const chunk of file.file) chunks.push(Buffer.from(chunk))
   if (file.file.truncated) {
-    sendError(reply, 413, 'too_large')
+    sendError(reply, 413, 'too_large', { maxFileBytes })
     return null
   }
   return Buffer.concat(chunks)

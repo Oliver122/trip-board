@@ -2,11 +2,12 @@ import { lookup as dnsLookup } from 'node:dns/promises'
 import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
-import { maxUploadBytes } from '@tripboard/shared'
+import { fileSizeLimits } from '@tripboard/shared'
 
 // Safe download of a user-chosen URL (R-34-03, R-34-04): only public
 // addresses, the connection goes to the address that was checked, at most 3
-// redirects (each one checked again), 10 s in total, 10 MB.
+// redirects (each one checked again), 10 s in total, at most `maxBytes`
+// (the caller's per-file limit, R-43-03).
 
 export const webFetchTimeoutMs = 10_000
 export const webFetchMaxRedirects = 3
@@ -80,7 +81,7 @@ export async function fetchWebImage(
 ): Promise<WebFetchResult> {
   const timeoutMs = options.timeoutMs ?? webFetchTimeoutMs
   const maxRedirects = options.maxRedirects ?? webFetchMaxRedirects
-  const maxBytes = options.maxBytes ?? maxUploadBytes
+  const maxBytes = options.maxBytes ?? fileSizeLimits.default
   let abort: (() => void) | null = null
   const timer = setTimeout(() => {
     abort?.()

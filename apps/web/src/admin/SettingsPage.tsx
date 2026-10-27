@@ -1,4 +1,4 @@
-import type { AppSettings } from '@tripboard/shared'
+import { fileSizeLimits, type AppSettings } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState, LoadingState } from '../components/states'
@@ -7,6 +7,8 @@ import { Button } from '../components/ui/button'
 import { megabytes } from '../images/format'
 import { useCapacityRefresh } from './AdminLayout'
 import { bytesFromMb, getSettings, saveSettings } from './client'
+
+const MIB = 1024 * 1024
 
 export function SettingsPage() {
   const { t } = useTranslation()
@@ -36,11 +38,16 @@ export function SettingsPage() {
     setSaved(false)
   }
 
+  const fileMb = megabytes(settings.defaultMaxFileBytes)
+  const fileMbValid =
+    fileMb >= fileSizeLimits.min / MIB && fileMb <= fileSizeLimits.max / MIB
+
   return (
     <form
       className="max-w-xl space-y-6"
       onSubmit={(event) => {
         event.preventDefault()
+        if (!fileMbValid) return
         setSaveFailed(false)
         void saveSettings(settings)
           .then((next) => {
@@ -64,6 +71,22 @@ export function SettingsPage() {
           value={megabytes(settings.defaultMaxBytes)}
           onChange={(value) => update('defaultMaxBytes', bytesFromMb(value))}
         />
+        <div>
+          <NumberField
+            label={t('admin.settings.maxFileMb')}
+            value={megabytes(settings.defaultMaxFileBytes)}
+            min={fileSizeLimits.min / MIB}
+            max={fileSizeLimits.max / MIB}
+            onChange={(value) =>
+              update('defaultMaxFileBytes', bytesFromMb(value))
+            }
+          />
+          {fileMbValid ? null : (
+            <p id="default-file-mb-error" className="mt-1 text-sm text-danger">
+              {t('admin.user.fileMbRange')}
+            </p>
+          )}
+        </div>
       </fieldset>
       <fieldset className="space-y-3">
         <legend className="font-semibold">{t('admin.settings.kinds')}</legend>
@@ -122,7 +145,9 @@ export function SettingsPage() {
       {saveFailed ? (
         <ErrorNotice>{t('admin.user.errors.save')}</ErrorNotice>
       ) : null}
-      <Button type="submit">{t('trips.save')}</Button>
+      <Button type="submit" disabled={!fileMbValid}>
+        {t('trips.save')}
+      </Button>
     </form>
   )
 }
