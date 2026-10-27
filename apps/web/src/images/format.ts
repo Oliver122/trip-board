@@ -2,6 +2,11 @@ export function megabytes(bytes: number): number {
   return Math.round(bytes / (1024 * 1024))
 }
 
+/** “20 MB” for a per-file limit: MiB, whole numbers, like the quota counter. */
+export function formatLimit(bytes: number): string {
+  return `${megabytes(bytes)} MB`
+}
+
 /** “240 kB” or “1.2 MB”, with the decimal separator of the active language. */
 export function formatSize(bytes: number, language: string): string {
   const locale = language.startsWith('de') ? 'de-DE' : 'en-GB'

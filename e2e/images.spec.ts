@@ -77,6 +77,7 @@ test('T-08-12 a full quota disables the drop zone', async ({ page }) => {
         maxImages: 100,
         usedBytes: 0,
         maxBytes: 209715200,
+        maxFileBytes: 10485760,
       },
     }),
   )

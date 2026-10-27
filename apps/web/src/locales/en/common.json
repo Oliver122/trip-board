@@ -469,7 +469,11 @@
         "save": "Could not save the change.",
         "self": "You cannot suspend your own account.",
         "last_admin": "The last admin cannot be removed or suspended."
-      }
+      },
+      "fileLimitOverride": "Max file size {{value}} MB · override",
+      "fileLimitDefault": "Max file size {{value}} MB · default",
+      "maxFileMb": "Max file size (MB)",
+      "fileMbRange": "Between 1 and 50 MB"
     },
     "trips": {
       "search": "Search trips",
@@ -525,7 +529,8 @@
       "signups": "New signups enabled",
       "saved": "Saved. The new values apply now.",
       "kinds": "Spot kinds",
-      "kindsPerTrip": "Kinds per trip"
+      "kindsPerTrip": "Kinds per trip",
+      "maxFileMb": "Default max file size (MB)"
     },
     "audit": {
       "admin": "Admin id",
@@ -949,7 +954,7 @@
       "commons_failed": "Wikimedia Commons did not answer.",
       "license_not_allowed": "This photo's license does not allow reuse here.",
       "already_added": "This photo is already on the spot.",
-      "too_large": "The image is larger than 10 MB.",
+      "too_large": "The image is larger than {{limit}}.",
       "unsupported_type": "This is not a supported image type.",
       "rate_limited": "Too many uploads, try again in a moment.",
       "invalid_url": "This is not a valid image link."

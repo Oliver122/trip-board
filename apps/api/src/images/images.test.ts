@@ -169,7 +169,10 @@ describe('images', () => {
     huge[2] = 0xff
     const tooBig = await upload(owner.cookie, spotId, huge, 'big.jpg')
     expect(tooBig.statusCode).toBe(413)
-    expect(tooBig.json()).toEqual({ error: 'too_large' })
+    expect(tooBig.json()).toEqual({
+      error: 'too_large',
+      maxFileBytes: 10 * 1024 * 1024,
+    })
 
     const pdf = await upload(
       owner.cookie,

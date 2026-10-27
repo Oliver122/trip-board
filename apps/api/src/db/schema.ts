@@ -64,6 +64,7 @@ export const users = pgTable(
     appRole: appRole('app_role').notNull().default('user'),
     maxImages: integer('max_images'),
     maxBytes: bigint('max_bytes', { mode: 'number' }),
+    maxFileBytes: bigint('max_file_bytes', { mode: 'number' }),
     suspendedAt: timestamp('suspended_at', {
       withTimezone: true,
       mode: 'date',
@@ -90,6 +91,10 @@ export const users = pgTable(
     ),
     check('users_max_images_check', sql`${table.maxImages} >= 0`),
     check('users_max_bytes_check', sql`${table.maxBytes} >= 0`),
+    check(
+      'users_max_file_bytes_check',
+      sql`${table.maxFileBytes} BETWEEN 1048576 AND 52428800`,
+    ),
     check(
       'users_suspended_reason_check',
       sql`char_length(${table.suspendedReason}) <= 500`,
@@ -692,6 +697,9 @@ export const appSettings = pgTable(
     uploadsEnabled: boolean('uploads_enabled').notNull().default(true),
     signupsEnabled: boolean('signups_enabled').notNull().default(true),
     defaultMaxKinds: integer('default_max_kinds').notNull().default(12),
+    defaultMaxFileBytes: bigint('default_max_file_bytes', { mode: 'number' })
+      .notNull()
+      .default(10485760),
     updatedBy: uuid('updated_by').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -708,6 +716,10 @@ export const appSettings = pgTable(
     check(
       'app_settings_default_max_bytes_check',
       sql`${table.defaultMaxBytes} >= 0`,
+    ),
+    check(
+      'app_settings_default_max_file_bytes_check',
+      sql`${table.defaultMaxFileBytes} BETWEEN 1048576 AND 52428800`,
     ),
     check(
       'app_settings_db_capacity_bytes_check',
@@ -897,6 +909,7 @@ export const userQuotaUsage = pgView('user_quota_usage', {
   hasOverride: boolean('has_override').notNull(),
   usedImages: integer('used_images').notNull(),
   usedBytes: bigint('used_bytes', { mode: 'number' }).notNull(),
+  maxFileBytes: bigint('max_file_bytes', { mode: 'number' }).notNull(),
 }).existing()
 
 export const kindLimitRequests = pgTable(

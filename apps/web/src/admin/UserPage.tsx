@@ -1,4 +1,4 @@
-import type { AdminUserDetail } from '@tripboard/shared'
+import { fileSizeLimits, type AdminUserDetail } from '@tripboard/shared'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router'
@@ -23,6 +23,8 @@ import {
   suspendUser,
   unsuspendUser,
 } from './client'
+
+const MIB = 1024 * 1024
 
 export function UserPage() {
   const { t } = useTranslation()
@@ -174,6 +176,15 @@ export function UserPage() {
             ? t('admin.user.limitOverride')
             : t('admin.user.limitDefault')}
         </p>
+        <p data-testid="file-limit">
+          {detail.maxFileBytesOverride
+            ? t('admin.user.fileLimitOverride', {
+                value: megabytes(detail.maxFileBytes),
+              })
+            : t('admin.user.fileLimitDefault', {
+                value: megabytes(detail.maxFileBytes),
+              })}
+        </p>
         {ratio >= 0.8 ? <p>{t('admin.user.nearLimit')}</p> : null}
       </section>
       <section className="mb-6" aria-labelledby="trips-heading">
@@ -291,11 +302,19 @@ function ExtendDialog({
   const { user, defaults } = detail
   const [images, setImages] = useState(String(user.maxImages))
   const [storage, setStorage] = useState(String(megabytes(user.maxBytes)))
+  const [fileMb, setFileMb] = useState(String(megabytes(detail.maxFileBytes)))
   const [reset, setReset] = useState(false)
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const nextImages = reset ? defaults.maxImages : Number(images)
   const nextBytes = reset ? defaults.maxBytes : bytesFromMb(Number(storage))
+  const fileMbValue = Number(fileMb)
+  const fileMbValid =
+    reset ||
+    (fileMb.trim() !== '' &&
+      Number.isInteger(fileMbValue) &&
+      fileMbValue >= fileSizeLimits.min / MIB &&
+      fileMbValue <= fileSizeLimits.max / MIB)
   const below =
     Number.isFinite(nextImages) &&
     Number.isFinite(nextBytes) &&
@@ -312,11 +331,17 @@ function ExtendDialog({
         onSubmit={(event) => {
           event.preventDefault()
           setError(null)
+          if (!fileMbValid) return
           const body = reset
             ? { reset: true, reason: reason.trim() || undefined }
             : {
                 maxImages: Number(images),
                 maxBytes: bytesFromMb(Number(storage)),
+                // Unchanged and not yet an override: leave it on the default.
+                ...(detail.maxFileBytesOverride ||
+                fileMb !== String(megabytes(detail.maxFileBytes))
+                  ? { maxFileBytes: bytesFromMb(fileMbValue) }
+                  : {}),
                 reason: reason.trim() || undefined,
               }
           void patchQuota(user.id, body)
@@ -346,6 +371,28 @@ function ExtendDialog({
             className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
           />
         </label>
+        <div>
+          <label className="block">
+            {t('admin.user.maxFileMb')}
+            <input
+              type="number"
+              min={fileSizeLimits.min / MIB}
+              max={fileSizeLimits.max / MIB}
+              step={1}
+              value={fileMb}
+              disabled={reset}
+              aria-invalid={!fileMbValid}
+              aria-describedby={fileMbValid ? undefined : 'file-mb-error'}
+              onChange={(event) => setFileMb(event.target.value)}
+              className="mt-1 min-h-11 w-full rounded-[8px] border border-border bg-card px-3"
+            />
+          </label>
+          {fileMbValid ? null : (
+            <p id="file-mb-error" className="mt-1 text-sm text-danger">
+              {t('admin.user.fileMbRange')}
+            </p>
+          )}
+        </div>
         <label className="flex min-h-11 items-center gap-2">
           <input
             type="checkbox"
@@ -365,7 +412,9 @@ function ExtendDialog({
         {below ? <p role="status">{t('admin.user.belowUsage')}</p> : null}
         {error ? <ErrorNotice>{error}</ErrorNotice> : null}
         <div className="flex gap-2">
-          <Button type="submit">{t('trips.save')}</Button>
+          <Button type="submit" disabled={!fileMbValid}>
+            {t('trips.save')}
+          </Button>
           <Button variant="outline" onClick={onClose}>
             {t('trips.cancel')}
           </Button>

@@ -20,7 +20,7 @@ import {
 import type { Dropped } from './drop'
 import { DropZone, onPasteImage } from './DropZone'
 import { formatSize, megabytes } from './format'
-import { photoErrorMessage } from './reasons'
+import { photoErrorMessage, tooLargeMessage } from './reasons'
 import { Suggestions } from './Suggestions'
 
 /**
@@ -132,8 +132,8 @@ export function Gallery({
     setQuota(nextQuota)
   }
 
-  async function run(work: () => Promise<void>) {
-    setError(null)
+  async function run(work: () => Promise<void>, notice: string | null = null) {
+    setError(notice)
     try {
       await work()
       await refresh()
@@ -158,7 +158,24 @@ export function Gallery({
       return
     }
     if (dropped.kind === 'files') {
-      const files = dropped.files
+      // A drop right after opening may come before the quota read.
+      const limit =
+        quota?.maxFileBytes ??
+        (await getQuota().then(
+          (next) => next.maxFileBytes,
+          () => null,
+        ))
+      const files = dropped.files.filter(
+        (file) => limit === null || file.size <= limit,
+      )
+      const notice =
+        limit !== null && files.length < dropped.files.length
+          ? tooLargeMessage(t, limit)
+          : null
+      if (files.length === 0) {
+        setError(notice)
+        return
+      }
       setProgress(0)
       await run(async () => {
         for (const file of files) {
@@ -167,7 +184,7 @@ export function Gallery({
             previews.set(saved.id, URL.createObjectURL(file))
           }
         }
-      })
+      }, notice)
       return
     }
     const url = dropped.url

@@ -1,8 +1,11 @@
 import {
+  apiErrorBodySchema,
+  fileSizeLimits,
   imageListSchema,
   imageSchema,
   photoSuggestionListSchema,
   quotaSchema,
+  type ApiErrorBody,
   type ImageList,
   type PhotoSuggestion,
   type Quota,
@@ -19,12 +22,30 @@ export async function listImages(
   })
 }
 
+let lastMaxFileBytes: number | null = null
+
+/** The per-file limit of the last quota read, or the default before any read. */
+export function knownMaxFileBytes(): number {
+  return lastMaxFileBytes ?? fileSizeLimits.default
+}
+
 export async function getQuota(signal?: AbortSignal): Promise<Quota> {
-  return requestJson('/api/me/quota', quotaSchema, { signal })
+  const quota = await requestJson('/api/me/quota', quotaSchema, { signal })
+  lastMaxFileBytes = quota.maxFileBytes
+  return quota
 }
 
 export function imageSrc(url: string): string {
   return url.startsWith('/api/') ? url : `/api${url}`
+}
+
+function readErrorBody(text: string): ApiErrorBody | null {
+  try {
+    const parsed = apiErrorBodySchema.safeParse(JSON.parse(text))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
 }
 
 export function uploadImage(
@@ -55,7 +76,7 @@ export function uploadImage(
         return
       }
       if (xhr.status === 413) {
-        reject(new Error('quota'))
+        reject(new ApiError(413, readErrorBody(xhr.responseText)))
         return
       }
       reject(new Error('upload'))

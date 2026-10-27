@@ -1,6 +1,22 @@
 import { z } from 'zod'
 
-export const maxUploadBytes = 10 * 1024 * 1024
+/**
+ * Step 43 (R-43-02): the largest image file per user. `default` applies
+ * unless the platform default or a per-user override says otherwise; every
+ * value stays between `min` and `max`. "MB" in texts means MiB.
+ */
+export const fileSizeLimits = {
+  min: 1024 * 1024,
+  max: 50 * 1024 * 1024,
+  default: 10 * 1024 * 1024,
+} as const
+
+/** A per-file limit in bytes: whole bytes from 1 MiB to 50 MiB (R-43-05). */
+export const maxFileBytesSchema = z
+  .number()
+  .int()
+  .min(fileSizeLimits.min)
+  .max(fileSizeLimits.max)
 
 export const imageSchema = z.object({
   id: z.string().uuid(),
@@ -32,6 +48,8 @@ export const quotaSchema = z.object({
   maxImages: z.number().int().nonnegative(),
   usedBytes: z.number().int().nonnegative(),
   maxBytes: z.number().int().nonnegative(),
+  /** Step 43 (R-43-04): the effective per-file limit. */
+  maxFileBytes: z.number().int().positive(),
 })
 
 export type Quota = z.infer<typeof quotaSchema>

@@ -469,7 +469,11 @@
         "save": "Die Änderung konnte nicht gespeichert werden.",
         "self": "Du kannst dein eigenes Konto nicht sperren.",
         "last_admin": "Der letzte Admin kann nicht entfernt oder gesperrt werden."
-      }
+      },
+      "fileLimitOverride": "Maximale Dateigröße {{value}} MB · Überschreibung",
+      "fileLimitDefault": "Maximale Dateigröße {{value}} MB · Standard",
+      "maxFileMb": "Maximale Dateigröße (MB)",
+      "fileMbRange": "Zwischen 1 und 50 MB"
     },
     "trips": {
       "search": "Reisen suchen",
@@ -525,7 +529,8 @@
       "signups": "Neue Anmeldungen aktiv",
       "saved": "Gespeichert. Die neuen Werte gelten sofort.",
       "kinds": "Spot-Arten",
-      "kindsPerTrip": "Arten pro Reise"
+      "kindsPerTrip": "Arten pro Reise",
+      "maxFileMb": "Standard für maximale Dateigröße (MB)"
     },
     "audit": {
       "admin": "Admin-ID",
@@ -949,7 +954,7 @@
       "commons_failed": "Wikimedia Commons hat nicht geantwortet.",
       "license_not_allowed": "Die Lizenz dieses Fotos erlaubt die Nutzung hier nicht.",
       "already_added": "Dieses Foto ist schon beim Ort.",
-      "too_large": "Das Bild ist größer als 10 MB.",
+      "too_large": "Das Bild ist größer als {{limit}}.",
       "unsupported_type": "Dieser Bildtyp wird nicht unterstützt.",
       "rate_limited": "Zu viele Uploads, versuch es gleich nochmal.",
       "invalid_url": "Das ist kein gültiger Bildlink."
