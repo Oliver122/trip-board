@@ -7,6 +7,7 @@ import { buildApp } from './app.js'
 import { RequestLimiter } from './http/limit.js'
 import { startHousekeeping } from './housekeeping/jobs.js'
 import { createS3Storage } from './images/storage.js'
+import { installProcessGuards } from './process-guards.js'
 
 const rootEnv = resolve(
   fileURLToPath(new URL('.', import.meta.url)),
@@ -31,6 +32,11 @@ export async function start() {
     await pool.end()
   })
 
+  installProcessGuards(
+    process,
+    (line) => console.error(line),
+    () => app.close(),
+  )
   await app.listen({ port: config.API_PORT, host: '127.0.0.1' })
   console.log(`API listening on http://127.0.0.1:${config.API_PORT}`)
   return app

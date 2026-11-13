@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"pnpm --filter @tripboard/api dev\"",
+    "dev": "concurrently --kill-others -n web,api -c cyan,magenta \"pnpm --filter @tripboard/web dev\" \"pnpm --filter @tripboard/api dev\"",
     "build": "pnpm -r --if-present build",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
