@@ -72,3 +72,13 @@ function firstDiff(left: string, right: string): string | null {
   }
   return null
 }
+
+describe('normalizeSchemaDump', () => {
+  it('ignores the per-database pg_attver value of Postgres 16.16 dumps', () => {
+    const dump = (value: number) =>
+      `ALTER TABLE ONLY public.activity_events ALTER COLUMN id SET (pg_attver=${value});`
+    expect(normalizeSchemaDump(dump(941317592))).toBe(
+      normalizeSchemaDump(dump(947202680)),
+    )
+  })
+})
