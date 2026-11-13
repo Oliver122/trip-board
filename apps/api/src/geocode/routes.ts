@@ -25,6 +25,7 @@ export type GeocodeRouteOptions = {
   config: AppConfig
   now: () => Date
   fetch?: typeof fetch
+  timeout?: (ms: number) => AbortSignal
   /** A shared service; built from `fetch` when not given. */
   service?: GeocodeService
 }
@@ -104,6 +105,7 @@ export function registerGeocodeRoutes(
         baseUrl: config.NOMINATIM_BASE_URL,
         userAgent: config.NOMINATIM_USER_AGENT,
         referer: config.WEB_ORIGIN,
+        timeout: options.timeout,
       }),
     )
 

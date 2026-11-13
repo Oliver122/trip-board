@@ -6,6 +6,7 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
+  type S3ClientConfig,
 } from '@aws-sdk/client-s3'
 import type { AppConfig } from '../config.js'
 
@@ -17,8 +18,16 @@ export type ObjectStorage = {
   list(): Promise<string[]>
 }
 
-export function createS3Storage(config: AppConfig): ObjectStorage {
-  const client = new S3Client({
+/** R-44-05: connect 3 s, request 15 s (uploads of large blobs). */
+export const s3Timeouts = {
+  connectionTimeout: 3000,
+  requestTimeout: 15000,
+  // Without this the handler only logs a warning when the timeout passes.
+  throwOnRequestTimeout: true,
+}
+
+export function s3ClientConfig(config: AppConfig): S3ClientConfig {
+  return {
     region: config.S3_REGION,
     endpoint: config.S3_ENDPOINT,
     forcePathStyle: true,
@@ -26,7 +35,12 @@ export function createS3Storage(config: AppConfig): ObjectStorage {
       accessKeyId: config.S3_ACCESS_KEY,
       secretAccessKey: config.S3_SECRET_KEY,
     },
-  })
+    requestHandler: { ...s3Timeouts },
+  }
+}
+
+export function createS3Storage(config: AppConfig): ObjectStorage {
+  const client = new S3Client(s3ClientConfig(config))
   const bucket = config.S3_BUCKET
   let ready = false
 
