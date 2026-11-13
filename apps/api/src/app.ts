@@ -34,6 +34,8 @@ export type BuildAppOptions = {
   config?: AppConfig
   now?: () => Date
   geocodeFetch?: typeof fetch
+  /** Abort-signal factory for the Nominatim fetch (step 44). */
+  geocodeTimeout?: (ms: number) => AbortSignal
   /** Follows Google Maps short links (step 33). */
   placeLinkFetch?: typeof fetch
   /** Downloads photos from the web (step 34). */
@@ -139,6 +141,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
       baseUrl: config.NOMINATIM_BASE_URL,
       userAgent: config.NOMINATIM_USER_AGENT,
       referer: config.WEB_ORIGIN,
+      timeout: options.geocodeTimeout,
     }),
   )
   registerGeocodeRoutes(app, { pool, config, now, service: geocode })

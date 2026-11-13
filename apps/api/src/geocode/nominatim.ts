@@ -25,7 +25,11 @@ export type NominatimClientOptions = {
   userAgent: string
   referer: string
   gate?: RequestGate
+  /** Builds the abort signal for one upstream call; injectable for tests (R-44-04). */
+  timeout?: (ms: number) => AbortSignal
 }
+
+export const nominatimTimeoutMs = 5000
 
 export class NominatimClient {
   private readonly fetch: typeof fetch
@@ -33,6 +37,7 @@ export class NominatimClient {
   private readonly userAgent: string
   private readonly referer: string
   private readonly gate: RequestGate
+  private readonly timeout: (ms: number) => AbortSignal
 
   constructor(options: NominatimClientOptions) {
     this.fetch = options.fetch
@@ -40,6 +45,7 @@ export class NominatimClient {
     this.userAgent = options.userAgent
     this.referer = options.referer
     this.gate = options.gate ?? new RequestGate(1000)
+    this.timeout = options.timeout ?? ((ms) => AbortSignal.timeout(ms))
   }
 
   search(input: {
@@ -70,6 +76,8 @@ export class NominatimClient {
   }
 
   private async getJson(url: URL): Promise<unknown> {
+    // One signal covers the headers and the body read (R-44-04).
+    const signal = this.timeout(nominatimTimeoutMs)
     let response: Response
     try {
       response = await this.fetch(url, {
@@ -78,6 +86,7 @@ export class NominatimClient {
           'user-agent': this.userAgent,
           referer: this.referer,
         },
+        signal,
       })
     } catch {
       throw new GeocodeUpstreamError()

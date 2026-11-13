@@ -149,7 +149,7 @@ Requires=docker.service
 WorkingDirectory=${DEPLOY_PATH}
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/usr/local/bin/pnpm dev
-Restart=on-failure
+Restart=always
 RestartSec=3
 
 [Install]

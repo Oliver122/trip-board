@@ -10,7 +10,9 @@ export type ProcessedImage = {
 
 /** Auto-rotate, drop EXIF/GPS, fit inside 2048 px, and encode WebP. */
 export async function processImage(input: Buffer): Promise<ProcessedImage> {
-  const { data, info } = await sharp(input)
+  // Pinned explicitly (sharp's default, 16383 x 16383): a larger declared
+  // bitmap fails to decode instead of exhausting memory (R-44-07).
+  const { data, info } = await sharp(input, { limitInputPixels: 268402689 })
     .rotate()
     .resize({
       width: longestSide,

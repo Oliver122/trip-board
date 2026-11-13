@@ -7,6 +7,8 @@ type WebhookOptions = {
   now: Date
 }
 
+export const webhookTimeoutMs = 5000
+
 function utcDay(now: Date): string {
   return now.toISOString().slice(0, 10)
 }
@@ -16,12 +18,20 @@ async function postDiscord(
   content: string,
   fetchImpl: typeof fetch,
 ): Promise<void> {
-  const response = await fetchImpl(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content }),
-  })
-  if (!response.ok) throw new Error(`webhook ${response.status}`)
+  // R-44-05: abort after 5 s; a timer (not AbortSignal.timeout) so fake timers work.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), webhookTimeoutMs)
+  try {
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ content }),
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`webhook ${response.status}`)
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 async function alreadySent(

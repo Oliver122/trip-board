@@ -127,6 +127,8 @@ export async function registerImageRoutes(
     file: Buffer,
     maxFileBytes: number,
     source?: ImageSource,
+    // Runs when the file fails to decode, before the 415 (R-44-07).
+    onDecodeFailure?: () => void,
   ) => {
     if (file.length > maxFileBytes) {
       return sendError(reply, 413, 'too_large', { maxFileBytes })
@@ -139,6 +141,7 @@ export async function registerImageRoutes(
     try {
       processed = await processImage(file)
     } catch {
+      onDecodeFailure?.()
       return sendError(reply, 415, 'unsupported_media')
     }
 
@@ -317,7 +320,16 @@ export async function registerImageRoutes(
         return sendError(reply, 429, 'rate_limited')
       }
 
-      return ingest(reply, user.id, params.id, file, maxFileBytes)
+      // A file that fails to decode gives its hit back (R-44-07).
+      return ingest(
+        reply,
+        user.id,
+        params.id,
+        file,
+        maxFileBytes,
+        undefined,
+        () => limiter.refund(user.id),
+      )
     },
   )
 

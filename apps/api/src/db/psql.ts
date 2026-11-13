@@ -105,19 +105,24 @@ export async function dumpSchema(databaseUrl: string): Promise<string> {
 }
 
 export function normalizeSchemaDump(sql: string): string {
-  return sql
-    .split(/\r?\n/)
-    .filter((line) => {
-      const trimmed = line.trim()
-      if (!trimmed) return false
-      if (trimmed.startsWith('--')) return false
-      if (trimmed.startsWith('\\')) return false
-      if (trimmed.startsWith('SET ')) return false
-      if (trimmed.startsWith('SELECT pg_catalog.set_config')) return false
-      if (trimmed.includes('drizzle')) return false
-      return true
-    })
-    .join('\n')
+  return (
+    sql
+      .split(/\r?\n/)
+      .filter((line) => {
+        const trimmed = line.trim()
+        if (!trimmed) return false
+        if (trimmed.startsWith('--')) return false
+        if (trimmed.startsWith('\\')) return false
+        if (trimmed.startsWith('SET ')) return false
+        if (trimmed.startsWith('SELECT pg_catalog.set_config')) return false
+        if (trimmed.includes('drizzle')) return false
+        return true
+      })
+      // Postgres 16.16 dumps a per-database attribute version on some columns;
+      // its value differs between two identical databases.
+      .map((line) => line.replace(/pg_attver=\d+/g, 'pg_attver=N'))
+      .join('\n')
+  )
 }
 
 function parseDatabaseUrl(databaseUrl: string) {
