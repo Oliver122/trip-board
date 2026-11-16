@@ -4,22 +4,20 @@ import { expectNoSeriousViolations } from './a11y'
 const sven = '100000000000000001'
 const aiko = '100000000000000002'
 
-test('T-17-12 the dashboard charts follow the selected range', async ({
+test('T-17-12 T-45-03 the dashboard charts follow the selected range', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page, sven)
   await page.goto('/admin')
   await expect(page.getByTestId('chart-active')).toBeVisible()
-  for (const id of [
-    'chart-active',
-    'chart-activity',
-    'chart-storage',
-    'chart-signups',
-    'chart-users',
-    'chart-trips',
-  ]) {
+  // R-45-03: the signups, users and trips charts are gone
+  for (const id of ['chart-active', 'chart-activity', 'chart-storage']) {
     await expect(page.getByTestId(id)).toBeVisible()
+  }
+  await expect(page.getByTestId('service-health')).toBeVisible()
+  for (const id of ['chart-signups', 'chart-users', 'chart-trips']) {
+    await expect(page.getByTestId(id)).toHaveCount(0)
   }
   const wide = Number(
     await page.getByTestId('chart-active').getAttribute('data-points'),
@@ -35,6 +33,9 @@ test('T-17-12 the dashboard charts follow the selected range', async ({
   )
   expect(narrow).toBeGreaterThan(0)
   expect(narrow).toBeLessThan(wide)
+  for (const id of ['chart-active', 'chart-activity', 'chart-storage']) {
+    await expect(page.getByTestId(id)).toBeVisible()
+  }
   await expect(page.getByTestId('kpi-events')).not.toHaveText(events)
   await page.setViewportSize({ width: 768, height: 900 })
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
@@ -109,7 +110,7 @@ test('T-17-15 dashboard and storage pass axe and charts have a table', async ({
   await page.goto('/admin')
   await expect(page.getByTestId('chart-active')).toBeVisible()
   const toggles = page.getByRole('button', { name: 'Show as table' })
-  await expect(toggles).toHaveCount(6)
+  await expect(toggles).toHaveCount(4) // three charts and chart-ops
   await toggles.first().click()
   await expect(
     page.getByTestId('chart-active').getByRole('table'),

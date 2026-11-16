@@ -220,6 +220,33 @@ describe.skipIf(!hasDb)('admin insights', () => {
     expect(huge.statusCode).toBe(400)
   })
 
+  it('T-45-05 returns metrics days in date order without top lists', async () => {
+    await db.pool.query(
+      `
+      INSERT INTO metrics_daily (
+        day, users_total, users_new, users_active, trips_total, spots_total,
+        plan_entries_total, images_total, image_bytes_total, db_bytes, events_total
+      ) VALUES
+        ('2026-06-02', 1, 0, 1, 0, 0, 0, 0, 0, 10, 1),
+        ('2026-06-01', 1, 1, 0, 0, 0, 0, 0, 0, 10, 0)
+      `,
+    )
+    const admin = await login('100000000000000031')
+    const response = await app.inject({
+      method: 'GET',
+      url: '/admin/metrics?from=2026-06-01&to=2026-06-02',
+      headers: { cookie: admin.cookie },
+    })
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.days.map((day: { day: string }) => day.day)).toEqual([
+      '2026-06-01',
+      '2026-06-02',
+    ])
+    expect(body).not.toHaveProperty('topUsers')
+    expect(body).not.toHaveProperty('topTrips')
+  })
+
   it('T-17-04 combines filters and pages without gaps while new events arrive', async () => {
     const aiko = '00000000-0000-0000-0000-000000000041'
     const tom = '00000000-0000-0000-0000-000000000042'

@@ -31,6 +31,8 @@ describe.skipIf(!hasDb)('seed', () => {
       links: string
       events: string
       metrics: string
+      opsCounters: string
+      jobRuns: string
     }>(`
       SELECT
         (SELECT count(*) FROM users) AS users,
@@ -42,7 +44,9 @@ describe.skipIf(!hasDb)('seed', () => {
         (SELECT count(*) FROM plan_entries WHERE type = 'single') AS singles,
         (SELECT count(*) FROM plan_entry_spots) AS links,
         (SELECT count(*) FROM activity_events) AS events,
-        (SELECT count(*) FROM metrics_daily) AS metrics
+        (SELECT count(*) FROM metrics_daily) AS metrics,
+        (SELECT count(*) FROM ops_counters) AS "opsCounters",
+        (SELECT count(*) FROM job_runs) AS "jobRuns"
     `)
     expect(counts.rows[0]).toEqual({
       users: String(seedCounts.users),
@@ -55,6 +59,39 @@ describe.skipIf(!hasDb)('seed', () => {
       links: String(seedCounts.planEntrySpots),
       events: String(seedCounts.activityEvents),
       metrics: String(seedCounts.metricsDaily),
+      opsCounters: String(seedCounts.opsCounters),
+      jobRuns: String(seedCounts.jobRuns),
     })
+  })
+
+  // T-45-10 seed: one overdue, one failed, one fresh job; geocode has no row
+  it('seeds the service health demo data', async () => {
+    const runs = await db.pool.query<{
+      job: string
+      last_result: string
+      last_error: string | null
+      age_hours: number
+    }>(`
+      SELECT job, last_result, last_error,
+        (extract(epoch FROM now() - last_started_at) / 3600)::float8 AS age_hours
+      FROM job_runs ORDER BY job
+    `)
+    expect(runs.rows.map((row) => row.job)).toEqual([
+      'commons',
+      'invites',
+      'sessions',
+    ])
+    const byJob = Object.fromEntries(runs.rows.map((row) => [row.job, row]))
+    expect(byJob.invites?.last_result).toBe('ok')
+    expect(byJob.invites?.age_hours).toBeGreaterThan(71)
+    expect(byJob.commons?.last_result).toBe('error')
+    expect(byJob.commons?.last_error).toBe('seeded failure')
+    expect(byJob.sessions?.last_result).toBe('ok')
+    expect(byJob.sessions?.age_hours).toBeLessThan(1)
+    const days = await db.pool.query<{ failures: string }>(
+      `SELECT count(*) FILTER (WHERE http_5xx > 0 OR http_429 > 0) AS failures
+       FROM ops_counters`,
+    )
+    expect(Number(days.rows[0]?.failures)).toBeGreaterThan(0)
   })
 })

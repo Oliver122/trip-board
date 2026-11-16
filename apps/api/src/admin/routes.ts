@@ -2,6 +2,7 @@ import {
   activityListSchema,
   activityQuerySchema,
   adminMetricsSchema,
+  adminOpsSchema,
   adminStatsSchema,
   adminStorageSchema,
   adminTripDetailSchema,
@@ -13,6 +14,8 @@ import {
   appSettingsSchema,
   auditListSchema,
   auditQuerySchema,
+  housekeepingJobNames,
+  jobRunResponseSchema,
   kindLimitApproveSchema,
   kindLimitPatchSchema,
   kindLimitRejectSchema,
@@ -24,6 +27,7 @@ import {
   requestListQuerySchema,
   rolePatchSchema,
   metricsQuerySchema,
+  opsQuerySchema,
   settingsPatchSchema,
   statsQuerySchema,
   suspendSchema,
@@ -38,11 +42,15 @@ import { requireAppRole } from '../auth/require-role.js'
 import type { AppConfig } from '../config.js'
 import { activityCsv, listActivity } from './activity.js'
 import { metricsRangeError, readMetrics } from './metrics.js'
+import { readJobRun, readOps } from './ops.js'
 import { readStats } from './stats.js'
 import { readStorage } from './storage.js'
 import { notifyQuotaRequest, reportCapacityWarnings } from './webhook.js'
 import { listAudit } from './log.js'
 import type { AdminHooks } from './hooks.js'
+import { runJob, type HousekeepingJobs } from '../housekeeping/jobs.js'
+import { withTransaction } from '../db/transaction.js'
+import { writeAudit } from './audit.js'
 import {
   approveKindLimitRequest,
   listKindLimitRequests,
@@ -88,6 +96,10 @@ export type AdminRouteOptions = {
   now: () => Date
   hooks?: AdminHooks
   webhookFetch?: typeof fetch
+  /** When this process built the app; `GET /admin/ops` (R-45-08). */
+  startedAt: Date
+  /** The housekeeping jobs, for `POST /admin/ops/jobs/:job/run` (R-45-10). */
+  jobs: HousekeepingJobs
 }
 
 export function registerAdminRoutes(
@@ -142,6 +154,47 @@ export function registerAdminRoutes(
     return adminMetricsSchema.parse(
       await readMetrics(pool, query.data.from, query.data.to),
     )
+  })
+
+  app.get('/admin/ops', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    const query = opsQuerySchema.safeParse(request.query)
+    if (!query.success) return sendError(reply, 400, 'invalid_request')
+    return adminOpsSchema.parse(
+      await readOps(
+        pool,
+        options.jobs,
+        options.startedAt,
+        query.data.range,
+        now(),
+      ),
+    )
+  })
+
+  // R-45-10: runs the same function the timer runs and audits the manual run.
+  app.post('/admin/ops/jobs/:job/run', async (request, reply) => {
+    const user = await admin(request, reply)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const { job } = request.params as { job: string }
+    if (!/^[a-z]+$/.test(job)) return sendError(reply, 400, 'invalid_request')
+    const name = housekeepingJobNames.find((known) => known === job)
+    if (!name) return sendError(reply, 404, 'not_found')
+    const before = await readJobRun(pool, name)
+    const outcome = await runJob(pool, name, options.jobs[name].task, now)
+    const response = jobRunResponseSchema.parse(outcome)
+    await withTransaction(pool, (tx) =>
+      writeAudit(tx, {
+        adminId: user.id,
+        action: 'ops.job_run',
+        before,
+        after: response,
+      }),
+    )
+    return response
   })
 
   app.get('/admin/activity', async (request, reply) => {

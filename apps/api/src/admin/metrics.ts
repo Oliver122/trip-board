@@ -21,7 +21,7 @@ export async function readMetrics(
   from: string,
   to: string,
 ): Promise<AdminMetrics> {
-  const [days, activity, topUsers, topTrips] = await Promise.all([
+  const [days, activity] = await Promise.all([
     pool.query<{
       day: string
       users_total: number
@@ -71,29 +71,6 @@ export async function readMetrics(
       `,
       [from, to],
     ),
-    pool.query<{ id: string; name: string; bytes: string }>(
-      `
-      SELECT u.id, COALESCE(u.display_name, u.username) AS name,
-             sum(i.bytes)::bigint AS bytes
-      FROM images i
-      JOIN users u ON u.id = i.uploaded_by
-      GROUP BY u.id
-      ORDER BY sum(i.bytes) DESC, name
-      LIMIT 10
-      `,
-    ),
-    pool.query<{ id: string; name: string; events: number }>(
-      `
-      SELECT t.id, t.name, count(*)::int AS events
-      FROM activity_events e
-      JOIN trips t ON t.id = e.trip_id
-      WHERE (e.created_at AT TIME ZONE 'UTC')::date BETWEEN $1::date AND $2::date
-      GROUP BY t.id
-      ORDER BY count(*) DESC, t.name
-      LIMIT 10
-      `,
-      [from, to],
-    ),
   ])
   return {
     days: days.rows.map((row) => ({
@@ -110,11 +87,5 @@ export async function readMetrics(
       eventsTotal: row.events_total,
     })),
     activity: activity.rows,
-    topUsers: topUsers.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      bytes: num(row.bytes),
-    })),
-    topTrips: topTrips.rows,
   }
 }

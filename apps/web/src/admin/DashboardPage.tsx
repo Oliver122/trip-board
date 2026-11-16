@@ -8,11 +8,10 @@ import { cn } from '../lib/utils'
 import { formatDate } from '../lib/format'
 import { activeLocale } from '../i18n'
 import { getMetrics, getOpenStreams, getStats } from './client'
+import { ServiceHealth } from './ServiceHealth'
 import { formatBytes, formatCount } from './format'
 import {
   AreaChart,
-  BarChart,
-  HorizontalChart,
   InsightChart,
   LineChart,
   StackedChart,
@@ -225,62 +224,8 @@ export function DashboardPage() {
             capacity={metrics.days.map(() => stats.dbCapacityBytes)}
           />
         </InsightChart>
-        <InsightChart
-          testId="chart-signups"
-          title={t('admin.dashboard.charts.signups')}
-          points={metrics.days.length}
-          columns={[
-            { key: 'day', label: t('admin.dashboard.day') },
-            { key: 'signups', label: t('admin.dashboard.series.signups') },
-          ]}
-          rows={metrics.days.map((day) => ({
-            key: day.day,
-            cells: [dayLabel(day.day), formatCount(day.usersNew, locale)],
-          }))}
-        >
-          <BarChart values={metrics.days.map((day) => day.usersNew)} />
-        </InsightChart>
-        <InsightChart
-          testId="chart-users"
-          title={t('admin.dashboard.charts.users')}
-          points={metrics.topUsers.length}
-          columns={[
-            { key: 'name', label: t('admin.dashboard.name') },
-            { key: 'bytes', label: t('admin.dashboard.series.bytes') },
-          ]}
-          rows={metrics.topUsers.map((user) => ({
-            key: user.id,
-            cells: [user.name, bytes(user.bytes)],
-          }))}
-        >
-          <HorizontalChart
-            rows={metrics.topUsers.map((user) => ({
-              label: user.name,
-              value: user.bytes,
-            }))}
-          />
-        </InsightChart>
-        <InsightChart
-          testId="chart-trips"
-          title={t('admin.dashboard.charts.trips')}
-          points={metrics.topTrips.length}
-          columns={[
-            { key: 'name', label: t('admin.dashboard.name') },
-            { key: 'events', label: t('admin.dashboard.series.events') },
-          ]}
-          rows={metrics.topTrips.map((trip) => ({
-            key: trip.id,
-            cells: [trip.name, formatCount(trip.events, locale)],
-          }))}
-        >
-          <HorizontalChart
-            rows={metrics.topTrips.map((trip) => ({
-              label: trip.name,
-              value: trip.events,
-            }))}
-          />
-        </InsightChart>
       </div>
+      <ServiceHealth range={range} />
     </>
   )
 }

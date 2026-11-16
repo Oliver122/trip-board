@@ -218,6 +218,32 @@ describe('locales', () => {
     ).not.toBe(i18n.t('places.errors.link_not_google_maps', { lng: 'en' }))
   })
 
+  it('T-45-04 drops the removed dashboard charts and keeps the rest', () => {
+    for (const tree of [en, de]) {
+      const keys = flatKeys(tree)
+      for (const chart of ['signups', 'users', 'trips']) {
+        expect(
+          keys.filter((key) =>
+            key.startsWith(`admin.dashboard.charts.${chart}`),
+          ),
+        ).toEqual([])
+      }
+      for (const key of [
+        'admin.dashboard.charts.active',
+        'admin.dashboard.charts.activity',
+        'admin.dashboard.charts.storage',
+        'admin.dashboard.health.title',
+        'admin.dashboard.health.upSince',
+        'admin.dashboard.health.chart',
+        'admin.dashboard.health.runNow',
+        'admin.dashboard.health.overdue',
+        'admin.dashboard.health.notRun',
+      ]) {
+        expect(keys).toContain(key)
+      }
+    }
+  })
+
   it('keeps the suspended-account sentence in both languages', () => {
     expect(i18n.t('login.cancelled', { lng: 'en' })).toBe('Login cancelled')
     expect(i18n.t('login.cancelled', { lng: 'de' })).not.toBe(

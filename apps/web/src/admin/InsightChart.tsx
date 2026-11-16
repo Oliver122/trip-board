@@ -116,6 +116,38 @@ export function LineChart({ values }: { values: number[] }) {
   )
 }
 
+export function MultiLineChart({
+  series,
+}: {
+  series: { color: string; values: number[] }[]
+}) {
+  const max = Math.max(1, ...series.flatMap((item) => item.values))
+  const width = 320
+  const height = 120
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full" role="img">
+      {series.map((item) => {
+        const step =
+          item.values.length > 1 ? width / (item.values.length - 1) : width
+        return (
+          <polyline
+            key={item.color}
+            fill="none"
+            stroke={item.color}
+            strokeWidth="2"
+            points={item.values
+              .map(
+                (value, index) =>
+                  `${index * step},${height - (value / max) * (height - 8) - 4}`,
+              )
+              .join(' ')}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
 export function BarChart({ values }: { values: number[] }) {
   const max = Math.max(1, ...values)
   const width = 320
