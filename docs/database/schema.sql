@@ -534,6 +534,23 @@ CREATE TABLE webhook_notices (
   sent_on date NOT NULL
 );
 
+-- Service health (step 45): per-day API starts and 5xx / 429 counts (UTC day),
+-- flushed from memory every 60 s; and the last run of each housekeeping job.
+CREATE TABLE ops_counters (
+  day        date    PRIMARY KEY,
+  http_5xx   integer NOT NULL DEFAULT 0 CHECK (http_5xx >= 0),
+  http_429   integer NOT NULL DEFAULT 0 CHECK (http_429 >= 0),
+  api_starts integer NOT NULL DEFAULT 0 CHECK (api_starts >= 0)
+);
+
+CREATE TABLE job_runs (
+  job              text        PRIMARY KEY CHECK (job ~ '^[a-z]+$'),
+  last_started_at  timestamptz NOT NULL,
+  last_finished_at timestamptz,
+  last_result      text        CHECK (last_result IN ('ok', 'error')),
+  last_error       text        CHECK (char_length(last_error) <= 1000)
+);
+
 CREATE INDEX activity_events_created_at_idx ON activity_events (created_at DESC);
 CREATE INDEX activity_events_actor_idx      ON activity_events (actor_id, created_at DESC);
 CREATE INDEX activity_events_trip_idx       ON activity_events (trip_id, created_at DESC);

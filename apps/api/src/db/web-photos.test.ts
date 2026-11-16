@@ -115,7 +115,7 @@ describe.skipIf(!hasDb)('T-34-12 migration 0006 web photos', () => {
   })
 
   it('still passes docs/database/checks.sql with the updated count', async () => {
-    expect(expectedCheckCount).toBe(77)
+    expect(expectedCheckCount).toBe(86)
     // checks.sql wants an empty database, not the rows seeded above.
     const fresh = await createTestDatabase()
     try {
