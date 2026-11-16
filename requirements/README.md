@@ -80,6 +80,7 @@ A core rule row before and after `C-KIND-04 | modify` by step 31 (the new text, 
 - Users `sven` (owner, platform admin), `aiko` (planner), `tom` (visitor).
 - Trip *Japan 2026* with 6 spots, 2 buckets, 1 single entry, 2 home spots.
 - 90 days of `activity_events` and `metrics_daily` rows, so admin graphs have data.
+- 30 days of `ops_counters` and three `job_runs` rows (`invites` overdue, `commons` failed, `sessions` fresh; `geocode` not yet run), so the *Service health* panel has data.
 
 E2E tests use this seed.
 
