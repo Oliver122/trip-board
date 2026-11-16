@@ -4,7 +4,7 @@
 **Depends on:** 21, 34, 43
 **Result:** Kill the API child of the running service (`kill <api pid>`): within seconds systemd restarts the whole unit and `/health` answers again. Point `NOMINATIM_BASE_URL` at a server that never answers: a board search shows the error state after about 5 s and the next search still works. Upload a 30000×30000 decompression-bomb PNG: the response is 415 and the API keeps serving.
 **Core:** C-OPS-54, C-OPS-55, C-OPS-14, C-IMG-02, C-IMG-05, C-MEMB-16, C-SPOT-11
-**Status:** planned
+**Status:** integrated 2026-11-13
 
 ## Scope
 - In: process guards (`unhandledRejection`, `uncaughtException`, SIGTERM/SIGINT) in `apps/api/src/server.ts`; the systemd unit and root `dev` script so a dead child ends the unit and `Restart=always` brings it back; stale-key eviction in `RequestLimiter`, `UploadLimiter` and `JoinLimiter`; a 5 s abort on the Nominatim fetch (I-10); timeouts on the S3 client and the Discord webhook post (I-26); pool `max` 10 and logged idle-client errors; an explicit `limitInputPixels` for sharp with a 415 instead of a 500 on decode failure (I-18); marking I-10, I-18 and I-26 fixed in `docs/SYSTEM_OVERVIEW.md`.
