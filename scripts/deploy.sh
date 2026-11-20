@@ -188,8 +188,11 @@ else
   exit 1
 fi
 
-for _ in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:5180/api/health >/dev/null; then
+# On the host, `pnpm dev` needs 20-60 s after a restart before vite and the API
+# answer (the old unit stops first, then pnpm spawns both children), so wait up
+# to 120 s instead of failing a deploy whose app comes up a little later.
+for _ in $(seq 1 120); do
+  if curl -sf --max-time 2 http://127.0.0.1:5180/api/health >/dev/null; then
     curl -sf http://127.0.0.1:5180/api/health
     echo
     exit 0
