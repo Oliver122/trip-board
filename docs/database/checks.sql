@@ -489,6 +489,35 @@ INSERT INTO kind_limit_requests (trip_id, requested_max)
 VALUES ('10000000-0000-0000-0000-000000000001', 22);
 SELECT pg_temp.expect(true, 'a new request is allowed once the old one is decided');
 
+-- Service health (step 45) ------------------------------------------------
+INSERT INTO ops_counters (day) VALUES ('2026-01-01');
+SELECT pg_temp.expect(
+  (SELECT http_5xx = 0 AND http_429 = 0 AND api_starts = 0
+     FROM ops_counters WHERE day = '2026-01-01'),
+  'ops_counters counts default to 0');
+SELECT pg_temp.expect_error($$
+  INSERT INTO ops_counters (day) VALUES ('2026-01-01')$$, 'ops_counters has one row per day');
+SELECT pg_temp.expect_error($$
+  INSERT INTO ops_counters (day, http_5xx) VALUES ('2026-01-02', -1)$$, 'negative http_5xx rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO ops_counters (day, http_429) VALUES ('2026-01-02', -1)$$, 'negative http_429 rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO ops_counters (day, api_starts) VALUES ('2026-01-02', -1)$$, 'negative api_starts rejected');
+INSERT INTO job_runs (job, last_started_at) VALUES ('sessions', now());
+SELECT pg_temp.expect_error($$
+  INSERT INTO job_runs (job, last_started_at) VALUES ('sessions', now())$$, 'job_runs has one row per job');
+SELECT pg_temp.expect_error($$
+  INSERT INTO job_runs (job, last_started_at, last_result) VALUES ('invites', now(), 'maybe')$$,
+  'job_runs last_result is ok or error');
+SELECT pg_temp.expect_error($$
+  INSERT INTO job_runs (job, last_started_at, last_error) VALUES ('invites', now(), repeat('x', 1001))$$,
+  'job_runs last_error is at most 1000 characters');
+INSERT INTO job_runs (job, last_started_at, last_finished_at, last_result, last_error)
+VALUES ('invites', now(), now(), 'error', repeat('x', 1000));
+SELECT pg_temp.expect(
+  (SELECT last_result = 'error' FROM job_runs WHERE job = 'invites'),
+  'job_runs accepts a failed run with a 1000 character error');
+
 -- Cascades ----------------------------------------------------------------
 DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(

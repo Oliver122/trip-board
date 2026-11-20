@@ -21,7 +21,7 @@ How a trip's spots are created, read, changed and deleted through the API and th
 | ID | Rule | Status | Since | Changed by | Tests |
 | --- | --- | --- | --- | --- | --- |
 | C-SPOT-10 | `GET /geocode/search?q=&lang=&tripId=` and `GET /geocode/reverse?lat=&lng=&lang=` (any signed-in user) proxy Nominatim and return results normalised to `{label, lat, lng, bbox?}`. `q` is 1–200 characters, `lang` is `en` or `de` (default `en`), and bad input is 400; an upstream failure is 502 with a translated error key. <!-- R-06-06, R-06-08 --> | active | 06 | — | T-06-09 |
-| C-SPOT-11 | The proxy sends a proper User-Agent, calls Nominatim at most once per second across the whole server, and caches results for 30 days in `geocode_cache`, so the same query twice calls upstream once. <!-- R-06-06 --> | active | 06 | — | T-06-07, T-06-08 |
+| C-SPOT-11 | The proxy sends a proper User-Agent, calls Nominatim at most once per second across the whole server, and caches results for 30 days in `geocode_cache`, so the same query twice calls upstream once. The Nominatim fetch aborts after 5 s and answers 502 with the existing upstream-failure key; the gate moves on, so the next search goes upstream normally. <!-- R-06-06, R-44-04 --> | active | 06 | 44 | T-06-07, T-06-08, T-44-04 |
 | C-SPOT-12 | A search with `tripId` (the caller must be a member, otherwise 404) is biased to the trip's bounding box through Nominatim's `viewbox` parameter in `left,top,right,bottom` order. <!-- R-06-07 --> | active | 06 | — | T-06-10 |
 
 ## Spot panel

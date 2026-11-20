@@ -1,6 +1,7 @@
 import {
   activityListSchema,
   adminMetricsSchema,
+  adminOpsSchema,
   adminStatsSchema,
   adminKindLimitRequestListSchema,
   adminKindLimitSchema,
@@ -11,17 +12,21 @@ import {
   adminUserListSchema,
   appSettingsSchema,
   auditListSchema,
+  jobRunResponseSchema,
   quotaRequestListSchema,
   quotaRequestSchema,
   type AdminKindLimit,
   type AdminKindLimitRequestList,
   type AdminMetrics,
+  type AdminOps,
   type AdminStats,
   type AdminStorage,
   type AdminTripDetail,
   type AdminUserDetail,
   type AppSettings,
   type AuditEntry,
+  type HousekeepingJobName,
+  type JobRunResponse,
   type KindLimitPatch,
   type QuotaPatch,
   type QuotaRequest,
@@ -282,4 +287,24 @@ export async function getOpenStreams(signal?: AbortSignal): Promise<number> {
 
 export async function getStorage(signal?: AbortSignal): Promise<AdminStorage> {
   return requestJson('/api/admin/storage', adminStorageSchema, { signal })
+}
+
+/** R-45-09: counters per day (range follows the dashboard) plus job status. */
+export async function getOps(
+  range: '7d' | '30d' | '90d',
+  signal?: AbortSignal,
+): Promise<AdminOps> {
+  return requestJson(`/api/admin/ops?range=${range}`, adminOpsSchema, {
+    signal,
+  })
+}
+
+/** R-45-10: runs one housekeeping job now; the job's own failure is a 200. */
+export async function runOpsJob(
+  job: HousekeepingJobName,
+): Promise<JobRunResponse> {
+  return requestJson(`/api/admin/ops/jobs/${job}/run`, jobRunResponseSchema, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
 }

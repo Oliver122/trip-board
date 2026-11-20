@@ -891,6 +891,27 @@ export const metricsDaily = pgTable('metrics_daily', {
     .defaultNow(),
 })
 
+export const opsCounters = pgTable('ops_counters', {
+  day: date('day').primaryKey(),
+  http5xx: integer('http_5xx').notNull().default(0),
+  http429: integer('http_429').notNull().default(0),
+  apiStarts: integer('api_starts').notNull().default(0),
+})
+
+export const jobRuns = pgTable('job_runs', {
+  job: text('job').primaryKey(),
+  lastStartedAt: timestamp('last_started_at', {
+    withTimezone: true,
+    mode: 'date',
+  }).notNull(),
+  lastFinishedAt: timestamp('last_finished_at', {
+    withTimezone: true,
+    mode: 'date',
+  }),
+  lastResult: text('last_result'),
+  lastError: text('last_error'),
+})
+
 export const spotsView = pgView('spots_view', {
   id: uuid('id').notNull(),
   tripId: uuid('trip_id').notNull(),

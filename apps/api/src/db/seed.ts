@@ -37,6 +37,8 @@ export const seedCounts = {
   planEntrySpots: 3,
   activityEvents: 90,
   metricsDaily: 90,
+  opsCounters: 30,
+  jobRuns: 3,
 } as const
 
 export async function seedDatabase(pool: Pool): Promise<void> {
@@ -227,6 +229,26 @@ export async function seedDatabase(pool: Pool): Promise<void> {
     await client.query(`
       SELECT snapshot_daily_metrics((current_date - offs)::date)
       FROM generate_series(0, 89) AS offs
+    `)
+    // R-45-10: service health demo data. invites is overdue, commons failed,
+    // sessions is fresh and geocode has no row ("Not yet run").
+    await client.query('DELETE FROM ops_counters')
+    await client.query(`
+      INSERT INTO ops_counters (day, http_5xx, http_429, api_starts)
+      SELECT
+        ((now() AT TIME ZONE 'UTC')::date - offs),
+        CASE offs WHEN 3 THEN 3 WHEN 11 THEN 1 ELSE 0 END,
+        CASE offs WHEN 5 THEN 4 WHEN 12 THEN 2 WHEN 20 THEN 1 ELSE 0 END,
+        CASE WHEN offs % 7 = 0 THEN 2 WHEN offs % 4 = 1 THEN 1 ELSE 0 END
+      FROM generate_series(0, 29) AS offs
+    `)
+    await client.query('DELETE FROM job_runs')
+    await client.query(`
+      INSERT INTO job_runs (job, last_started_at, last_finished_at, last_result, last_error)
+      VALUES
+        ('invites', now() - interval '3 days', now() - interval '3 days' + interval '1 second', 'ok', NULL),
+        ('commons', now() - interval '2 hours', now() - interval '2 hours' + interval '1 second', 'error', 'seeded failure'),
+        ('sessions', now() - interval '30 minutes', now() - interval '30 minutes' + interval '1 second', 'ok', NULL)
     `)
     await client.query('COMMIT')
   } catch (error) {

@@ -389,20 +389,69 @@ export const storageRankSchema = z.object({
   bytes: z.number().int().nonnegative(),
 })
 
-export const activityRankSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  events: z.number().int().nonnegative(),
-})
-
 export const adminMetricsSchema = z.object({
   days: z.array(metricDaySchema),
   activity: z.array(metricsSeriesSchema),
-  topUsers: z.array(storageRankSchema),
-  topTrips: z.array(activityRankSchema),
 })
 
 export type AdminMetrics = z.infer<typeof adminMetricsSchema>
+
+/** The housekeeping jobs started by `startHousekeeping` (R-45-08). */
+export const housekeepingJobNames = [
+  'sessions',
+  'invites',
+  'geocode',
+  'commons',
+  'activity',
+  'blobs',
+  'metrics',
+] as const
+
+export type HousekeepingJobName = (typeof housekeepingJobNames)[number]
+
+export const opsRanges = ['7d', '30d', '90d'] as const
+
+export const opsQuerySchema = z.object({
+  range: z.enum(opsRanges).default('30d'),
+})
+
+export const opsCounterDaySchema = z.object({
+  day: daySchema,
+  http5xx: z.number().int().nonnegative(),
+  http429: z.number().int().nonnegative(),
+  apiStarts: z.number().int().nonnegative(),
+})
+
+export const jobResultSchema = z.enum(['ok', 'error'])
+
+export type JobResult = z.infer<typeof jobResultSchema>
+
+export const jobStatusSchema = z.object({
+  job: z.enum(housekeepingJobNames),
+  intervalMs: z.number().int().positive(),
+  lastStartedAt: z.string().datetime().nullable(),
+  lastFinishedAt: z.string().datetime().nullable(),
+  lastResult: jobResultSchema.nullable(),
+  lastError: z.string().nullable(),
+})
+
+export type JobStatus = z.infer<typeof jobStatusSchema>
+
+export const adminOpsSchema = z.object({
+  startedAt: z.string().datetime(),
+  days: z.array(opsCounterDaySchema),
+  jobs: z.array(jobStatusSchema),
+})
+
+export type AdminOps = z.infer<typeof adminOpsSchema>
+
+export const jobRunResponseSchema = z.object({
+  job: z.enum(housekeepingJobNames),
+  result: jobResultSchema,
+  error: z.string().optional(),
+})
+
+export type JobRunResponse = z.infer<typeof jobRunResponseSchema>
 
 export const activityEventSchema = adminActionSchema
 

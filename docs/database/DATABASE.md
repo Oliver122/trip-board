@@ -370,6 +370,12 @@ A trip's owner or board admin asks the platform admin for a higher kind limit (s
 ### metrics_daily
 One row per day for the admin graphs: totals (users, trips, spots, plan entries, images, image bytes, database size) plus per-day numbers (new users, active users, events). Filled by `snapshot_daily_metrics(day)`, which is idempotent (upsert). Kept permanently; it's tiny. A job at 00:05 UTC snapshots yesterday. `pnpm db:metrics` fills any missing days from the earliest user or activity event through yesterday.
 
+### ops_counters
+One row per UTC day for the service-health graph (step 45): `api_starts` (incremented once each time the API boots), `http_5xx` and `http_429` (responses with those statuses). All three are non-negative integers defaulting to 0 (`CHECK`). The API counts in memory and adds the counts to the day's row (upsert) every 60 seconds and on shutdown. Writes are best-effort: a failed write is logged and never fails a request or the boot. A crash can lose up to a minute of counts.
+
+### job_runs
+One row per housekeeping job (`sessions`, `invites`, `geocode`, `commons`, `activity`, `blobs`, `metrics`), holding only its last run: `last_started_at`, `last_finished_at`, `last_result` (`ok` or `error`, `CHECK`) and `last_error` (at most 1000 characters, `CHECK`). It is not a history. The timers and the admin "Run now" button upsert it when a run starts and when it ends; a failed write is logged and never fails the job.
+
 ### webhook_notices
 One row per capacity warning (`capacity:db`, `capacity:blob`) and the UTC day it was last posted. When `ADMIN_DISCORD_WEBHOOK_URL` is set, each warning is sent at most once that day.
 

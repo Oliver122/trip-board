@@ -569,10 +569,7 @@
       "charts": {
         "active": "Active users per day",
         "activity": "Activity per day",
-        "storage": "Storage growth",
-        "signups": "Signups per day",
-        "users": "Top users by storage",
-        "trips": "Top trips by activity"
+        "storage": "Storage growth"
       },
       "series": {
         "active": "Active users",
@@ -582,16 +579,44 @@
         "other": "Other",
         "database": "Database",
         "blobs": "Images",
-        "capacity": "Capacity",
-        "signups": "Signups",
-        "bytes": "Storage",
-        "events": "Events"
+        "capacity": "Capacity"
       },
       "showTable": "Show as table",
       "showChart": "Show as chart",
       "day": "Day",
-      "name": "Name",
-      "empty": "No data in this range."
+      "empty": "No data in this range.",
+      "health": {
+        "title": "Service health",
+        "upSince": "Up since {{when}}",
+        "chart": "API starts and errors per day",
+        "series": {
+          "starts": "API starts",
+          "http5xx": "5xx errors",
+          "http429": "429 responses"
+        },
+        "jobs": "Housekeeping jobs",
+        "job": "Job",
+        "lastRun": "Last run",
+        "result": "Result",
+        "action": "Action",
+        "notRun": "Not yet run",
+        "ok": "OK",
+        "failed": "Failed",
+        "overdue": "Overdue",
+        "runNow": "Run now",
+        "running": "Running…",
+        "runFailed": "Could not run the job. Try again.",
+        "loadError": "Service health could not be loaded.",
+        "names": {
+          "sessions": "Expired sessions",
+          "invites": "Expired invites",
+          "geocode": "Geocode cache",
+          "commons": "Commons cache",
+          "activity": "Activity log",
+          "blobs": "Orphaned images",
+          "metrics": "Daily metrics"
+        }
+      }
     },
     "activity": {
       "live": "Live, updates every 15 seconds",

@@ -29,6 +29,8 @@ import { registerKindRoutes } from './kinds/routes.js'
 import { registerSpotRoutes } from './spots/routes.js'
 import { registerTripRoutes } from './trips/routes.js'
 import { sendError } from './http/errors.js'
+import { housekeepingJobs } from './housekeeping/jobs.js'
+import { OpsCounters } from './ops/counters.js'
 
 export type BuildAppOptions = {
   config?: AppConfig
@@ -48,6 +50,8 @@ export type BuildAppOptions = {
   webhookFetch?: typeof fetch
   joinLimiter?: JoinLimiter
   limiter?: RequestLimiter
+  /** Pool for the service-health counters; tests pass a failing one (R-45-06). */
+  opsPool?: Pool
   logStream?: { write: (message: string) => void }
 }
 
@@ -55,6 +59,9 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
   const config = options.config ?? loadConfig(process.env)
   const now = options.now ?? (() => new Date())
   const limiter = options.limiter ?? new RequestLimiter()
+  // Shown as "up since" on the admin dashboard (R-45-08).
+  const startedAt = now()
+  const storage = options.storage ?? createS3Storage(config)
   const app = Fastify({
     logger: options.logStream
       ? { level: 'info', stream: options.logStream }
@@ -106,6 +113,17 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     await hub.stop()
   })
 
+  // R-45-06: starts, 5xx and 429 per UTC day in ops_counters, best-effort.
+  const ops = new OpsCounters(options.opsPool ?? pool)
+  app.addHook('onResponse', async (_request, reply) => {
+    ops.recordResponse(reply.statusCode, now())
+  })
+  app.addHook('onClose', async () => {
+    await ops.stop()
+  })
+  await ops.recordStart(now())
+  ops.startTimer()
+
   app.get('/health', async (_request, reply) => {
     const dbUp = await pingDatabase(pool)
     const body = healthResponseSchema.parse({
@@ -156,7 +174,7 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     pool,
     config,
     now,
-    storage: options.storage ?? createS3Storage(config),
+    storage,
     limiter: new UploadLimiter(),
     beforeImageInsert: options.beforeImageInsert,
     webFetch: options.webFetch,
@@ -176,6 +194,17 @@ export async function buildApp(pool: Pool, options: BuildAppOptions = {}) {
     now,
     hooks: { beforeCommit: options.beforeAdminCommit },
     webhookFetch: options.webhookFetch,
+    startedAt,
+    // Same functions as the timers in server.ts, for "Run now" (R-45-10).
+    jobs: housekeepingJobs({
+      pool,
+      storage,
+      now,
+      webhook: {
+        url: config.ADMIN_DISCORD_WEBHOOK_URL,
+        fetchImpl: options.webhookFetch,
+      },
+    }),
   })
 
   return app

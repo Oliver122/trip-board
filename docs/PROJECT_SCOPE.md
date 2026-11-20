@@ -210,7 +210,7 @@ Platform-level administration, separate from trip roles. A trip owner is **not**
 **Pages**
 | Page | What you see / do |
 | --- | --- |
-| **Dashboard** | KPI cards: users (total, new 7d), active users (24h / 7d / 30d), trips, spots, images, database size and blob storage vs. capacity. Graphs: signups per day, active users per day, activity per day by type, storage growth (DB + images), top 10 users by storage, top 10 trips by activity. Range picker 7 / 30 / 90 days / all |
+| **Dashboard** | KPI cards: users (total, new 7d), active users (24h / 7d / 30d), trips, spots, images, database size and blob storage vs. capacity. Graphs: active users per day, activity per day by type, storage growth (DB + images). *Service health* panel: process start time, API starts and 5xx / 429 responses per day, and every housekeeping job with its last run, result, an overdue flag and a *Run now* button. Range picker 7 / 30 / 90 days / all |
 | **Users** | Table with search and sorting: avatar, name, Discord id, role, status, trips owned/joined, spots created, images & MB used vs. limit, last active, joined date. Filters: admins, suspended, over 80 % quota, inactive > 90 days |
 | **User detail** | Profile, trips with role, storage bar, per-user activity graph (30 days) and recent actions, quota requests. Actions: **extend storage** (set images / MB override, or reset to default), suspend / unsuspend with reason, make / remove admin, log out everywhere |
 | **Trips** | Table: name, owner, members, spots, plans, images, MB, last activity, created. Detail: members, counts, storage, activity timeline |

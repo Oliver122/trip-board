@@ -569,10 +569,7 @@
       "charts": {
         "active": "Aktive Nutzer pro Tag",
         "activity": "Aktivität pro Tag",
-        "storage": "Speicherwachstum",
-        "signups": "Anmeldungen pro Tag",
-        "users": "Nutzer mit dem meisten Speicher",
-        "trips": "Reisen mit der meisten Aktivität"
+        "storage": "Speicherwachstum"
       },
       "series": {
         "active": "Aktive Nutzer",
@@ -582,16 +579,44 @@
         "other": "Sonstiges",
         "database": "Datenbank",
         "blobs": "Bilder",
-        "capacity": "Kapazität",
-        "signups": "Anmeldungen",
-        "bytes": "Speicher",
-        "events": "Ereignisse"
+        "capacity": "Kapazität"
       },
       "showTable": "Als Tabelle zeigen",
       "showChart": "Als Diagramm zeigen",
       "day": "Tag",
-      "name": "Name",
-      "empty": "Keine Daten in diesem Zeitraum."
+      "empty": "Keine Daten in diesem Zeitraum.",
+      "health": {
+        "title": "Dienststatus",
+        "upSince": "Läuft seit {{when}}",
+        "chart": "API-Starts und Fehler pro Tag",
+        "series": {
+          "starts": "API-Starts",
+          "http5xx": "5xx-Fehler",
+          "http429": "429-Antworten"
+        },
+        "jobs": "Wartungsaufgaben",
+        "job": "Aufgabe",
+        "lastRun": "Letzter Lauf",
+        "result": "Ergebnis",
+        "action": "Aktion",
+        "notRun": "Noch nicht gelaufen",
+        "ok": "OK",
+        "failed": "Fehlgeschlagen",
+        "overdue": "Überfällig",
+        "runNow": "Jetzt ausführen",
+        "running": "Läuft …",
+        "runFailed": "Die Aufgabe konnte nicht gestartet werden. Versuche es erneut.",
+        "loadError": "Der Dienststatus konnte nicht geladen werden.",
+        "names": {
+          "sessions": "Abgelaufene Sitzungen",
+          "invites": "Abgelaufene Einladungen",
+          "geocode": "Geocode-Cache",
+          "commons": "Commons-Cache",
+          "activity": "Aktivitätsprotokoll",
+          "blobs": "Verwaiste Bilder",
+          "metrics": "Tagesmetriken"
+        }
+      }
     },
     "activity": {
       "live": "Live, Aktualisierung alle 15 Sekunden",
