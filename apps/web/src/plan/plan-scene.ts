@@ -8,12 +8,24 @@ const intlLocale: Record<AppLocale, string> = { en: 'en-GB', de: 'de-DE' }
 export function formatDayLabel(date: string, locale: AppLocale): string {
   const [year, month, day] = date.split('-').map(Number)
   const value = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, day ?? 1, 12))
-  return new Intl.DateTimeFormat(intlLocale[locale], {
+  // Built from the parts: engines punctuate the whole string differently
+  // (WebKit writes "Mon, 13 Apr"), the parts themselves agree.
+  const parts = new Intl.DateTimeFormat(intlLocale[locale], {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',
-  }).format(value)
+  }).formatToParts(value)
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? ''
+  const [weekday, dayText, monthText] = [
+    part('weekday'),
+    part('day'),
+    part('month'),
+  ]
+  return locale === 'de'
+    ? `${weekday}, ${dayText}. ${monthText}`
+    : `${weekday} ${dayText} ${monthText}`
 }
 
 /** The plan layer the Schedule tab hands to the shared map (R-46-05..R-46-09). */

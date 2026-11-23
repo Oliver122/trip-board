@@ -136,3 +136,9 @@ body {
     transition-duration: 0s;
   }
 }
+
+/* R-46-05: an undated spot's pin on the schedule map. !important because
+   MapLibre sets the marker element's inline opacity on every map update. */
+.maplibregl-marker[data-undated='true'] {
+  opacity: 0.4 !important;
+}
