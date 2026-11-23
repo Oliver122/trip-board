@@ -318,7 +318,20 @@
     "rowActions": "Actions for {{spot}}",
     "menuMoveUp": "Move up",
     "menuMoveDown": "Move down",
-    "removeFromBucket": "Remove from bucket"
+    "removeFromBucket": "Remove from bucket",
+    "anyDay": "Any day",
+    "stops_one": "{{count}} stop",
+    "stops_other": "{{count}} stops",
+    "dayHeading": "{{day}} · {{stops}}",
+    "focusDay": "Show {{day}} on the map",
+    "stopNumber": "Stop {{stop}}",
+    "menuMoveTo": "Move to…",
+    "moveTitle": "Move {{spot}} to…",
+    "moveCurrent": "current place",
+    "movedTo": "Moved to {{day}}, stop {{stop}}",
+    "movedToAnyDay": "Moved to {{entry}}, any day",
+    "moveError": "The visit could not be moved.",
+    "dropHere": "Drop on {{day}}"
   },
   "members": {
     "title": "Members",
@@ -662,7 +675,8 @@
           "update": "{{actor}} updated the plan {{plan}}",
           "delete": "{{actor}} deleted the plan {{plan}}",
           "spot_add": "{{actor}} added {{spot}} to {{plan}}",
-          "spot_remove": "{{actor}} removed {{spot}} from {{plan}}"
+          "spot_remove": "{{actor}} removed {{spot}} from {{plan}}",
+          "spot_move": "{{actor}} moved {{spot}} to {{plan}}"
         },
         "image": {
           "upload": "{{actor}} uploaded a photo of {{spot}}",
@@ -1051,5 +1065,12 @@
     "valueOn": "On",
     "valueOff": "Off",
     "lowDataHint": "Low data loads no photos, no map and no avatars until you ask for them. Auto follows your connection."
+  },
+  "planMap": {
+    "pin": "{{day}}, stop {{stop}}: {{spot}}",
+    "card": "{{day}} · {{stops}}",
+    "cardLabel": "{{day}}, {{stops}}: show on the map",
+    "dayCards": "Day cards",
+    "hint": "Give visits a day to see your route on the map"
   }
 }

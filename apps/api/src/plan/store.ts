@@ -373,29 +373,58 @@ export async function updatePlanSpot(
 ): Promise<{ ok: true; link: PlanLink } | PlanFailure> {
   return write(() =>
     withTransaction(pool, async (tx) => {
+      const targetId = patch.planEntryId
+      const moving = targetId !== undefined
+      // R-46-03: lock both entries in id order so two moves cannot deadlock
+      if (moving && targetId !== entryId) {
+        await tx.query(
+          'SELECT id FROM plan_entries WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+          [[entryId, targetId]],
+        )
+      }
       const locked = await lockEntry(tx, entryId, userId, 'planner')
       if (!locked.ok) return locked
       const entry = await loadCurrent(tx, entryId)
       if (!entry) return { ok: false as const, status: 404 as const }
+      let target = entry
+      if (moving && targetId !== entryId) {
+        const found = await tx.query<{ trip_id: string }>(
+          'SELECT trip_id FROM plan_entries WHERE id = $1',
+          [targetId],
+        )
+        if (found.rows[0]?.trip_id !== locked.tripId) {
+          return { ok: false as const, status: 404 as const }
+        }
+        const loaded = await loadCurrent(tx, targetId)
+        if (!loaded) return { ok: false as const, status: 404 as const }
+        target = loaded
+      }
       const current = await tx.query<{
         visit_date: string | null
         visit_time: string | null
         info: string | null
+        spot_title: string
       }>(
         `
         SELECT
-          visit_date::text AS visit_date,
-          to_char(visit_time, 'HH24:MI') AS visit_time,
-          info
-        FROM plan_entry_spots
-        WHERE id = $1 AND plan_entry_id = $2
+          pes.visit_date::text AS visit_date,
+          to_char(pes.visit_time, 'HH24:MI') AS visit_time,
+          pes.info,
+          s.title AS spot_title
+        FROM plan_entry_spots pes
+        JOIN spots s ON s.id = pes.spot_id
+        WHERE pes.id = $1 AND pes.plan_entry_id = $2
         `,
         [linkId, entryId],
       )
       const link = current.rows[0]
       if (!link) return { ok: false as const, status: 404 as const }
-      const visitDate =
-        patch.visitDate !== undefined ? patch.visitDate : link.visit_date
+      // a move without visitDate makes the visit undated
+      const visitDate = moving
+        ? (patch.visitDate ?? null)
+        : patch.visitDate !== undefined
+          ? patch.visitDate
+          : link.visit_date
       let visitTime =
         patch.visitTime !== undefined ? patch.visitTime : link.visit_time
       if (!visitDate) visitTime = null
@@ -406,24 +435,69 @@ export async function updatePlanSpot(
           fields: { visitTime: 'visit_time_needs_date' },
         }
       }
-      const visit = visitError(visitDate, entry)
+      const visit = visitError(visitDate, target)
       if (visit) return visit
       const info = patch.info !== undefined ? patch.info : link.info
-      await tx.query(
-        `
-        UPDATE plan_entry_spots
-        SET visit_date = $3, visit_time = $4, info = $5
-        WHERE id = $1 AND plan_entry_id = $2
-        `,
-        [linkId, entryId, visitDate, visitTime, info],
-      )
-      await activity.record(tx, {
-        actor: userId,
-        trip: locked.tripId,
-        action: 'plan.update',
-        entityId: entryId,
-        metadata: { plan: entry.title },
-      })
+      if (moving && targetId !== entryId) {
+        const next = await tx.query<{ n: number }>(
+          `
+          SELECT COALESCE(MAX(sort_order), -1) + 1 AS n
+          FROM plan_entry_spots
+          WHERE plan_entry_id = $1
+          `,
+          [targetId],
+        )
+        await tx.query(
+          `
+          UPDATE plan_entry_spots
+          SET plan_entry_id = $3, visit_date = $4, visit_time = $5, info = $6,
+              sort_order = $7
+          WHERE id = $1 AND plan_entry_id = $2
+          `,
+          [
+            linkId,
+            entryId,
+            targetId,
+            visitDate,
+            visitTime,
+            info,
+            next.rows[0]?.n ?? 0,
+          ],
+        )
+      } else {
+        await tx.query(
+          `
+          UPDATE plan_entry_spots
+          SET visit_date = $3, visit_time = $4, info = $5
+          WHERE id = $1 AND plan_entry_id = $2
+          `,
+          [linkId, entryId, visitDate, visitTime, info],
+        )
+      }
+      if (moving) {
+        await activity.record(tx, {
+          actor: userId,
+          trip: locked.tripId,
+          action: 'plan.spot_move',
+          entityId: linkId,
+          metadata: {
+            fromEntryId: entryId,
+            toEntryId: targetId,
+            fromDate: link.visit_date,
+            toDate: visitDate,
+            plan: target.title,
+            spot: link.spot_title,
+          },
+        })
+      } else {
+        await activity.record(tx, {
+          actor: userId,
+          trip: locked.tripId,
+          action: 'plan.update',
+          entityId: entryId,
+          metadata: { plan: entry.title },
+        })
+      }
       return { ok: true as const, link: await fetchLink(tx, linkId) }
     }),
   )

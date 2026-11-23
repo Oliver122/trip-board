@@ -57,7 +57,7 @@ test('T-19-09 a reorder on one schedule shows up on the other', async ({
     '2026-04-16',
   )
   const firstLink = await addVisit(owner, entryId, first, '2026-04-13')
-  await addVisit(owner, entryId, second, '2026-04-14')
+  await addVisit(owner, entryId, second, '2026-04-13')
   await owner.goto(`/trips/${tripId}/schedule`)
   await guest.goto(`/trips/${tripId}/schedule`)
   await expect.poll(() => visitTitles(owner)).toEqual([firstTitle, secondTitle])

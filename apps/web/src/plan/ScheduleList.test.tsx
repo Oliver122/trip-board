@@ -110,3 +110,133 @@ describe('schedule reorder controls', () => {
     ).toBeInTheDocument()
   })
 })
+
+const day = (
+  n: number,
+  link: Partial<PlanEntry['spots'][number]>,
+  i: number,
+) => ({
+  id: `4000000${n}-0000-0000-0000-00000000000${i}`,
+  spotId: `2000000${n}-0000-0000-0000-00000000000${i}`,
+  title: `Visit ${n}${i}`,
+  visitDate: null,
+  visitTime: null,
+  info: null,
+  sortOrder: i,
+  ...link,
+})
+
+const threeDays: PlanEntry = {
+  ...entry,
+  endDate: '2026-04-14',
+  spots: [
+    day(1, { visitDate: '2026-04-12', visitTime: '09:00' }, 1),
+    day(1, { visitDate: '2026-04-12' }, 2),
+    day(3, { visitDate: '2026-04-14' }, 1),
+    day(0, {}, 1),
+  ],
+}
+
+describe('schedule day groups', () => {
+  beforeEach(async () => {
+    cleanup()
+    await i18n.changeLanguage('en')
+  })
+
+  it('T-46-02 groups a bucket by day with colour dot, count and numbers', () => {
+    const [timed, untimed, third, any] = threeDays.spots
+    render(
+      <ScheduleList
+        entries={[threeDays]}
+        spots={[]}
+        canEdit
+        selectedId={null}
+        tripStart="2026-04-12"
+        onSelect={() => undefined}
+        onEdit={() => undefined}
+        onAddSpot={async () => undefined}
+        onRemoveSpot={async () => undefined}
+        onReorder={async () => undefined}
+        onMoveSpot={async () => undefined}
+        onCreateSpot={() => undefined}
+        createdSpot={null}
+      />,
+    )
+    const id = threeDays.id
+    const groups = screen
+      .getAllByTestId(/^day-group-/)
+      .map((node) => node.getAttribute('data-testid'))
+    expect(groups).toEqual([
+      `day-group-${id}-2026-04-12`,
+      `day-group-${id}-2026-04-14`,
+      `day-group-${id}-any`,
+    ])
+    expect(screen.queryByTestId(`day-group-${id}-2026-04-13`)).toBeNull()
+    const header = screen.getByTestId(`day-header-${id}-2026-04-12`)
+    expect(header).toHaveTextContent(/Sun 12 Apr · 2 stops/)
+    expect(header).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getAllByTestId('day-dot')[0]).toHaveStyle({
+      background: 'var(--day-1)',
+    })
+    expect(screen.getByTestId(`day-header-${id}-2026-04-14`)).toHaveTextContent(
+      /1 stop$/,
+    )
+    expect(screen.getByTestId(`day-header-${id}-any`).tagName).toBe('H3')
+    expect(screen.getByTestId(`stop-number-${timed?.id}`)).toHaveTextContent(
+      '1',
+    )
+    expect(screen.getByTestId(`stop-number-${untimed?.id}`)).toHaveTextContent(
+      '2',
+    )
+    expect(screen.getByTestId(`stop-number-${third?.id}`)).toHaveTextContent(
+      '1',
+    )
+    expect(screen.getByTestId(`stop-number-${third?.id}`)).toHaveStyle({
+      background: 'var(--day-3)',
+    })
+    expect(screen.queryByTestId(`stop-number-${any?.id}`)).toBeNull()
+    expect(screen.getByTestId(`visit-${any?.id}`)).toHaveAttribute(
+      'data-day',
+      'any',
+    )
+  })
+
+  it('T-46-02 gives a timed visit no Move up/down and opens Move to…', () => {
+    const [timed, untimed] = threeDays.spots
+    let moved: unknown[] = []
+    render(
+      <ScheduleList
+        entries={[threeDays]}
+        spots={[]}
+        canEdit
+        selectedId={null}
+        tripStart="2026-04-12"
+        onSelect={() => undefined}
+        onEdit={() => undefined}
+        onAddSpot={async () => undefined}
+        onRemoveSpot={async () => undefined}
+        onReorder={async () => undefined}
+        onMoveSpot={async (...args) => {
+          moved = args
+        }}
+        onCreateSpot={() => undefined}
+        createdSpot={null}
+      />,
+    )
+    fireEvent.click(screen.getByTestId(`row-menu-${timed?.id}`))
+    expect(screen.queryByTestId(`move-up-${timed?.id}`)).toBeNull()
+    expect(screen.queryByTestId(`move-down-${timed?.id}`)).toBeNull()
+    fireEvent.click(screen.getByTestId(`move-to-${timed?.id}`))
+    expect(screen.getByTestId('move-dialog')).toBeVisible()
+    fireEvent.click(
+      screen.getByTestId(`move-option-${threeDays.id}-2026-04-13`),
+    )
+    expect(moved).toEqual([threeDays.id, timed?.id, threeDays.id, '2026-04-13'])
+    expect(screen.getByTestId('reorder-live')).toHaveTextContent(
+      'Moved to Mon 13 Apr, stop 1',
+    )
+    // the untimed visit of day 1 is alone in its untimed list
+    fireEvent.click(screen.getByTestId(`row-menu-${untimed?.id}`))
+    expect(screen.queryByTestId(`move-up-${untimed?.id}`)).toBeNull()
+  })
+})

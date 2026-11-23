@@ -88,3 +88,15 @@ export async function reorderPlanSpots(
     body: JSON.stringify({ linkIds }),
   })
 }
+
+/** Moves a visit to another entry and/or day in one request (R-46-03). */
+export async function movePlanSpot(
+  entryId: string,
+  linkId: string,
+  body: { planEntryId: string; visitDate: string | null },
+): Promise<PlanLink> {
+  return requestJson(`/api/plan/${entryId}/spots/${linkId}`, planLinkSchema, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}

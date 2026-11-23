@@ -34,7 +34,7 @@ export const seedCounts = {
   homeSpots: 2,
   buckets: 2,
   singles: 1,
-  planEntrySpots: 3,
+  planEntrySpots: 6,
   activityEvents: 90,
   metricsDaily: 90,
   opsCounters: 30,
@@ -196,8 +196,19 @@ export async function seedDatabase(pool: Pool): Promise<void> {
       ) VALUES
         ('40000000-0000-0000-0000-000000000001', $1, $2, $4, '2026-04-13', '18:00', 0),
         ('40000000-0000-0000-0000-000000000002', $1, $2, $5, '2026-04-14', NULL, 1),
-        ('40000000-0000-0000-0000-000000000003', $1, $3, $6, '2026-04-18', '09:00', 0)
-      ON CONFLICT (id) DO NOTHING
+        ('40000000-0000-0000-0000-000000000003', $1, $3, $6, '2026-04-18', '09:00', 0),
+        ('40000000-0000-0000-0000-000000000004', $1, $2, $5, '2026-04-13', '10:00', 2),
+        ('40000000-0000-0000-0000-000000000005', $1, $2, $7, '2026-04-13', NULL, 3),
+        ('40000000-0000-0000-0000-000000000006', $1, $2, $4, NULL, NULL, 4)
+      -- R-46-10: e2e tests move these links, so a re-run restores them
+      ON CONFLICT (id) DO UPDATE SET
+        trip_id = EXCLUDED.trip_id,
+        plan_entry_id = EXCLUDED.plan_entry_id,
+        spot_id = EXCLUDED.spot_id,
+        visit_date = EXCLUDED.visit_date,
+        visit_time = EXCLUDED.visit_time,
+        info = NULL,
+        sort_order = EXCLUDED.sort_order
       `,
       [
         seedIds.trip,
@@ -206,6 +217,7 @@ export async function seedDatabase(pool: Pool): Promise<void> {
         seedIds.spots.shibuya,
         seedIds.spots.teamLab,
         seedIds.spots.fushimi,
+        seedIds.spots.hotel,
       ],
     )
     await client.query(

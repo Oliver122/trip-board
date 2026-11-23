@@ -148,6 +148,8 @@ Two plan entry types; a spot can be in **many** entries (decision #3):
 - Each spot inside a bucket can have its own optional date/time and info (e.g. “day 2, after lunch”).
 - Plan entries have their own info text.
 - The schedule view lists entries chronologically; selecting one zooms the map to its spots.
+- Inside an open bucket the visits are grouped by day (plus *Any day* for undated ones). Timed visits come first in time order, then the untimed ones in their hand-made order. A visit's ⋯ → *Move to…* (or a drag onto a day header) moves it to another day or entry and keeps its time and info (step 46).
+- On the Schedule tab the map draws the plan: every day has one of 8 colours, its visits are numbered pins joined by a dashed line, and from 1024 px a card per day floats over the map. Clicking a card or day header fits the map to that day and fades the others (step 46). The lines show the order, not travel paths.
 
 ### 5.5 List toolbar (top-right buttons)
 | Button | Behavior |

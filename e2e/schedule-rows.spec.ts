@@ -15,7 +15,7 @@ for (const width of [390, 1280]) {
     const entryId = await createEntry(page, tripId, 'bucket', 'Tokyo')
     const singleId = await createEntry(page, tripId, 'single', 'Arrival')
     const firstLink = await addVisit(page, entryId, first, '2026-04-13')
-    const secondLink = await addVisit(page, entryId, second, '2026-04-14')
+    const secondLink = await addVisit(page, entryId, second, '2026-04-13')
     await page.goto(`/trips/${tripId}/schedule`)
     await expect(page.getByTestId(`visit-${firstLink}`)).toBeVisible()
 

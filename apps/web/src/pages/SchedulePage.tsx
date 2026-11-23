@@ -25,11 +25,14 @@ import {
   createPlanEntry,
   deletePlanEntry,
   listPlan,
+  movePlanSpot,
   removePlanSpot,
   reorderPlanSpots,
   updatePlanEntry,
   type PlanWrite,
 } from '../plan/client'
+import { moveLink } from '../plan/day-groups'
+import { buildPlanScene } from '../plan/plan-scene'
 import { ScheduleList } from '../plan/ScheduleList'
 import {
   draftsEqual,
@@ -86,6 +89,8 @@ export function SchedulePage() {
   }
   const [attempt, setAttempt] = useState(0)
   const [planError, setPlanError] = useState(false)
+  const [focusedDate, setFocusedDate] = useState<string | null>(null)
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null)
   const [spotPanel, setSpotPanel] = useState<SpotPanelState | null>(null)
   const [spotSaving, setSpotSaving] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -184,6 +189,21 @@ export function SchedulePage() {
     }
   }, [kinds, spotPanel])
   const placing = spotPanel != null
+  // R-46-05: the plan layer of the shared map, redrawn on every plan change.
+  const plan = useMemo(
+    () =>
+      entries
+        ? buildPlanScene({
+            entries,
+            spots,
+            tripStart: trip.startDate,
+            locale: lang,
+            focusedDate,
+            selectedLinkId,
+          })
+        : null,
+    [entries, focusedDate, lang, selectedLinkId, spots, trip.startDate],
+  )
   const scene = useMemo<MapScene>(
     () => ({
       spots: mapSpots,
@@ -194,8 +214,9 @@ export function SchedulePage() {
       highlightIds,
       focus,
       flyTo: null,
+      plan,
     }),
-    [draftPin, focus, highlightIds, mapSpots, placing],
+    [draftPin, focus, highlightIds, mapSpots, placing, plan],
   )
 
   function changeSpotDraft(draft: Draft) {
@@ -223,6 +244,11 @@ export function SchedulePage() {
   useMapScene(scene, {
     onSelect: () => undefined,
     onHover: () => undefined,
+    onPlanStop: (linkId, date) => {
+      setSelectedLinkId(linkId)
+      setFocusedDate(date)
+    },
+    onFocusDay: setFocusedDate,
     onPlace: placing
       ? (lng, lat) => {
           void place(lng, lat)
@@ -402,7 +428,16 @@ export function SchedulePage() {
           spots={spots}
           canEdit={canEdit}
           selectedId={selectedEntryId}
-          onSelect={setSelectedEntryId}
+          tripStart={trip.startDate}
+          focusedDate={focusedDate}
+          selectedLinkId={selectedLinkId}
+          onSelect={(entryId) => {
+            // R-46-07: picking an entry fits the entry, not a day.
+            setFocusedDate(null)
+            setSelectedLinkId(null)
+            setSelectedEntryId(entryId)
+          }}
+          onFocusDay={setFocusedDate}
           onEdit={(entry) => setDialog({ mode: 'edit', entry })}
           onAddSpot={async (entryId, body) => {
             try {
@@ -429,6 +464,22 @@ export function SchedulePage() {
             setSpotPanel({ draft, baseline: draft })
           }}
           createdSpot={createdSpot}
+          onMoveSpot={async (fromEntryId, linkId, toEntryId, visitDate) => {
+            const previous = entries
+            setEntries(
+              moveLink(entries, fromEntryId, linkId, toEntryId, visitDate),
+            )
+            try {
+              await movePlanSpot(fromEntryId, linkId, {
+                planEntryId: toEntryId,
+                visitDate,
+              })
+            } catch (error) {
+              setEntries(previous)
+              if (isAuth(error)) reload()
+              else setToast(t('schedule.moveError'))
+            }
+          }}
           onReorder={async (entryId, linkIds) => {
             const previous = entries
             setEntries(

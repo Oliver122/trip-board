@@ -472,10 +472,10 @@ describe('spots', () => {
     expect(listed.statusCode).toBe(200)
     expect(titles(listed)).toEqual([
       'Shibuya Sky',
+      'Hotel Gracery',
       'teamLab Borderless',
       'Fushimi Inari',
       'Nara Park',
-      'Hotel Gracery',
       'Kyoto Ryokan',
     ])
     expect(listed.json().total).toBe(6)
@@ -489,9 +489,9 @@ describe('spots', () => {
     expect(titles(await list(owner.cookie, seedTrip, 'sort=datetime'))).toEqual(
       [
         'Shibuya Sky',
+        'Hotel Gracery',
         'teamLab Borderless',
         'Fushimi Inari',
-        'Hotel Gracery',
         'Kyoto Ryokan',
         'Nara Park',
       ],

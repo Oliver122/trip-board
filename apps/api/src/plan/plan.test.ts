@@ -704,6 +704,163 @@ describe('plan', () => {
     })
   })
 
+  it('T-46-03 moves a visit to another entry or day and records plan.spot_move', async () => {
+    const owner = await login('100000000000046031')
+    const visitor = await login('100000000000046032')
+    const tripId = await createTrip(owner.cookie)
+    const otherTrip = await createTrip(owner.cookie, {
+      ...honshu,
+      name: 'Kyushu',
+    })
+    await addMember(tripId, visitor.user.id, 'visitor')
+    const spotId = await createSpot(owner.cookie, tripId, tokyo)
+    const otherSpot = await createSpot(owner.cookie, tripId, {
+      ...tokyo,
+      title: 'Asakusa',
+    })
+    const tokyoId = await entryId(
+      postEntry(owner.cookie, tripId, {
+        type: 'bucket',
+        title: 'Tokyo',
+        startDate: '2026-04-12',
+        endDate: '2026-04-16',
+      }),
+    )
+    const kyotoId = await entryId(
+      postEntry(owner.cookie, tripId, {
+        type: 'bucket',
+        title: 'Kyoto',
+        startDate: '2026-04-17',
+        endDate: '2026-04-20',
+      }),
+    )
+    const foreignId = await entryId(
+      postEntry(owner.cookie, otherTrip, {
+        type: 'bucket',
+        title: 'Fukuoka',
+        startDate: '2026-04-12',
+        endDate: '2026-04-16',
+      }),
+    )
+    const moved = (
+      await postLink(owner.cookie, tokyoId, {
+        spotId,
+        visitDate: '2026-04-13',
+        visitTime: '18:00',
+        info: 'Sunset',
+      })
+    ).json().id as string
+    const sibling = (
+      await postLink(owner.cookie, tokyoId, {
+        spotId: otherSpot,
+        visitDate: '2026-04-13',
+      })
+    ).json().id as string
+    const resident = (
+      await postLink(owner.cookie, kyotoId, {
+        spotId: otherSpot,
+        visitDate: '2026-04-18',
+      })
+    ).json().id as string
+
+    // moves, keeps time and info, goes last in the target's order
+    const ok = await patchLink(owner.cookie, tokyoId, moved, {
+      planEntryId: kyotoId,
+      visitDate: '2026-04-19',
+    })
+    expect(ok.statusCode).toBe(200)
+    expect(ok.json()).toMatchObject({
+      id: moved,
+      visitDate: '2026-04-19',
+      visitTime: '18:00',
+      info: 'Sunset',
+      sortOrder: 1,
+    })
+    const listed = (await getPlan(owner.cookie, tripId)).json().entries
+    const byId = Object.fromEntries(
+      listed.map((e: { id: string; spots: { id: string }[] }) => [
+        e.id,
+        e.spots.map((l) => l.id),
+      ]),
+    )
+    expect(byId[tokyoId]).toEqual([sibling])
+    expect(byId[kyotoId]).toEqual([resident, moved])
+    const events = await db.pool.query(
+      `SELECT metadata FROM activity_events
+       WHERE action = 'plan.spot_move' AND trip_id = $1`,
+      [tripId],
+    )
+    expect(events.rows).toHaveLength(1)
+    expect(events.rows[0].metadata).toMatchObject({
+      fromEntryId: tokyoId,
+      toEntryId: kyotoId,
+      fromDate: '2026-04-13',
+      toDate: '2026-04-19',
+      plan: 'Kyoto',
+      spot: 'Tokyo Station',
+    })
+    const updates = await db.pool.query(
+      `SELECT count(*)::int AS n FROM activity_events
+       WHERE action = 'plan.update' AND trip_id = $1`,
+      [tripId],
+    )
+    expect(updates.rows[0].n).toBe(0)
+
+    // same entry: only the date changes, the order stays
+    const same = await patchLink(owner.cookie, kyotoId, moved, {
+      planEntryId: kyotoId,
+      visitDate: '2026-04-20',
+    })
+    expect(same.statusCode).toBe(200)
+    expect(same.json()).toMatchObject({
+      visitDate: '2026-04-20',
+      visitTime: '18:00',
+      sortOrder: 1,
+    })
+
+    // no visitDate: undated, time cleared, info kept
+    const undated = await patchLink(owner.cookie, kyotoId, moved, {
+      planEntryId: tokyoId,
+    })
+    expect(undated.statusCode).toBe(200)
+    expect(undated.json()).toMatchObject({
+      visitDate: null,
+      visitTime: null,
+      info: 'Sunset',
+    })
+
+    const outside = await patchLink(owner.cookie, tokyoId, moved, {
+      planEntryId: kyotoId,
+      visitDate: '2026-04-13',
+    })
+    expect(outside.statusCode).toBe(400)
+    expect(outside.json().fields.visitDate).toBe('outside_range')
+    const foreign = await patchLink(owner.cookie, tokyoId, moved, {
+      planEntryId: foreignId,
+    })
+    expect(foreign.statusCode).toBe(404)
+    const unknown = await patchLink(owner.cookie, tokyoId, moved, {
+      planEntryId: missingId,
+    })
+    expect(unknown.statusCode).toBe(404)
+    const invalid = await patchLink(owner.cookie, tokyoId, moved, {
+      planEntryId: 'nope',
+    })
+    expect(invalid.statusCode).toBe(400)
+    expect(invalid.json().fields.planEntryId).toBe('invalid')
+    const denied = await patchLink(visitor.cookie, tokyoId, moved, {
+      planEntryId: kyotoId,
+    })
+    expect(denied.statusCode).toBe(403)
+    const anonymous = await app.inject({
+      method: 'PATCH',
+      url: `/plan/${tokyoId}/spots/${moved}`,
+      headers: { origin: WEB_ORIGIN, 'content-type': 'application/json' },
+      payload: { planEntryId: kyotoId },
+    })
+    expect(anonymous.statusCode).toBe(401)
+  })
+
   it('rejects anonymous callers, a foreign origin, and a bad id', async () => {
     const owner = await login('100000000000001101')
     const tripId = await createTrip(owner.cookie)

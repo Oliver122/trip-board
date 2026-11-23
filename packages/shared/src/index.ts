@@ -227,6 +227,8 @@ export type {
   SpotDetail,
   SpotPlan,
 } from './plans.js'
+export { colorIndexFor, dayColorCount, planDays } from './plan-days.js'
+export type { PlanDay, PlanDays, PlanStop } from './plan-days.js'
 export {
   activeFilterCount,
   defaultSpotListQuery,

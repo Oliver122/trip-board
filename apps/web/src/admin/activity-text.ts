@@ -23,6 +23,7 @@ export const activityActions = [
   'plan.delete',
   'plan.spot_add',
   'plan.spot_remove',
+  'plan.spot_move',
   'image.upload',
   'image.delete',
   'export.download',
