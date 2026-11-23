@@ -7,7 +7,8 @@ import { loadConfig, type AppConfig } from '../config.js'
 import { createTestDatabase, type TestDatabase } from '../db/test-db.js'
 import { startFakeDiscord, type FakeDiscord } from '../auth/fake-discord.js'
 import { loginWithDiscord } from '../auth/login.js'
-import { createS3Storage, type ObjectStorage } from '../images/storage.js'
+import { type ObjectStorage } from '../images/storage.js'
+import { createTestStorage } from '../images/test-storage.js'
 import { listAdminRoutes } from './routes.js'
 import { adminUserSorts } from '@tripboard/shared'
 
@@ -39,7 +40,7 @@ describe('admin users and quotas', () => {
       ADMIN_DISCORD_IDS: ADMIN_DISCORD_ID,
       S3_BUCKET: 'tripboard-test',
     })
-    storage = createS3Storage(config)
+    storage = createTestStorage(config, import.meta.url)
     png = await sharp({
       create: {
         width: 8,
