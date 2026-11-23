@@ -126,13 +126,11 @@ async function login(page: Page, discordId: string) {
 }
 
 async function setLocale(page: Page, locale: 'en' | 'de') {
-  await page.evaluate(async (next) => {
-    const response = await fetch('/api/me', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ locale: next }),
-    })
-    if (!response.ok) throw new Error(await response.text())
-  }, locale)
+  // The request context shares the page's cookies but not its navigation
+  // state: an in-page fetch dies with "Load failed" on WebKit mid-navigation.
+  const response = await page.request.patch('/api/me', {
+    data: { locale },
+    headers: { origin: new URL(page.url()).origin },
+  })
+  if (!response.ok()) throw new Error(await response.text())
 }
