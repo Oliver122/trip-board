@@ -14,6 +14,7 @@ const MIGRATION_FILES = [
   '0006_web_photos.sql',
   '0007_file_size_limit.sql',
   '0008_service_health.sql',
+  '0009_photobook.sql',
 ] as const
 
 export async function applyMigrations(pool: Pool): Promise<void> {

@@ -25,6 +25,7 @@ export const activityActions = [
   'plan.spot_remove',
   'plan.spot_move',
   'image.upload',
+  'image.update',
   'image.delete',
   'export.download',
   'quota.request',
@@ -52,7 +53,11 @@ export function activitySentence(
   const key =
     input.action === 'kind.delete' && text(metadata, 'movedTo')
       ? 'kind.deleteMoved'
-      : input.action
+      : // A photobook photo without a spot (R-47-02).
+        (input.action === 'image.upload' || input.action === 'image.delete') &&
+          !text(metadata, 'spot')
+        ? `${input.action}Book`
+        : input.action
   return i18n.t(`admin.activity.actions.${key}`, {
     lng: locale,
     defaultValue: input.action,

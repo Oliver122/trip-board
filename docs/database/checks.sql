@@ -518,6 +518,46 @@ SELECT pg_temp.expect(
   (SELECT last_result = 'error' FROM job_runs WHERE job = 'invites'),
   'job_runs accepts a failed run with a 1000 character error');
 
+-- Photobook (step 47, T-47-01) ---------------------------------------------
+INSERT INTO images (trip_id, spot_id, storage_key, bytes, width, height) VALUES
+  ('10000000-0000-0000-0000-000000000001', NULL, 'trips/1/photos/free.webp', 1000, 640, 480);
+SELECT pg_temp.expect(true, 'an image with spot_id null is accepted');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, storage_key, bytes, width, height, lat) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'trips/1/photos/lat.webp', 1000, 640, 480, 35.6)$$,
+  'an image with lat but no lng is rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, storage_key, bytes, width, height, lat, lng) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'trips/1/photos/range.webp', 1000, 640, 480, 91, 10)$$,
+  'a latitude over 90 is rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, storage_key, bytes, width, height, caption) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'trips/1/photos/cap.webp', 1000, 640, 480, repeat('x', 501))$$,
+  'a caption over 500 characters is rejected');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, storage_key, bytes, width, height, place_source) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'trips/1/photos/src.webp', 1000, 640, 480, 'guess')$$,
+  'place_source is exif or manual');
+SELECT pg_temp.expect_error($$
+  INSERT INTO images (trip_id, storage_key, bytes, width, height) VALUES
+  ('10000000-0000-0000-0000-0000000000ff', 'trips/1/photos/trip.webp', 1000, 640, 480)$$,
+  'an image of an unknown trip is rejected');
+INSERT INTO images (trip_id, spot_id, storage_key, bytes, width, height, lat, lng, taken_at, place_source, caption) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 'trips/1/photos/point.webp',
+   1000, 640, 480, 35.0, 135.7, '2026-04-13 10:15:00', 'exif', 'A caption');
+SELECT pg_temp.expect(
+  (SELECT to_char(taken_at, 'YYYY-MM-DD"T"HH24:MI:SS') = '2026-04-13T10:15:00'
+     FROM images WHERE storage_key = 'trips/1/photos/point.webp'),
+  'taken_at keeps the wall-clock time');
+INSERT INTO images (trip_id, spot_id, storage_key, bytes, width, height) VALUES
+  ('10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000003', 'trips/1/spots/plain.webp', 1000, 640, 480);
+DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000003';
+SELECT pg_temp.expect(
+  NOT EXISTS (SELECT 1 FROM images WHERE storage_key = 'trips/1/spots/plain.webp')
+  AND (SELECT count(*) = 1 FROM blob_deletions WHERE storage_key = 'trips/1/spots/plain.webp')
+  AND (SELECT spot_id IS NULL AND lat = 35.0 FROM images WHERE storage_key = 'trips/1/photos/point.webp'),
+  'deleting a spot deletes its pointless image and keeps its photo with a point, spot_id null');
+
 -- Cascades ----------------------------------------------------------------
 DELETE FROM spots WHERE id = '20000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(
@@ -529,7 +569,7 @@ DELETE FROM trips WHERE id = '10000000-0000-0000-0000-000000000001';
 SELECT pg_temp.expect(
   NOT EXISTS (SELECT 1 FROM spots WHERE trip_id = '10000000-0000-0000-0000-000000000001')
   AND NOT EXISTS (SELECT 1 FROM trip_members WHERE trip_id = '10000000-0000-0000-0000-000000000001')
-  AND (SELECT count(*) = 2 FROM blob_deletions)
+  AND (SELECT count(*) = 5 FROM blob_deletions)
   AND NOT EXISTS (SELECT 1 FROM kind_limit_requests WHERE trip_id = '10000000-0000-0000-0000-000000000001'),
   'deleting trip cascades and queues all blobs');
 SELECT pg_temp.expect(

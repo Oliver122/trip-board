@@ -36,13 +36,18 @@ describe.skipIf(!hasDb)('view helpers', () => {
 
   it('reads platform quota defaults from user_quota_usage', async () => {
     const quota = await getUserQuotaUsage(db.pool, seedIds.users.sven)
+    // Sven uploaded two of the seed's photobook photos (R-47-12).
+    const photos = await db.pool.query<{ bytes: string }>(
+      'SELECT sum(bytes) AS bytes FROM images WHERE uploaded_by = $1',
+      [seedIds.users.sven],
+    )
     expect(quota).toMatchObject({
       userId: seedIds.users.sven,
       maxImages: 100,
       maxBytes: 209715200,
       hasOverride: false,
-      usedImages: 0,
-      usedBytes: 0,
+      usedImages: 2,
+      usedBytes: Number(photos.rows[0]?.bytes),
     })
   })
 })

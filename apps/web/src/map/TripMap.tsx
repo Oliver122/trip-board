@@ -22,7 +22,7 @@ import {
 } from '../components/category'
 import { activeLocale } from '../i18n'
 import { useMediaQuery } from '../lib/media'
-import type { PlanMapScene } from '../trips/trip-context'
+import type { PhotoMapScene, PlanMapScene } from '../trips/trip-context'
 import { useDark } from '../theme'
 import {
   boundsForPoints,
@@ -32,6 +32,7 @@ import {
 } from './bounds'
 import { clusterSpots, type MapSpot } from './clusters'
 import { Pin } from './Pin'
+import { PhotoLayer } from './PhotoLayer'
 import { PlanLayer, PlanOverlay, useDayCardsSetting } from './PlanLayer'
 import { mapLandColor, mapStyle } from './style'
 import {
@@ -73,6 +74,9 @@ export function TripMap({
   plan = null,
   onPlanStop,
   onFocusDay,
+  photos = null,
+  onPhoto,
+  onPhotoMove,
 }: {
   bbox: LngLatBounds
   spots: MapSpot[]
@@ -102,6 +106,10 @@ export function TripMap({
   plan?: PlanMapScene | null
   onPlanStop?: (linkId: string, date: string) => void
   onFocusDay?: (date: string | null) => void
+  /** The photobook's photo markers; null everywhere else (R-47-07). */
+  photos?: PhotoMapScene | null
+  onPhoto?: (id: string) => void
+  onPhotoMove?: (id: string, lng: number, lat: number) => void
 }) {
   const { t, i18n } = useTranslation()
   const dark = useDark()
@@ -141,6 +149,20 @@ export function TripMap({
     (linkId: string, date: string) => onPlanStopRef.current?.(linkId, date),
     [],
   )
+  const onPhotoRef = useRef(onPhoto)
+  onPhotoRef.current = onPhoto
+  const onPhotoMoveRef = useRef(onPhotoMove)
+  onPhotoMoveRef.current = onPhotoMove
+  const photoClick = useCallback((id: string) => onPhotoRef.current?.(id), [])
+  const photoMove = useCallback(
+    (id: string, lng: number, lat: number) =>
+      onPhotoMoveRef.current?.(id, lng, lat),
+    [],
+  )
+  const zoomTo = useCallback((lng: number, lat: number) => {
+    const map = mapRef.current?.getMap()
+    map?.easeTo({ center: [lng, lat], zoom: Math.min(map.getZoom() + 2, 16) })
+  }, [])
   const focusDay = useCallback(
     (date: string | null) => onFocusDayRef.current?.(date),
     [],
@@ -387,6 +409,7 @@ export function TripMap({
               }
         }
         style={{ width: '100%', height: '100%', background: land }}
+        cursor={placing ? 'crosshair' : undefined}
         onLoad={(event) => {
           const map = event.target
           // Fit before the map is published, so nothing moves it first.
@@ -506,6 +529,16 @@ export function TripMap({
             cards={wide && dayCards}
             onPlanStop={planStop}
             onFocusDay={focusDay}
+          />
+        ) : null}
+        {photos ? (
+          <PhotoLayer
+            photos={photos}
+            bounds={camera.bounds}
+            zoom={camera.zoom}
+            onPhoto={photoClick}
+            onPhotoMove={photoMove}
+            onZoomTo={zoomTo}
           />
         ) : null}
         {draft ? (

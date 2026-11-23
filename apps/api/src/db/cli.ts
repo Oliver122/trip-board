@@ -7,6 +7,7 @@ import { applyMigrations } from './migrate.js'
 import { createTestDatabase } from './test-db.js'
 import { repoRoot } from './paths.js'
 import { backfillMetrics } from '../admin/metrics-job.js'
+import { createS3Storage } from '../images/storage.js'
 import { seedDatabase } from './seed.js'
 
 loadDotenv({ path: resolve(repoRoot, '.env') })
@@ -21,7 +22,7 @@ try {
     console.log('Migrations applied.')
   } else if (command === 'seed') {
     await applyMigrations(pool)
-    await seedDatabase(pool)
+    await seedDatabase(pool, { storage: createS3Storage(config) })
     console.log('Seed applied.')
   } else if (command === 'metrics') {
     const created = await backfillMetrics(pool, new Date())
