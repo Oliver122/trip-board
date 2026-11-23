@@ -479,14 +479,14 @@ export function TripMap({
               latitude={item.spot.lat}
               anchor="center"
               ref={(marker) => {
-                // R-46-05: pins of spots without a dated visit are faded.
+                // R-46-05: pins of spots without a dated visit are faded (styles.css;
+                // MapLibre rewrites the marker's inline opacity on every update).
                 const element = marker?.getElement()
                 if (!element) return
                 if (plan) element.setAttribute('data-undated', 'true')
                 else element.removeAttribute('data-undated')
               }}
               style={{
-                opacity: plan ? 0.4 : undefined,
                 zIndex:
                   item.spot.id === selectedId ||
                   highlightIds.includes(item.spot.id)
