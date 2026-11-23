@@ -9,6 +9,7 @@ import { runCheck } from './check.mjs'
 import { buildIndex, isPrettierClean, renderIndex } from './index.mjs'
 import { loadModel, parseDepends } from './parse.mjs'
 
+// Fixture T-IDs are spelled T\u002d9N-NN so this file's source never names an invented ID (R-48-05).
 // Fixtures are written to a temp dir at test time (prettier would reformat committed
 // markdown tables). Fixture steps use numbers 91-93 so their IDs never collide with real ones.
 
@@ -74,7 +75,7 @@ function validFiles() {
 Spots live here. See [kinds](./kinds.md).
 
 ${HEAD}
-| C-SPOT-01 | Creates a spot, e.g. via the API. Second sentence. <!-- R-91-01 --> | active | 91 | — | T-91-01, T-91-02 |
+| C-SPOT-01 | Creates a spot, e.g. via the API. Second sentence. <!-- R-91-01 --> | active | 91 | — | T\u002d91-01, T\u002d91-02 |
 | C-SPOT-02 | A rule without a test. | active | 91 | — | — |
 
 ## Known gaps
@@ -86,9 +87,9 @@ ${HEAD}
 Kinds live here.
 
 ${HEAD}
-| C-KIND-01 | A kind has a color. <!-- R-92-01 --> | active | 92 | — | T-91-01 |
+| C-KIND-01 | A kind has a color. <!-- R-92-01 --> | active | 92 | — | T\u002d91-01 |
 `,
-    'apps/api/src/alpha.test.ts': "// T-91-01\ntest('x', () => {})\n",
+    'apps/api/src/alpha.test.ts': "// T\u002d91-01\ntest('x', () => {})\n",
   }
 }
 
@@ -149,7 +150,7 @@ test('T-30-01 valid fixture passes; duplicate/wrong-area/missing-column/malforme
   const wrongRoot = await fixture((f) => {
     wrongText =
       f['requirements/core/kinds.md'] +
-      '| C-SPOT-03 | Wrong place. | active | 92 | — | T-91-01 |\n'
+      '| C-SPOT-03 | Wrong place. | active | 92 | — | T\u002d91-01 |\n'
     f['requirements/core/kinds.md'] = wrongText
   })
   const wrongLine = lineOf(wrongText, 'C-SPOT-03')
@@ -164,8 +165,8 @@ test('T-30-01 valid fixture passes; duplicate/wrong-area/missing-column/malforme
   let colText
   const colRoot = await fixture((f) => {
     colText = f['requirements/core/kinds.md'].replace(
-      '| 92 | — | T-91-01 |',
-      '| 92 | T-91-01 |',
+      '| 92 | — | T\u002d91-01 |',
+      '| 92 | T\u002d91-01 |',
     )
     f['requirements/core/kinds.md'] = colText
   })
@@ -300,9 +301,9 @@ test('T-30-03 each rule violation fails --check; a manual T-ID without a tag pas
       (f) =>
         (f['requirements/core/kinds.md'] = f[
           'requirements/core/kinds.md'
-        ].replace('T-91-01', 'T-91-77')),
+        ].replace('T\u002d91-01', 'T\u002d91-77')),
     ),
-    'T-91-77 is not a Definition of Done row',
+    'T\u002d91-77 is not a Definition of Done row',
   )
   await has(
     await fixture(
@@ -315,10 +316,10 @@ test('T-30-03 each rule violation fails --check; a manual T-ID without a tag pas
   )
   await has(
     await fixture((f) => delete f['apps/api/src/alpha.test.ts']),
-    'T-91-01 (api) is not located',
+    'T\u002d91-01 (api) is not located',
   )
 
-  // manual T-91-02 is cited by C-SPOT-01 and has no tag anywhere: valid fixture still passes
+  // the manual fixture test is cited by C-SPOT-01 and has no tag anywhere: valid fixture still passes
   assert.deepEqual(await check(await fixture()), [])
 
   const bad = await fixture((f) => delete f['apps/api/src/alpha.test.ts'])
@@ -407,5 +408,83 @@ test('T-30-09 README links INDEX.md without graph or "23 small steps"; index lis
   assert.match(
     index,
     /\[[^\]]*\]\(\.\/25-spot-switching-and-right-click-add\.md\)/,
+  )
+})
+
+// T-48-05: untagged test files, the untagged-tests.json list and unknown / removed-only T-IDs.
+test('T-48-05 an untagged test file, the untagged list and unknown or removed-only T-IDs', async () => {
+  const has = async (root, needle) => {
+    const problems = await check(root)
+    assert.ok(
+      problems.some((p) => p.includes(needle)),
+      `expected "${needle}" in:\n${problems.join('\n')}`,
+    )
+  }
+  const LIST = 'scripts/req/untagged-tests.json'
+  const list = (...entries) => JSON.stringify(entries)
+  const setup = {
+    path: 'apps/api/src/setup.test.ts',
+    reason: 'setup check',
+  }
+  const untagged = (f) =>
+    (f['apps/api/src/setup.test.ts'] = "test('no id', () => {})\n")
+
+  await has(
+    await fixture(untagged),
+    'apps/api/src/setup.test.ts:1: test file names no T-ID',
+  )
+  assert.deepEqual(
+    await check(
+      await fixture((f) => {
+        untagged(f)
+        f[LIST] = list(setup)
+      }),
+    ),
+    [],
+  )
+  await has(
+    await fixture((f) => {
+      f['apps/api/src/setup.test.ts'] = "// T\u002d91-01\ntest('x', () => {})\n"
+      f[LIST] = list(setup)
+    }),
+    `${LIST}: apps/api/src/setup.test.ts is listed but now names T\u002d91-01`,
+  )
+  await has(
+    await fixture((f) => (f[LIST] = list(setup))),
+    `${LIST}: apps/api/src/setup.test.ts is listed but is not a test file`,
+  )
+  await has(
+    await fixture((f) => {
+      untagged(f)
+      f[LIST] = list({ path: setup.path, reason: '' })
+    }),
+    'has no reason',
+  )
+  await has(
+    await fixture((f) => {
+      untagged(f)
+      f[LIST] = list(setup, setup)
+    }),
+    'is listed twice',
+  )
+  await has(
+    await fixture(
+      (f) =>
+        (f['apps/api/src/alpha.test.ts'] =
+          "// T\u002d91-01\n// T\u002d99-01\ntest('x', () => {})\n"),
+    ),
+    'apps/api/src/alpha.test.ts:2: unknown T-ID T\u002d99-01',
+  )
+  // C-KIND-01 is the only rule naming T\u002d92-01, and it is removed; step 92 is integrated.
+  const removedOnly = (f) => {
+    f['requirements/core/kinds.md'] = f['requirements/core/kinds.md'].replace(
+      '| active | 92 | — | T\u002d91-01 |',
+      '| removed | 92 | — | T\u002d92-01 |',
+    )
+    f['apps/api/src/beta.test.ts'] = "// T\u002d92-01\ntest('x', () => {})\n"
+  }
+  await has(
+    await fixture(removedOnly),
+    'apps/api/src/beta.test.ts:1: T\u002d92-01 only proves removed rules',
   )
 })

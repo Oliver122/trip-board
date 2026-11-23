@@ -139,6 +139,67 @@ export async function runCheck(model) {
     }
   }
 
+  // R-48-04: every test file names a T-ID or is listed with a reason.
+  const listed = new Map()
+  for (const msg of model.untagged.errors) problems.push(msg)
+  for (const e of model.untagged.entries) {
+    const list = model.untagged.rel
+    if (listed.has(e.path)) add(list, 0, `${e.path} is listed twice`)
+    listed.set(e.path, e)
+    if (!e.reason) add(list, 0, `${e.path} has no reason`)
+  }
+  const byFile = new Map(model.testFiles.map((f) => [f.file, f]))
+  for (const e of listed.values()) {
+    const f = byFile.get(e.path)
+    if (!f)
+      add(
+        model.untagged.rel,
+        0,
+        `${e.path} is listed but is not a test file on disk`,
+      )
+    else if (f.ids.size)
+      add(
+        model.untagged.rel,
+        0,
+        `${e.path} is listed but now names ${[...f.ids.keys()][0]}, remove the entry`,
+      )
+  }
+  for (const f of model.testFiles)
+    if (!f.ids.size && !listed.has(f.file))
+      add(
+        f.file,
+        1,
+        'test file names no T-ID (tag it or list it in scripts/req/untagged-tests.json)',
+      )
+
+  // R-48-05: T-IDs in test files must exist and must not only prove removed rules.
+  const cited = new Map()
+  for (const r of model.rules)
+    for (const t of r.tests) {
+      if (!cited.has(t)) cited.set(t, [])
+      cited.get(t).push(r)
+    }
+  for (const f of model.testFiles)
+    for (const [id, line] of f.ids) {
+      const def = model.testDefs.get(id)
+      if (!def) {
+        add(
+          f.file,
+          line,
+          `unknown T-ID ${id} (no step's Definition of Done defines it)`,
+        )
+        continue
+      }
+      const rules = cited.get(id) ?? []
+      const planned = model.stepByNum.get(def.step)?.status === 'planned'
+      if (
+        !planned &&
+        rules.length &&
+        rules.every((r) => r.status === 'removed')
+      )
+        add(f.file, line, `${id} only proves removed rules`)
+    }
+
   const indexRel = 'requirements/INDEX.md'
   const indexPath = path.join(model.root, indexRel)
   const fresh = await buildIndex(model)

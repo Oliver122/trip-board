@@ -1,0 +1,10 @@
+[
+  {
+    "path": "e2e/00-webgl.spec.ts",
+    "reason": "Environment check that the browser has WebGL for the map; it proves no rule."
+  },
+  {
+    "path": "e2e/ui-review/capture.spec.ts",
+    "reason": "Screenshot capture for the manual UI review; it asserts nothing about a rule."
+  }
+]

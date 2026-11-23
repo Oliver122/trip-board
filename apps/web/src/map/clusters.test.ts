@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { clusterSpots, type MapSpot } from './clusters'
 
+// T-05-09 (R-05-05 clustering; the only T-ID of C-MAP-11 is the manual visual review)
 describe('clusterSpots', () => {
   it('clusters only when more than 30 points are close together', () => {
     const tight: MapSpot[] = Array.from({ length: 31 }, (_, index) => ({

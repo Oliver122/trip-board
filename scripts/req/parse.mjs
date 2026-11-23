@@ -22,15 +22,8 @@ export const AREAS = {
   ops: 'OPS',
 }
 
-export const CORE_COLUMNS = [
-  'ID',
-  'Rule',
-  'Status',
-  'Since',
-  'Changed by',
-  'Tests',
-]
-export const LOCATE_DIRS = ['apps', 'packages', 'e2e', 'scripts']
+const CORE_COLUMNS = ['ID', 'Rule', 'Status', 'Since', 'Changed by', 'Tests']
+const LOCATE_DIRS = ['apps', 'packages', 'e2e', 'scripts']
 const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
@@ -45,7 +38,7 @@ const CORE_ID = /^C-([A-Z]+)-(\d{2,3})$/
 const T_ID = /^T-\d\d-\d\d+$/
 const STEP_NO = /^\d\d$/
 
-export function splitRow(line) {
+function splitRow(line) {
   let s = line.trim()
   if (s.startsWith('|')) s = s.slice(1)
   if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1)
@@ -94,7 +87,7 @@ export function firstSentence(text) {
   return s
 }
 
-export function parseCoreFile(root, relFile) {
+function parseCoreFile(root, relFile) {
   const area = path.basename(relFile, '.md')
   const prefix = AREAS[area] ?? null
   const lines = readLines(path.join(root, relFile))
@@ -205,7 +198,7 @@ export function parseCoreFile(root, relFile) {
   return out
 }
 
-export function parseUnmapped(root) {
+function parseUnmapped(root) {
   const rel = 'requirements/core/_unmapped.md'
   const file = path.join(root, rel)
   if (!fs.existsSync(file)) return []
@@ -310,22 +303,77 @@ function walk(dir, rel, out) {
   }
 }
 
-// T-ID -> sorted repo-relative files (apps/, packages/, e2e/, scripts/) that mention it.
-export function locateTests(root) {
+const TEST_FILE = /\.(?:test\.(?:tsx?|mjs)|spec\.ts)$/
+const T_ID_G = /T-\d\d-\d\d+/g
+
+function codeFiles(root) {
   const files = []
   for (const d of LOCATE_DIRS) walk(path.join(root, d), d, files)
+  return files
+}
+
+function readText(root, rel) {
+  const abs = path.join(root, rel)
+  try {
+    if (fs.statSync(abs).size > MAX_FILE_BYTES) return null
+    const buf = fs.readFileSync(abs)
+    if (buf.subarray(0, 8000).includes(0)) return null
+    return buf.toString('utf8')
+  } catch {
+    return null
+  }
+}
+
+// Test files (*.test.ts(x), *.test.mjs, *.spec.ts) with each T-ID they name and its first line.
+export function scanTestFiles(root) {
+  const out = []
+  for (const rel of codeFiles(root)) {
+    if (!TEST_FILE.test(rel)) continue
+    const text = readText(root, rel)
+    if (text === null) continue
+    const ids = new Map()
+    text.split(/\r?\n/).forEach((line, i) => {
+      for (const id of line.match(T_ID_G) ?? [])
+        if (!ids.has(id)) ids.set(id, i + 1)
+    })
+    out.push({ file: posix(rel), ids })
+  }
+  return out
+}
+
+// scripts/req/untagged-tests.json: [{ path, reason }]; errors are "file: message" problems.
+export function parseUntagged(root) {
+  const rel = 'scripts/req/untagged-tests.json'
+  const file = path.join(root, rel)
+  const out = { rel, entries: [], errors: [] }
+  if (!fs.existsSync(file)) return out
+  let data
+  try {
+    data = JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch (e) {
+    out.errors.push(`${rel}: not valid JSON (${e.message})`)
+    return out
+  }
+  if (!Array.isArray(data)) {
+    out.errors.push(`${rel}: must be a JSON array of { path, reason } entries`)
+    return out
+  }
+  data.forEach((e, i) => {
+    if (!e || typeof e.path !== 'string' || !e.path)
+      out.errors.push(`${rel}: entry ${i} has no path`)
+    else
+      out.entries.push({ path: e.path, reason: String(e.reason ?? '').trim() })
+  })
+  return out
+}
+
+// T-ID -> sorted repo-relative files (apps/, packages/, e2e/, scripts/) that mention it.
+function locateTests(root) {
   const map = new Map()
-  for (const rel of files) {
-    const abs = path.join(root, rel)
-    let buf
-    try {
-      if (fs.statSync(abs).size > MAX_FILE_BYTES) continue
-      buf = fs.readFileSync(abs)
-    } catch {
-      continue
-    }
-    if (buf.subarray(0, 8000).includes(0)) continue
-    const seen = new Set(buf.toString('utf8').match(/T-\d\d-\d\d+/g) ?? [])
+  for (const rel of codeFiles(root)) {
+    const text = readText(root, rel)
+    if (text === null) continue
+    const seen = new Set(text.match(T_ID_G) ?? [])
     for (const id of seen) {
       if (!map.has(id)) map.set(id, [])
       map.get(id).push(posix(rel))
@@ -398,5 +446,7 @@ export function loadModel(root) {
     unmapped: parseUnmapped(root),
     testDefs,
     locate,
+    testFiles: scanTestFiles(root),
+    untagged: parseUntagged(root),
   }
 }

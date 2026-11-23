@@ -9,7 +9,7 @@ const PRETTIER_OPTIONS = {
   endOfLine: 'lf',
 }
 
-export async function formatMarkdown(text) {
+async function formatMarkdown(text) {
   const prettier = await import('prettier')
   return prettier.format(text, PRETTIER_OPTIONS)
 }
@@ -29,7 +29,7 @@ export function isUnlocated(model, id) {
   return model.locate(id).files.length === 0
 }
 
-export function unlocatedTests(model) {
+function unlocatedTests(model) {
   const ids = new Set()
   for (const r of model.rules)
     for (const t of r.tests) if (isUnlocated(model, t)) ids.add(t)

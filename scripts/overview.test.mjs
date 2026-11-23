@@ -165,10 +165,10 @@ test('T-37-01 evidence C-SPOT-99 fails', () => {
   )
 })
 
-test('T-37-01 evidence T-99-01 fails', () => {
+test('T-37-01 evidence with an unknown test ID fails', () => {
   assertProblem(
-    appendRow(issueRow('I-90', 'low', 'ops', '`T-99-01`')),
-    /test ID T-99-01 is not in any step file/,
+    appendRow(issueRow('I-90', 'low', 'ops', '`T\u002d99-01`')),
+    /test ID T\u002d99-01 is not in any step file/,
   )
 })
 

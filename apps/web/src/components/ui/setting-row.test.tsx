@@ -6,6 +6,7 @@ import { SettingRow } from './setting-row'
 
 afterEach(cleanup)
 
+// T-42-17 (R-42-28: More sheet rows show their value and open their options)
 describe('SettingRow', () => {
   it('shows the value and opens its options', () => {
     const onChange = vi.fn()
