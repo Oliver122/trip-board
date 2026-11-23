@@ -4,6 +4,10 @@ import {
   imageListSchema,
   imageSchema,
   fileSizeLimits,
+  patchImageSchema,
+  photoListSchema,
+  photoSchema,
+  photoUploadFieldsSchema,
   photoSuggestionListSchema,
   quotaSchema,
   webImageLimits,
@@ -14,7 +18,7 @@ import type { Pool } from 'pg'
 import { z } from 'zod'
 import { originAllowed, requireUser } from '../auth/require-user.js'
 import type { AppConfig } from '../config.js'
-import { deny } from '../http/validate.js'
+import { deny, parseBody } from '../http/validate.js'
 import { requireTripRole } from '../trips/roles.js'
 import {
   CommonsError,
@@ -37,6 +41,8 @@ import {
   getImage,
   hasSourceImage,
   listImages,
+  listPhotos,
+  patchImage,
   planSpotAccess,
   readImageBytes,
   readQuota,
@@ -44,6 +50,7 @@ import {
   storeImage,
   uploadsEnabled,
   type ImageSource,
+  type UploadTarget,
 } from './store.js'
 import type { ObjectStorage } from './storage.js'
 import {
@@ -123,7 +130,7 @@ export async function registerImageRoutes(
   const ingest = async (
     reply: FastifyReply,
     userId: string,
-    spotId: string,
+    target: UploadTarget,
     file: Buffer,
     maxFileBytes: number,
     source?: ImageSource,
@@ -147,7 +154,7 @@ export async function registerImageRoutes(
 
     const result = await storeImage(pool, storage, {
       userId,
-      spotId,
+      target,
       image: processed,
       secret: config.AUTH_SECRET,
       now: now(),
@@ -161,6 +168,8 @@ export async function registerImageRoutes(
       }
       return deny(reply, result.status === 413 ? 404 : result.status)
     }
+    if (result.photo)
+      return reply.code(201).send(photoSchema.parse(result.photo))
     return reply.code(201).send(imageSchema.parse(result.image))
   }
 
@@ -204,15 +213,24 @@ export async function registerImageRoutes(
         ? sendError(reply, 422, 'fetch_failed')
         : sendDownloadFailure(reply, downloaded.code, call.maxFileBytes)
     }
-    return ingest(reply, userId, spotId, downloaded.bytes, call.maxFileBytes, {
-      kind: 'commons',
-      url:
-        file.descriptionUrl.length <= webImageLimits.sourceUrl
-          ? file.descriptionUrl
+    return ingest(
+      reply,
+      userId,
+      { spotId },
+      downloaded.bytes,
+      call.maxFileBytes,
+      {
+        kind: 'commons',
+        url:
+          file.descriptionUrl.length <= webImageLimits.sourceUrl
+            ? file.descriptionUrl
+            : null,
+        credit: file.artist
+          ? file.artist.slice(0, webImageLimits.credit)
           : null,
-      credit: file.artist ? file.artist.slice(0, webImageLimits.credit) : null,
-      license: file.license.slice(0, webImageLimits.license) || null,
-    })
+        license: file.license.slice(0, webImageLimits.license) || null,
+      },
+    )
   }
 
   app.get('/me/quota', async (request, reply) => {
@@ -308,8 +326,9 @@ export async function registerImageRoutes(
       if (declared > maxFileBytes + uploadOverhead) {
         return sendError(reply, 413, 'too_large', { maxFileBytes })
       }
-      const file = await readUpload(request, reply, maxFileBytes)
-      if (!file) return
+      const upload = await readUpload(request, reply, maxFileBytes)
+      if (!upload) return
+      const file = upload.file
       if (file.length > maxFileBytes) {
         return sendError(reply, 413, 'too_large', { maxFileBytes })
       }
@@ -324,7 +343,7 @@ export async function registerImageRoutes(
       return ingest(
         reply,
         user.id,
-        params.id,
+        { spotId: params.id },
         file,
         maxFileBytes,
         undefined,
@@ -332,6 +351,111 @@ export async function registerImageRoutes(
       )
     },
   )
+
+  // R-47-02: a photo that belongs to the trip, with an optional point, time,
+  // spot and caption. The text fields come before the file.
+  app.post(
+    '/trips/:id/photos',
+    { bodyLimit: fileSizeLimits.max + uploadOverhead },
+    async (request, reply) => {
+      const user = await requireUser(request, reply, pool, now(), secure)
+      if (!user) return
+      if (!originAllowed(request, config)) {
+        return sendError(reply, 403, 'forbidden_origin')
+      }
+      const params = parseParams(idParams, request.params, reply)
+      if (!params) return
+      const access = await requireTripRole(pool, params.id, user.id, 'planner')
+      if (!access.ok) return deny(reply, access.status)
+      if (!(await uploadsEnabled(pool))) {
+        return sendError(reply, 503, 'uploads_paused', {
+          message: 'Uploads are paused',
+        })
+      }
+
+      const maxFileBytes = await maxFileBytesFor(user.id)
+      const declared = Number(request.headers['content-length'])
+      if (declared > maxFileBytes + uploadOverhead) {
+        return sendError(reply, 413, 'too_large', { maxFileBytes })
+      }
+      const upload = await readUpload(request, reply, maxFileBytes)
+      if (!upload) return
+      const { file } = upload
+      if (file.length > maxFileBytes) {
+        return sendError(reply, 413, 'too_large', { maxFileBytes })
+      }
+      const fields = parseBody(
+        photoUploadFieldsSchema,
+        upload.fields,
+        reply,
+        photoFieldMessages,
+      )
+      if (!fields) return
+      if (!sniffImage(file)) {
+        return sendError(reply, 415, 'unsupported_media')
+      }
+      if (!limiter.allow(user.id, now())) {
+        return sendError(reply, 429, 'rate_limited')
+      }
+
+      return ingest(
+        reply,
+        user.id,
+        { tripId: params.id, photo: fields },
+        file,
+        maxFileBytes,
+        undefined,
+        () => limiter.refund(user.id),
+      )
+    },
+  )
+
+  app.get('/trips/:id/photos', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const result = await listPhotos(
+      pool,
+      params.id,
+      user.id,
+      config.AUTH_SECRET,
+      now(),
+    )
+    if (!result.ok) return deny(reply, result.status)
+    return photoListSchema.parse(result)
+  })
+
+  // R-47-04: place, move, link or caption a photo.
+  app.patch('/images/:id', async (request, reply) => {
+    const user = await requireUser(request, reply, pool, now(), secure)
+    if (!user) return
+    if (!originAllowed(request, config)) {
+      return sendError(reply, 403, 'forbidden_origin')
+    }
+    const params = parseParams(idParams, request.params, reply)
+    if (!params) return
+    const body = parseBody(
+      patchImageSchema,
+      request.body,
+      reply,
+      photoFieldMessages,
+    )
+    if (!body) return
+    const result = await patchImage(
+      pool,
+      params.id,
+      user.id,
+      body,
+      config.AUTH_SECRET,
+      now(),
+    )
+    if (!result.ok) {
+      if (result.status === 400) return sendError(reply, 400, result.error)
+      return deny(reply, result.status)
+    }
+    return photoSchema.parse(result.photo)
+  })
 
   app.post('/spots/:id/images/from-url', async (request, reply) => {
     const user = await requireUser(request, reply, pool, now(), secure)
@@ -388,12 +512,19 @@ export async function registerImageRoutes(
       return sendDownloadFailure(reply, downloaded.code, maxFileBytes)
     }
     const sourceUrl = rendition ? url.toString() : downloaded.finalUrl
-    return ingest(reply, user.id, params.id, downloaded.bytes, maxFileBytes, {
-      kind: 'url',
-      url: sourceUrl.length <= webImageLimits.sourceUrl ? sourceUrl : null,
-      credit: null,
-      license: null,
-    })
+    return ingest(
+      reply,
+      user.id,
+      { spotId: params.id },
+      downloaded.bytes,
+      maxFileBytes,
+      {
+        kind: 'url',
+        url: sourceUrl.length <= webImageLimits.sourceUrl ? sourceUrl : null,
+        credit: null,
+        license: null,
+      },
+    )
   })
 
   app.post('/spots/:id/images/from-commons', async (request, reply) => {
@@ -497,6 +628,10 @@ export async function registerImageRoutes(
 // Multipart framing and form fields on top of the file itself.
 const uploadOverhead = 2 * 1024 * 1024
 
+const photoFieldMessages: ReadonlySet<string> = new Set(['both_or_none'])
+
+const photoFieldNames = ['lat', 'lng', 'takenAt', 'spotId', 'caption'] as const
+
 function sendDownloadFailure(
   reply: FastifyReply,
   code: 'url_not_allowed' | 'fetch_failed' | 'too_large',
@@ -513,23 +648,38 @@ async function readUpload(
   request: FastifyRequest,
   reply: FastifyReply,
   maxFileBytes: number,
-): Promise<Buffer | null> {
-  let file
+): Promise<{ file: Buffer; fields: Record<string, string> } | null> {
+  let part
   try {
-    file = await request.file({ limits: { fileSize: maxFileBytes } })
+    part = await request.file({ limits: { fileSize: maxFileBytes } })
   } catch {
     sendError(reply, 400, 'invalid_request', { fields: { file: 'invalid' } })
     return null
   }
-  if (!file) {
+  if (!part) {
     sendError(reply, 400, 'invalid_request', { fields: { file: 'empty' } })
     return null
   }
   const chunks: Buffer[] = []
-  for await (const chunk of file.file) chunks.push(Buffer.from(chunk))
-  if (file.file.truncated) {
+  for await (const chunk of part.file) chunks.push(Buffer.from(chunk))
+  if (part.file.truncated) {
     sendError(reply, 413, 'too_large', { maxFileBytes })
     return null
   }
-  return Buffer.concat(chunks)
+  // Only the text fields sent before the file are known here; an empty
+  // string counts as absent (R-47-02).
+  const fields: Record<string, string> = {}
+  for (const name of photoFieldNames) {
+    const field = part.fields[name]
+    const single = Array.isArray(field) ? field[0] : field
+    if (
+      single &&
+      'value' in single &&
+      typeof single.value === 'string' &&
+      single.value !== ''
+    ) {
+      fields[name] = single.value
+    }
+  }
+  return { file: Buffer.concat(chunks), fields }
 }

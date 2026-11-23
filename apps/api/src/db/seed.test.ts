@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import sharp from 'sharp'
+import { loadConfig } from '../config.js'
+import { createS3Storage } from '../images/storage.js'
 import { createTestDatabase, type TestDatabase } from './test-db.js'
-import { seedCounts, seedDatabase } from './seed.js'
+import { seedCounts, seedDatabase, seedIds } from './seed.js'
 
 const hasDb = Boolean(process.env.DATABASE_URL)
 
@@ -33,6 +36,7 @@ describe.skipIf(!hasDb)('seed', () => {
       metrics: string
       opsCounters: string
       jobRuns: string
+      photos: string
     }>(`
       SELECT
         (SELECT count(*) FROM users) AS users,
@@ -46,7 +50,8 @@ describe.skipIf(!hasDb)('seed', () => {
         (SELECT count(*) FROM activity_events) AS events,
         (SELECT count(*) FROM metrics_daily) AS metrics,
         (SELECT count(*) FROM ops_counters) AS "opsCounters",
-        (SELECT count(*) FROM job_runs) AS "jobRuns"
+        (SELECT count(*) FROM job_runs) AS "jobRuns",
+        (SELECT count(*) FROM images) AS photos
     `)
     expect(counts.rows[0]).toEqual({
       users: String(seedCounts.users),
@@ -61,7 +66,78 @@ describe.skipIf(!hasDb)('seed', () => {
       metrics: String(seedCounts.metricsDaily),
       opsCounters: String(seedCounts.opsCounters),
       jobRuns: String(seedCounts.jobRuns),
+      photos: String(seedCounts.photos),
     })
+  })
+
+  // R-47-12: the four photobook photos
+  it('seeds the photobook photos and their blobs, twice without change', async () => {
+    const config = loadConfig({
+      DATABASE_URL: db.url,
+      NODE_ENV: 'test',
+      WEB_ORIGIN: 'http://127.0.0.1:5180',
+      S3_BUCKET: 'tripboard-seed-test',
+    })
+    const storage = createS3Storage(config)
+    await seedDatabase(db.pool, { storage })
+    await seedDatabase(db.pool, { storage })
+    const rows = await db.pool.query(`
+      SELECT id, spot_id, uploaded_by, lat, lng, place_source, caption,
+        to_char(taken_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS taken_at, storage_key
+      FROM images ORDER BY id
+    `)
+    const { photos, spots, users, trip } = seedIds
+    expect(rows.rows).toEqual([
+      {
+        id: photos.crossing,
+        spot_id: spots.shibuya,
+        uploaded_by: users.aiko,
+        lat: 35.6582,
+        lng: 139.7022,
+        place_source: 'exif',
+        caption: 'Crossing from above',
+        taken_at: '2026-04-13T10:15:00',
+        storage_key: `trips/${trip}/photos/${photos.crossing}.webp`,
+      },
+      {
+        id: photos.alley,
+        spot_id: null,
+        uploaded_by: users.sven,
+        lat: 35.6655,
+        lng: 139.712,
+        place_source: 'exif',
+        caption: null,
+        taken_at: '2026-04-13T18:40:00',
+        storage_key: `trips/${trip}/photos/${photos.alley}.webp`,
+      },
+      {
+        id: photos.kamo,
+        spot_id: null,
+        uploaded_by: users.sven,
+        lat: 35.0116,
+        lng: 135.7681,
+        place_source: 'exif',
+        caption: null,
+        taken_at: '2026-04-18T08:05:00',
+        storage_key: `trips/${trip}/photos/${photos.kamo}.webp`,
+      },
+      {
+        id: photos.unplaced,
+        spot_id: null,
+        uploaded_by: users.aiko,
+        lat: null,
+        lng: null,
+        place_source: null,
+        caption: null,
+        taken_at: null,
+        storage_key: `trips/${trip}/photos/${photos.unplaced}.webp`,
+      },
+    ])
+    for (const row of rows.rows) {
+      const meta = await sharp(await storage.get(row.storage_key)).metadata()
+      expect(meta.format).toBe('webp')
+    }
+    await Promise.all(rows.rows.map((row) => storage.delete(row.storage_key)))
   })
 
   // R-46-10: the schedule demo links, restored by a re-run

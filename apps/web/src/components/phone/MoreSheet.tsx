@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, Settings, Users, X } from 'lucide-react'
+import { Bell, ChevronRight, Image, Settings, Users, X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
@@ -93,6 +93,18 @@ export function MoreSheet({
           >
             <Settings aria-hidden="true" className="size-4" />
             <span className="flex-1">{t('phone.settings')}</span>
+            <Chevron />
+          </Link>
+        </li>
+        <li>
+          <Link
+            to={`/trips/${tripId}/photos`}
+            data-testid="more-photobook"
+            className={cn(hoverClass.item, rowClass)}
+            onClick={onClose}
+          >
+            <Image aria-hidden="true" className="size-4" />
+            <span className="flex-1">{t('phone.photobook')}</span>
             <Chevron />
           </Link>
         </li>

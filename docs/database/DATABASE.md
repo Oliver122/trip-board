@@ -31,7 +31,8 @@ erDiagram
     TRIPS ||--o{ PLAN_ENTRIES : "contains"
     PLAN_ENTRIES ||--o{ PLAN_ENTRY_SPOTS : "includes"
     SPOTS ||--o{ PLAN_ENTRY_SPOTS : "appears in"
-    SPOTS ||--o{ IMAGES : "has"
+    SPOTS |o--o{ IMAGES : "has (photobook photos may have none)"
+    TRIPS ||--o{ IMAGES : "contains"
     USERS |o--o{ IMAGES : "uploaded (quota)"
     IMAGES ||..o{ BLOB_DELETIONS : "queued on delete"
     USERS |o--o{ ACTIVITY_EVENTS : "did"
@@ -146,12 +147,17 @@ erDiagram
     IMAGES {
         uuid id PK
         uuid trip_id FK
-        uuid spot_id FK
+        uuid spot_id FK "nullable"
         uuid uploaded_by FK
         text storage_key UK
         int bytes
         int width
         int height
+        float lat "photobook point"
+        float lng
+        timestamp taken_at "no zone"
+        text place_source "exif or manual"
+        text caption
     }
     BLOB_DELETIONS {
         bigint id PK
@@ -316,6 +322,9 @@ One row per user and spot: `last_read_at`, the newest comment the user has seen.
 - `uploaded_by` is the quota owner. If a user is deleted it becomes null (image stays on the trip).
 - Deleting an image row, directly or via a spot or trip cascade, inserts its `storage_key` into `blob_deletions`.
 - `source_url` (≤ 2000), `credit` (≤ 300) and `license` (≤ 100) are null for uploaded files. A photo added from a URL stores the final URL after redirects in `source_url`; a Wikimedia Commons photo stores the file's description page there, the artist in `credit` and the license short name in `license` (step 34). The same description page is added at most once per spot by the API.
+- **Photobook (step 47).** `spot_id` is nullable: a photo can belong to the trip only (`images_trip_id_fkey` → `trips` `ON DELETE CASCADE`, so deleting a trip removes its photos and queues their blobs). `lat` / `lng` are the photo's own point (both null or both set, −90..90 / −180..180, `images_point_check`), `taken_at` is a `timestamp` **without** time zone: the camera's wall-clock time at the place, read as text (`to_char`) so it is never shifted. `place_source` is `exif` (point read in the browser) or `manual` (placed by hand), `caption` ≤ 500 characters. All are null for gallery uploads. The API links a photo with a point to the nearest spot of the trip within 150 m (`spot_id`), unless the client names a spot.
+- Deleting a spot: the trigger `spots_delete_pointless_images` deletes the spot's images with `lat IS NULL` (their blobs are queued as above); photos with their own point stay in the photobook and only lose the link (`ON DELETE SET NULL (spot_id)`).
+- Blob keys: `trips/<trip>/spots/<spot>/<uuid>.webp` for gallery uploads, `trips/<trip>/photos/<uuid>.webp` for photobook uploads.
 
 ### blob_deletions
 Work queue for the storage cleanup worker: delete object → delete row; on failure increment `attempts` and store `last_error`. Retries with backoff, alert after 10 attempts.
@@ -346,13 +355,13 @@ What users do (“who is doing what”). The API writes one row per change **in 
 | `invite` | `create`, `revoke` |
 | `spot` | `create`, `update`, `delete`, `import` |
 | `plan` | `create`, `update`, `delete`, `spot_add`, `spot_remove`, `spot_move` |
-| `image` | `upload`, `delete` |
+| `image` | `upload`, `update`, `delete` |
 | `export` | `download` |
 | `quota` | `request` |
 | `comment` | `create`, `update`, `delete` |
 | `kind` | `create`, `update`, `reorder`, `delete`, `limit_request` |
 
-For `kind` events the metadata holds the kind's `name`; `kind.limit_request` instead records `count`, the number of kinds asked for (the event's `entity_id` is the request); `kind.delete` also records `movedTo` (the target kind's name) and `moved` (the number of spots moved). `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
+For `kind` events the metadata holds the kind's `name`; `kind.limit_request` instead records `count`, the number of kinds asked for (the event's `entity_id` is the request); `kind.delete` also records `movedTo` (the target kind's name) and `moved` (the number of spots moved). `image.upload` / `image.delete` of a photobook photo have `metadata.source = "photobook"` on upload and no `spot` when it has none; `image.update` records `fields` (the changed keys) and the linked `spot` title. `metadata` stores display names (trip name, spot title, file size) so history stays readable after deletion; `actor_id` / `trip_id` then become `NULL`. Retention: 180 days.
 
 ### admin_audit_log
 Every admin write (quota change, suspend, role change, settings change, request decision) with `before` / `after` JSON and an optional reason. Kept permanently; cannot be edited through the app.
@@ -486,6 +495,7 @@ UPDATE trip_invites SET used_at = now(), used_by = $2 WHERE code = $1;
 | `plan_entries (trip_id, start_date, start_time)` | Schedule view |
 | `plan_entry_spots (plan_entry_id, sort_order)`, `(spot_id)` | Entry contents, auto *Planned* |
 | `images (spot_id, sort_order)`, `(uploaded_by)` | Panel gallery, quota |
+| `images (trip_id, taken_at)` | Photobook list by capture time |
 | `sessions (expires_at)`, `geocode_cache (created_at)`, `commons_cache (created_at)` | Cleanup jobs |
 | `activity_events (created_at)`, `(actor_id, …)`, `(trip_id, …)`, `(action, …)` | Admin activity feed and its filters |
 | `users (created_at)`, `users (last_seen_at)` | Signup and active-user graphs |

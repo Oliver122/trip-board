@@ -29,7 +29,8 @@ const schedulePattern = new RegExp(`^#s/(${number})/(${number})/(${number})$`)
  * scope belongs to gets its hash, so settings and /trips stay clean.
  */
 const scopePages: Record<ViewportScope, RegExp> = {
-  board: /^\/trips\/[^/]+\/?$/,
+  // R-47-05: the photobook shares the board's remembered view.
+  board: /^\/trips\/[^/]+(?:\/photos)?\/?$/,
   schedule: /^\/trips\/[^/]+\/schedule\/?$/,
 }
 

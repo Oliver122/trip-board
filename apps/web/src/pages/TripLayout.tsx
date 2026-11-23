@@ -1,9 +1,11 @@
 import { defaultSpotListQuery } from '@tripboard/shared'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet, useMatch, useParams } from 'react-router'
+import { Image as ImageIcon, Map as MapIcon } from 'lucide-react'
+import { Outlet, useMatch, useParams, useSearchParams } from 'react-router'
 import { usePhoneView } from '../components/phone/use-phone'
 import { ErrorState, LoadingState } from '../components/states'
+import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 import { MapView } from '../map/MapView'
 import { mapLandColor } from '../map/style'
@@ -97,11 +99,19 @@ function TripWorkspace() {
   const { t } = useTranslation()
   const { trip, scene, handlersRef, accessLost } = useTripData()
   const schedule = useMatch('/trips/:id/schedule')
+  const photobook = useMatch('/trips/:id/photos')
   const settings = useMatch('/trips/:id/settings')
   const dark = useDark()
   const { phone, view, setView } = usePhoneView()
   // Below 640 px one view shows at a time; the map stays mounted behind (R-38-02).
-  const mapHidden = phone && (schedule != null || view === 'list')
+  // The photobook opens as the book; `?view=map` shows the map (R-47-05).
+  const [params, setParams] = useSearchParams()
+  const photoMapShown =
+    photobook != null &&
+    (params.get('view') === 'map' || scene?.placing === true)
+  const mapHidden =
+    phone &&
+    (photobook != null ? !photoMapShown : schedule != null || view === 'list')
   const routeScope: ViewportScope | null = settings
     ? null
     : schedule
@@ -125,13 +135,13 @@ function TripWorkspace() {
     <div
       className={cn(
         'relative flex min-h-0 flex-1 flex-col overflow-hidden',
-        schedule ? 'lg:flex-row' : 'sm:flex-row',
+        schedule || photobook ? 'lg:flex-row' : 'sm:flex-row',
       )}
     >
       <div
         className={cn(
           'relative min-h-0 min-w-0 flex-1',
-          schedule ? 'order-2 min-h-[40vh]' : 'order-1',
+          schedule || photobook ? 'order-2 min-h-[40vh]' : 'order-1',
           (settings || mapHidden) && 'invisible absolute inset-0 z-0 min-h-0',
         )}
         style={{ backgroundColor: land }}
@@ -165,6 +175,11 @@ function TripWorkspace() {
             handlersRef.current.onPlanStop?.(linkId, date)
           }
           onFocusDay={(date) => handlersRef.current.onFocusDay?.(date)}
+          photos={scene?.photos ?? null}
+          onPhoto={(id) => handlersRef.current.onPhoto?.(id)}
+          onPhotoMove={(id, lng, lat) =>
+            handlersRef.current.onPhotoMove?.(id, lng, lat)
+          }
           onCancelLoad={() => setView('list', { replace: true })}
         />
         <div
@@ -176,19 +191,50 @@ function TripWorkspace() {
         data-testid={settings ? 'settings-scroll' : undefined}
         className={cn(
           'flex min-h-0 min-w-0 flex-col',
+          phone && photoMapShown && 'hidden',
           settings
             ? 'relative z-10 w-full flex-1 overflow-auto'
             : phone
               ? mapHidden
                 ? 'relative z-10 w-full flex-1'
                 : 'w-full'
-              : schedule
+              : schedule || photobook
                 ? 'order-1 max-h-[50vh] w-full lg:max-h-none lg:w-[420px] lg:shrink-0'
                 : 'order-2 w-full sm:w-[280px] sm:shrink-0 lg:w-[360px]',
         )}
       >
         <Outlet />
       </div>
+      {phone && photobook ? (
+        <button
+          type="button"
+          data-testid="photobook-view-toggle"
+          className={cn(
+            hoverClass.secondary,
+            'fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 inline-flex h-12 items-center gap-2 rounded-full px-5 text-sm font-semibold text-foreground shadow-panel',
+          )}
+          onClick={() =>
+            setParams(
+              (previous) => {
+                const copy = new URLSearchParams(previous)
+                if (params.get('view') === 'map') copy.delete('view')
+                else copy.set('view', 'map')
+                return copy
+              },
+              { replace: true },
+            )
+          }
+        >
+          {params.get('view') === 'map' ? (
+            <ImageIcon aria-hidden="true" className="size-4" />
+          ) : (
+            <MapIcon aria-hidden="true" className="size-4" />
+          )}
+          {params.get('view') === 'map'
+            ? t('photobook.toggleBook')
+            : t('photobook.toggleMap')}
+        </button>
+      ) : null}
     </div>
   )
 }

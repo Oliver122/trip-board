@@ -4,7 +4,8 @@
     "label": "Bereiche",
     "trips": "Reisen",
     "board": "Karte",
-    "schedule": "Zeitplan"
+    "schedule": "Zeitplan",
+    "photobook": "Fotobuch"
   },
   "header": {
     "account": "Kontomenü",
@@ -680,7 +681,10 @@
         },
         "image": {
           "upload": "{{actor}} hat ein Foto von {{spot}} hochgeladen",
-          "delete": "{{actor}} hat ein Foto von {{spot}} gelöscht"
+          "delete": "{{actor}} hat ein Foto von {{spot}} gelöscht",
+          "uploadBook": "{{actor}} hat ein Foto zum Fotobuch hinzugefügt",
+          "update": "{{actor}} hat ein Foto bearbeitet",
+          "deleteBook": "{{actor}} hat ein Foto aus dem Fotobuch gelöscht"
         },
         "export": {
           "download": "{{actor}} hat {{trip}} als {{format}} exportiert"
@@ -1064,7 +1068,8 @@
     "valueAuto": "Auto",
     "valueOn": "An",
     "valueOff": "Aus",
-    "lowDataHint": "Der Datensparmodus lädt keine Fotos, keine Karte und keine Avatare, bis du sie anforderst. Auto folgt deiner Verbindung."
+    "lowDataHint": "Der Datensparmodus lädt keine Fotos, keine Karte und keine Avatare, bis du sie anforderst. Auto folgt deiner Verbindung.",
+    "photobook": "Fotobuch"
   },
   "planMap": {
     "pin": "{{day}}, Stopp {{stop}}: {{spot}}",
@@ -1072,5 +1077,55 @@
     "cardLabel": "{{day}}, {{stops}}: auf der Karte zeigen",
     "dayCards": "Tageskarten",
     "hint": "Gib Besuchen einen Tag, um deine Route auf der Karte zu sehen"
+  },
+  "photobook": {
+    "cluster": "{{count}} Fotos",
+    "toggleMap": "Karte",
+    "toggleBook": "Buch",
+    "title": "Fotobuch",
+    "loadError": "Das Fotobuch konnte nicht geladen werden.",
+    "empty": "Noch keine Fotos — zieh deine Reisefotos hierher",
+    "noDate": "Ohne Datum",
+    "near": "In der Nähe von {{place}}",
+    "markerLabel": "Foto {{time}}, {{place}}",
+    "notPlacedShort": "nicht platziert",
+    "notPlaced": "Noch nicht platziert",
+    "notPlacedHint": "Diese Fotos haben keinen Ort. Setze sie auf die Karte oder wähle einen Spot.",
+    "openPhoto": "Foto öffnen",
+    "placeOnMap": "Auf Karte platzieren",
+    "pickSpot": "Spot wählen",
+    "placingHint": "Klicke dorthin, wo das Foto entstanden ist",
+    "placeError": "Das Foto konnte nicht platziert werden. Versuche es erneut.",
+    "moveError": "Das Foto konnte nicht verschoben werden. Versuche es erneut.",
+    "saveError": "Die Bildunterschrift konnte nicht gespeichert werden. Versuche es erneut.",
+    "deleteError": "Das Foto konnte nicht gelöscht werden. Versuche es erneut.",
+    "lightboxTitle": "Foto",
+    "time": "Aufgenommen",
+    "place": "Ort",
+    "uploader": "Hinzugefügt von",
+    "uploaderGone": "Unbekannt",
+    "caption": "Bildunterschrift",
+    "captionSave": "Bildunterschrift speichern",
+    "delete": "Foto löschen",
+    "spotPickerTitle": "Spot wählen",
+    "spotPickerSearch": "Spots suchen",
+    "spotPickerEmpty": "Kein Spot passt.",
+    "dropLabel": "Zieh deine Reisefotos hierher oder wähle Dateien",
+    "dropHint": "Bis zu {{max}} Fotos auf einmal",
+    "tooMany": "Es wurden nur die ersten {{max}} Fotos übernommen.",
+    "upload": {
+      "reading": "Fotos werden gelesen…",
+      "summary": "{{withLocation}} mit Standort · {{without}} ohne",
+      "useLocations": "Fotostandorte verwenden",
+      "located": "Standort gefunden",
+      "unlocated": "Kein Standort",
+      "uploading": "Wird hochgeladen…",
+      "done": "Hochgeladen",
+      "failed": "Fehlgeschlagen",
+      "start": "Hochladen",
+      "clear": "Liste leeren",
+      "withSkipped": " · {{count}} übersprungen",
+      "fileSize": " · {{size}}"
+    }
   }
 }

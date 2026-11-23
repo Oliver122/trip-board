@@ -1,4 +1,6 @@
+import sharp from 'sharp'
 import type { Pool } from 'pg'
+import type { ObjectStorage } from '../images/storage.js'
 
 export const seedIds = {
   users: {
@@ -18,6 +20,13 @@ export const seedIds = {
   kinds: {
     mustGo: '40000000-0000-0000-0000-000000000001',
     maybe: '40000000-0000-0000-0000-000000000002',
+  },
+  // R-47-12: photobook photos of Japan 2026
+  photos: {
+    crossing: '50000000-0000-0000-0000-000000000001',
+    alley: '50000000-0000-0000-0000-000000000002',
+    kamo: '50000000-0000-0000-0000-000000000003',
+    unplaced: '50000000-0000-0000-0000-000000000004',
   },
   entries: {
     tokyo: '30000000-0000-0000-0000-000000000001',
@@ -39,9 +48,92 @@ export const seedCounts = {
   metricsDaily: 90,
   opsCounters: 30,
   jobRuns: 3,
+  photos: 4,
 } as const
 
-export async function seedDatabase(pool: Pool): Promise<void> {
+type SeedPhoto = {
+  id: string
+  uploader: string
+  spot: string | null
+  lat: number | null
+  lng: number | null
+  takenAt: string | null
+  caption: string | null
+  width: number
+  height: number
+  color: { r: number; g: number; b: number }
+}
+
+// Two on 13 Apr (the first within 150 m of Shibuya Sky), one on 18 Apr with no
+// spot nearby, and one with neither a point nor a date.
+const seedPhotos: SeedPhoto[] = [
+  {
+    id: seedIds.photos.crossing,
+    uploader: seedIds.users.aiko,
+    spot: seedIds.spots.shibuya,
+    lat: 35.6582,
+    lng: 139.7022,
+    takenAt: '2026-04-13T10:15:00',
+    caption: 'Crossing from above',
+    width: 640,
+    height: 480,
+    color: { r: 229, g: 72, b: 77 },
+  },
+  {
+    id: seedIds.photos.alley,
+    uploader: seedIds.users.sven,
+    spot: null,
+    lat: 35.6655,
+    lng: 139.712,
+    takenAt: '2026-04-13T18:40:00',
+    caption: null,
+    width: 480,
+    height: 640,
+    color: { r: 48, g: 164, b: 108 },
+  },
+  {
+    id: seedIds.photos.kamo,
+    uploader: seedIds.users.sven,
+    spot: null,
+    lat: 35.0116,
+    lng: 135.7681,
+    takenAt: '2026-04-18T08:05:00',
+    caption: null,
+    width: 640,
+    height: 427,
+    color: { r: 62, g: 99, b: 224 },
+  },
+  {
+    id: seedIds.photos.unplaced,
+    uploader: seedIds.users.aiko,
+    spot: null,
+    lat: null,
+    lng: null,
+    takenAt: null,
+    caption: null,
+    width: 600,
+    height: 600,
+    color: { r: 245, g: 166, b: 35 },
+  },
+]
+
+const photoKey = (id: string) => `trips/${seedIds.trip}/photos/${id}.webp`
+
+/** A few KB of WebP: a vertical gradient of the photo's colour. */
+async function seedPhotoBlob(photo: SeedPhoto): Promise<Buffer> {
+  const { r, g, b } = photo.color
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${photo.width}" height="${photo.height}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgb(${r},${g},${b})"/><stop offset="1" stop-color="rgb(${r >> 1},${g >> 1},${b >> 1})"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`
+  return sharp(Buffer.from(svg)).webp({ quality: 70 }).toBuffer()
+}
+
+export async function seedDatabase(
+  pool: Pool,
+  options: { storage?: ObjectStorage } = {},
+): Promise<void> {
+  const blobs = new Map<string, Buffer>()
+  for (const photo of seedPhotos) {
+    blobs.set(photo.id, await seedPhotoBlob(photo))
+  }
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -220,6 +312,35 @@ export async function seedDatabase(pool: Pool): Promise<void> {
         seedIds.spots.hotel,
       ],
     )
+    for (const photo of seedPhotos) {
+      const data = blobs.get(photo.id)!
+      await client.query(
+        `
+        INSERT INTO images (
+          id, trip_id, spot_id, uploaded_by, storage_key, bytes, width, height,
+          lat, lng, taken_at, place_source, caption
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9::float8, $10::float8, $11::timestamp,
+          CASE WHEN $9::float8 IS NULL THEN NULL ELSE 'exif' END, $12
+        )
+        ON CONFLICT (id) DO NOTHING
+        `,
+        [
+          photo.id,
+          seedIds.trip,
+          photo.spot,
+          photo.uploader,
+          photoKey(photo.id),
+          data.length,
+          photo.width,
+          photo.height,
+          photo.lat,
+          photo.lng,
+          photo.takenAt,
+          photo.caption,
+        ],
+      )
+    }
     await client.query(
       `DELETE FROM activity_events WHERE metadata->>'seed' = 'japan-2026'`,
     )
@@ -268,5 +389,11 @@ export async function seedDatabase(pool: Pool): Promise<void> {
     throw error
   } finally {
     client.release()
+  }
+  // The blobs go in after the rows; putting them again is harmless.
+  if (options.storage) {
+    for (const photo of seedPhotos) {
+      await options.storage.put(photoKey(photo.id), blobs.get(photo.id)!)
+    }
   }
 }

@@ -80,6 +80,7 @@ trip-board/
 │  │     │  ├─ toolbar/            # search, filter, sort, export
 │  │     │  ├─ spots/              # add/edit panel, category select, image upload
 │  │     │  ├─ schedule/           # buckets & single entries, timeline
+│  │     │  ├─ photobook/          # day pages, collage, bulk upload, EXIF reader
 │  │     │  ├─ members/            # roles, invite dialog, join page
 │  │     │  ├─ account/            # profile, language, storage quota usage, request more
 │  │     │  └─ admin/              # dashboard, users, trips, activity, storage, settings
@@ -191,6 +192,7 @@ Filters and sort are kept in the URL query (`?q=ramen&cat=must_go&sort=scheduled
 - Usage shown in account settings and in the upload control (“42 / 100 images · 63 / 200 MB”).
 - Deleting an image or spot frees quota. Images of a deleted trip are removed by a cleanup job.
 - Upload rate limit per user (e.g. 30/min) on top of the quota.
+- **Photobook** (step 47, `/trips/:id/photos`, tab after *Schedule*, in the phone's *More* sheet): photos that belong to the trip, not only to a spot (`images.spot_id` is nullable). Planners drop up to 50 files; the browser reads GPS and `DateTimeOriginal` with `exifr` and shows a review ("4 with location · 1 without") before the upload. The switch *Use photo locations* (on by default, kept per device) turns GPS off. The server still strips all metadata from the stored file; the point (`lat`, `lng`, `place_source` `exif` or `manual`) and the camera's wall-clock `taken_at` live in the row. A photo within 150 m of a spot is linked to the nearest one and also shows in its gallery. The book has one collage page per day, then *No date*, with a place line (spot title or "Near …"), a lightbox with an editable caption, and *Not placed yet* with *Place on map* and *Pick a spot*. Every placed photo is a round thumbnail marker (clustered, draggable for planners). Low data shows icons and placeholders with *Load all*. Deleting a spot deletes its photos without a point of their own and keeps the others.
 
 ### 5.8 Internationalisation
 - `en` and `de` JSON files, namespaced keys (`board.addNew`, `spot.category.must_go`, …).
@@ -289,6 +291,8 @@ GET    /join/:code (preview)             POST  /join/:code
 GET    /trips/:id/spots?q=&cat=&status=&entry=&by=&bbox=&sort=
 POST   /trips/:id/spots                  GET/PATCH/DELETE /spots/:id
 POST   /spots/:id/images (multipart)     DELETE /images/:id
+POST   /trips/:id/photos (multipart: file, lat?, lng?, takenAt?, spotId?, caption?)
+GET    /trips/:id/photos                 PATCH /images/:id {lat?, lng?, spotId?, caption?}
 
 GET    /trips/:id/plan                   POST /trips/:id/plan
 PATCH  /plan/:id                         DELETE /plan/:id

@@ -18,6 +18,7 @@ import { HomePage } from './pages/HomePage'
 import { JoinPage } from './pages/JoinPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { PhotobookPage } from './pages/PhotobookPage'
 import { SchedulePage } from './pages/SchedulePage'
 import { TripLayout } from './pages/TripLayout'
 import { TripSettingsPage } from './pages/TripSettingsPage'
@@ -60,6 +61,7 @@ export function App() {
                     >
                       <Route index element={<BoardPage />} />
                       <Route path="schedule" element={<SchedulePage />} />
+                      <Route path="photos" element={<PhotobookPage />} />
                       <Route path="settings" element={<TripSettingsPage />} />
                     </Route>
                     <Route

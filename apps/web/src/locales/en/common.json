@@ -4,7 +4,8 @@
     "label": "Sections",
     "trips": "Trips",
     "board": "Board",
-    "schedule": "Schedule"
+    "schedule": "Schedule",
+    "photobook": "Photobook"
   },
   "header": {
     "account": "Account menu",
@@ -680,7 +681,10 @@
         },
         "image": {
           "upload": "{{actor}} uploaded a photo of {{spot}}",
-          "delete": "{{actor}} deleted a photo of {{spot}}"
+          "delete": "{{actor}} deleted a photo of {{spot}}",
+          "uploadBook": "{{actor}} added a photo to the photobook",
+          "update": "{{actor}} updated a photo",
+          "deleteBook": "{{actor}} deleted a photobook photo"
         },
         "export": {
           "download": "{{actor}} exported {{trip}} as {{format}}"
@@ -1064,7 +1068,8 @@
     "valueAuto": "Auto",
     "valueOn": "On",
     "valueOff": "Off",
-    "lowDataHint": "Low data loads no photos, no map and no avatars until you ask for them. Auto follows your connection."
+    "lowDataHint": "Low data loads no photos, no map and no avatars until you ask for them. Auto follows your connection.",
+    "photobook": "Photobook"
   },
   "planMap": {
     "pin": "{{day}}, stop {{stop}}: {{spot}}",
@@ -1072,5 +1077,55 @@
     "cardLabel": "{{day}}, {{stops}}: show on the map",
     "dayCards": "Day cards",
     "hint": "Give visits a day to see your route on the map"
+  },
+  "photobook": {
+    "cluster": "{{count}} photos",
+    "toggleMap": "Map",
+    "toggleBook": "Book",
+    "title": "Photobook",
+    "loadError": "The photobook could not be loaded.",
+    "empty": "No photos yet — drop your trip photos here",
+    "noDate": "No date",
+    "near": "Near {{place}}",
+    "markerLabel": "Photo {{time}}, {{place}}",
+    "notPlacedShort": "not placed",
+    "notPlaced": "Not placed yet",
+    "notPlacedHint": "These photos have no place. Put them on the map or pick a spot.",
+    "openPhoto": "Open photo",
+    "placeOnMap": "Place on map",
+    "pickSpot": "Pick a spot",
+    "placingHint": "Click where this photo was taken",
+    "placeError": "The photo could not be placed. Try again.",
+    "moveError": "The photo could not be moved. Try again.",
+    "saveError": "The caption could not be saved. Try again.",
+    "deleteError": "The photo could not be deleted. Try again.",
+    "lightboxTitle": "Photo",
+    "time": "Taken",
+    "place": "Place",
+    "uploader": "Added by",
+    "uploaderGone": "Unknown",
+    "caption": "Caption",
+    "captionSave": "Save caption",
+    "delete": "Delete photo",
+    "spotPickerTitle": "Pick a spot",
+    "spotPickerSearch": "Search spots",
+    "spotPickerEmpty": "No spot matches.",
+    "dropLabel": "Drop your trip photos here or choose files",
+    "dropHint": "Up to {{max}} photos at once",
+    "tooMany": "Only the first {{max}} photos were taken.",
+    "upload": {
+      "reading": "Reading your photos…",
+      "summary": "{{withLocation}} with location · {{without}} without",
+      "useLocations": "Use photo locations",
+      "located": "Location found",
+      "unlocated": "No location",
+      "uploading": "Uploading…",
+      "done": "Uploaded",
+      "failed": "Failed",
+      "start": "Upload",
+      "clear": "Clear list",
+      "withSkipped": " · {{count}} skipped",
+      "fileSize": " · {{size}}"
+    }
   }
 }

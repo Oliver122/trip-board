@@ -433,7 +433,7 @@ CREATE TRIGGER plan_entries_clear_visits
 CREATE TABLE images (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id      uuid        NOT NULL,
-  spot_id      uuid        NOT NULL,
+  spot_id      uuid,                      -- null: a photobook photo with no spot (step 47)
   uploaded_by  uuid        REFERENCES users(id) ON DELETE SET NULL,
   storage_key  text        NOT NULL UNIQUE,
   mime         text        NOT NULL DEFAULT 'image/webp' CHECK (mime = 'image/webp'),
@@ -445,11 +445,25 @@ CREATE TABLE images (
   source_url   text        CHECK (char_length(source_url) <= 2000),  -- web photos only (step 34)
   credit       text        CHECK (char_length(credit) <= 300),
   license      text        CHECK (char_length(license) <= 100),
-  FOREIGN KEY (trip_id, spot_id) REFERENCES spots (trip_id, id) ON DELETE CASCADE
+  -- Photobook (step 47): own point, camera wall-clock time (no zone), caption.
+  lat          double precision CHECK (lat BETWEEN -90 AND 90),
+  lng          double precision CHECK (lng BETWEEN -180 AND 180),
+  taken_at     timestamp,
+  place_source text        CHECK (place_source IN ('exif', 'manual')),
+  caption      text        CHECK (char_length(caption) <= 500),
+  CONSTRAINT images_point_check CHECK ((lat IS NULL) = (lng IS NULL)),
+  CONSTRAINT images_trip_id_fkey
+    FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
+  -- A deleted spot clears only spot_id; photos without a point are deleted by
+  -- the spots_delete_pointless_images trigger below.
+  CONSTRAINT images_trip_id_spot_id_fkey
+    FOREIGN KEY (trip_id, spot_id) REFERENCES spots (trip_id, id)
+    ON DELETE SET NULL (spot_id)
 );
 
 CREATE INDEX images_spot_idx        ON images (spot_id, sort_order);
 CREATE INDEX images_uploaded_by_idx ON images (uploaded_by);
+CREATE INDEX images_trip_taken_idx  ON images (trip_id, taken_at);
 
 -- Deleted image rows (directly or via spot/trip cascade) queue their blob
 -- for removal; a worker drains this table.
@@ -471,6 +485,19 @@ END $$;
 CREATE TRIGGER images_enqueue_blob_deletion
   AFTER DELETE ON images
   FOR EACH ROW EXECUTE FUNCTION enqueue_blob_deletion();
+
+-- Photos without their own point (gallery uploads) go with their spot, and
+-- their blobs are queued above (step 47).
+CREATE FUNCTION delete_pointless_spot_images() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM images WHERE spot_id = OLD.id AND lat IS NULL;
+  RETURN OLD;
+END $$;
+
+CREATE TRIGGER spots_delete_pointless_images
+  BEFORE DELETE ON spots
+  FOR EACH ROW EXECUTE FUNCTION delete_pointless_spot_images();
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Geocoding cache (Nominatim proxy)

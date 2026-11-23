@@ -23,9 +23,14 @@ import { hoverClass } from './ui/hover'
 export function AppShell() {
   const { t, i18n } = useTranslation()
   const schedule = useMatch('/trips/:id/schedule')
+  const photobook = useMatch('/trips/:id/photos')
   const settings = useMatch('/trips/:id/settings')
   const board = useMatch('/trips/:id')
-  const tripId = schedule?.params.id ?? settings?.params.id ?? board?.params.id
+  const tripId =
+    schedule?.params.id ??
+    photobook?.params.id ??
+    settings?.params.id ??
+    board?.params.id
   const [membersOpen, setMembersOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [newsOpen, setNewsOpen] = useState(false)
@@ -83,9 +88,9 @@ export function AppShell() {
       <Header
         phone={phone && tripId ? { tripName } : null}
         news={
-          schedule?.params.id || board?.params.id ? (
+          schedule?.params.id || photobook?.params.id || board?.params.id ? (
             <NewsButton
-              tripId={(schedule ?? board)!.params.id!}
+              tripId={(schedule ?? photobook ?? board)!.params.id!}
               total={unread}
             />
           ) : null
@@ -119,6 +124,19 @@ export function AppShell() {
                 }
               >
                 {t('nav.schedule')}
+              </NavLink>
+              <NavLink
+                to={`/trips/${tripId}/photos`}
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex min-h-11 cursor-pointer items-center rounded-[8px] px-3',
+                    isActive
+                      ? 'bg-accent text-accent-foreground'
+                      : hoverClass.tab,
+                  )
+                }
+              >
+                {t('nav.photobook')}
               </NavLink>
               <NavLink
                 to={`/trips/${tripId}/settings`}
@@ -167,7 +185,11 @@ export function AppShell() {
             active={
               moreOpen
                 ? 'more'
-                : activeTab(Boolean(schedule), Boolean(settings), view)
+                : activeTab(
+                    Boolean(schedule),
+                    Boolean(settings) || Boolean(photobook),
+                    view,
+                  )
             }
             onNavigate={() => setMoreOpen(false)}
             onView={(next) => {

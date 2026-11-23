@@ -67,6 +67,26 @@ export type PlanMapScene = {
   showHint: boolean
 }
 
+/** One placed photo on the photobook map (R-47-07). */
+export type PhotoMapMarker = {
+  id: string
+  lng: number
+  lat: number
+  /** Signed thumbnail source (`imageSrc(url)`), or null to show the image icon (low data, R-47-10). */
+  src: string | null
+  /** Accessible name, "Photo <time>, <place>" (`photobook.markerLabel`). */
+  label: string
+}
+
+/** The photo layer of the photobook map; absent on every other page (R-47-07). */
+export type PhotoMapScene = {
+  markers: PhotoMapMarker[]
+  /** The photo highlighted in the book; its marker is raised and ringed. */
+  highlightId: string | null
+  /** Planners may drag markers to move a photo (R-47-09). */
+  draggable: boolean
+}
+
 /** Pins and camera hints the active page paints onto the shared map. */
 export type MapScene = {
   spots: MapSpot[]
@@ -79,6 +99,8 @@ export type MapScene = {
   flyTo: { token: string; lng: number; lat: number } | null
   /** Only the Schedule tab sets this (R-46-05). */
   plan?: PlanMapScene | null
+  /** Only the Photobook tab sets this (R-47-07). */
+  photos?: PhotoMapScene | null
 }
 
 export type MapHandlers = {
@@ -92,6 +114,10 @@ export type MapHandlers = {
   onPlanStop?: (linkId: string, date: string) => void
   /** A day card was clicked, or Escape / the focused card ended the focus (R-46-07). */
   onFocusDay?: (date: string | null) => void
+  /** A photo marker was clicked (R-47-07). */
+  onPhoto?: (id: string) => void
+  /** A planner dropped a dragged photo marker (R-47-09). */
+  onPhotoMove?: (id: string, lng: number, lat: number) => void
 }
 
 type TripState = {

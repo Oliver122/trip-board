@@ -556,7 +556,7 @@ export const images = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tripId: uuid('trip_id').notNull(),
-    spotId: uuid('spot_id').notNull(),
+    spotId: uuid('spot_id'),
     uploadedBy: uuid('uploaded_by').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -572,13 +572,38 @@ export const images = pgTable(
     sourceUrl: text('source_url'),
     credit: text('credit'),
     license: text('license'),
+    // Step 47: the photobook's own point, camera time (no zone) and caption.
+    lat: doublePrecision('lat'),
+    lng: doublePrecision('lng'),
+    takenAt: timestamp('taken_at', { mode: 'string' }),
+    placeSource: text('place_source'),
+    caption: text('caption'),
   },
   (table) => [
     unique('images_storage_key_key').on(table.storageKey),
     foreignKey({
+      name: 'images_trip_id_fkey',
+      columns: [table.tripId],
+      foreignColumns: [trips.id],
+    }).onDelete('cascade'),
+    // ON DELETE SET NULL (spot_id) is only in the migration and schema.sql
+    foreignKey({
+      name: 'images_trip_id_spot_id_fkey',
       columns: [table.tripId, table.spotId],
       foreignColumns: [spots.tripId, spots.id],
-    }).onDelete('cascade'),
+    }).onDelete('set null'),
+    check('images_lat_check', sql`${table.lat} BETWEEN -90 AND 90`),
+    check('images_lng_check', sql`${table.lng} BETWEEN -180 AND 180`),
+    check(
+      'images_point_check',
+      sql`(${table.lat} IS NULL) = (${table.lng} IS NULL)`,
+    ),
+    check(
+      'images_place_source_check',
+      sql`${table.placeSource} IN ('exif', 'manual')`,
+    ),
+    check('images_caption_check', sql`char_length(${table.caption}) <= 500`),
+    index('images_trip_taken_idx').on(table.tripId, table.takenAt),
     check('images_mime_check', sql`${table.mime} = 'image/webp'`),
     check('images_bytes_check', sql`${table.bytes} > 0`),
     check('images_width_check', sql`${table.width} BETWEEN 1 AND 2048`),
