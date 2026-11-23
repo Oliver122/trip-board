@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from 'pg'
 
-export function yesterdayUtc(now: Date): string {
+function yesterdayUtc(now: Date): string {
   const day = new Date(now.getTime())
   day.setUTCDate(day.getUTCDate() - 1)
   return day.toISOString().slice(0, 10)

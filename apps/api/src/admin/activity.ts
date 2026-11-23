@@ -4,10 +4,10 @@ import type { Pool } from 'pg'
 import { csvField } from '../export/csv.js'
 import { decodeCursor, encodeCursor, iso, num } from './page.js'
 
-export const activityPageSize = 50
-export const activityExportLimit = 100_000
+const activityPageSize = 50
+const activityExportLimit = 100_000
 
-export type ActivityQuery = {
+type ActivityQuery = {
   user?: string
   trip?: string
   action?: string

@@ -1,11 +1,11 @@
 import type { Pool } from 'pg'
 
-export const flushIntervalMs = 60_000
+const flushIntervalMs = 60_000
 
 type Counts = { http5xx: number; http429: number }
 
 /** UTC day (YYYY-MM-DD) of a date. */
-export function utcDay(date: Date): string {
+function utcDay(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 

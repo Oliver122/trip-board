@@ -1,4 +1,4 @@
-export function tripFileSlug(name: string): string {
+function tripFileSlug(name: string): string {
   const slug = name
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -8,7 +8,7 @@ export function tripFileSlug(name: string): string {
   return slug.length > 0 ? slug.slice(0, 80) : 'trip'
 }
 
-export function fileDate(now: Date, timeZone: string): string {
+function fileDate(now: Date, timeZone: string): string {
   const zone = validZone(timeZone)
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: zone,

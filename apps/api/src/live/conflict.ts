@@ -9,7 +9,7 @@ const tables = {
   trips: 'trips',
 } as const
 
-export type StampTable = keyof typeof tables
+type StampTable = keyof typeof tables
 
 export type Editor = { id: string; name: string }
 
@@ -36,7 +36,7 @@ export function readExpected(
   return { ok: true, at: parsed.toISOString() }
 }
 
-export function sameInstant(current: Date, expected: string): boolean {
+function sameInstant(current: Date, expected: string): boolean {
   const parsed = new Date(expected)
   if (Number.isNaN(parsed.getTime())) return false
   return current.getTime() === parsed.getTime()

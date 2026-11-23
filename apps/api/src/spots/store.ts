@@ -93,7 +93,7 @@ LEFT JOIN users u ON u.id = s.created_by
 
 const primaryRank = `CASE WHEN s.id = tr.primary_home_spot_id THEN 0 ELSE 1 END`
 
-export type SpotFailure =
+type SpotFailure =
   | {
       ok: false
       status: 400

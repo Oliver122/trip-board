@@ -663,7 +663,7 @@ function fitBox(
   )
 }
 
-export function isTileFailure(error: unknown): boolean {
+function isTileFailure(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const record = error as { message?: unknown; url?: unknown; status?: unknown }
   const message = typeof record.message === 'string' ? record.message : ''

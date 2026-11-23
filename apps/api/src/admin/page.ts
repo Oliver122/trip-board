@@ -1,13 +1,13 @@
 import type { Pool, QueryResultRow } from 'pg'
 
-export const pageSize = 50
+const pageSize = 50
 
 export type SortSpec = {
   expr: string
   cast: 'text' | 'int' | 'bigint' | 'timestamptz'
 }
 
-export type Cursor = {
+type Cursor = {
   k: string
   id: string
 }

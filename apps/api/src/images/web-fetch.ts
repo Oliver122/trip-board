@@ -9,8 +9,8 @@ import { fileSizeLimits } from '@tripboard/shared'
 // redirects (each one checked again), 10 s in total, at most `maxBytes`
 // (the caller's per-file limit, R-43-03).
 
-export const webFetchTimeoutMs = 10_000
-export const webFetchMaxRedirects = 3
+const webFetchTimeoutMs = 10_000
+const webFetchMaxRedirects = 3
 
 export type InterceptResponse = {
   status: number
@@ -37,12 +37,12 @@ export type WebFetchOptions = {
   userAgent?: string
 }
 
-export type WebFetchCall = {
+type WebFetchCall = {
   /** Every hop (also redirects) must be on an accepted host. */
   hostAllowed?: (host: string) => boolean
 }
 
-export type WebFetchResult =
+type WebFetchResult =
   | { ok: true; bytes: Buffer; finalUrl: string }
   | { ok: false; code: 'url_not_allowed' | 'fetch_failed' | 'too_large' }
 

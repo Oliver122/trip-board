@@ -1,5 +1,5 @@
 export const joinRateLimit = 10
-export const joinRateWindowMs = 60_000
+const joinRateWindowMs = 60_000
 
 export class JoinLimiter {
   constructor(private readonly limit = joinRateLimit) {}

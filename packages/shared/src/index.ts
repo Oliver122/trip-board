@@ -91,11 +91,9 @@ export {
   commentPageSize,
   commentReadSchema,
   commentSchema,
-  createCommentSchema,
   newsLimit,
   newsEntrySchema,
   newsSchema,
-  patchCommentSchema,
 } from './comments.js'
 export type {
   Comment,
@@ -333,7 +331,6 @@ export type {
 } from './members.js'
 export {
   activityActionFilter,
-  activityEventSchema,
   activityListSchema,
   activityQuerySchema,
   adminActionSchema,

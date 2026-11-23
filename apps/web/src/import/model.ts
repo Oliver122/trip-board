@@ -28,7 +28,7 @@ export type ParseResult =
   | { ok: true; source: SpotImportSource; rows: ParsedRow[]; skipped: number }
   | { ok: false; error: ParseError }
 
-export type RawRow = {
+type RawRow = {
   title: string
   address?: string | null
   note?: string | null
@@ -55,7 +55,7 @@ function joinInfo(
 }
 
 /** An http(s) URL at most 500 characters, otherwise no link (R-23-07). */
-export function rowLink(url: string | null | undefined): string | null {
+function rowLink(url: string | null | undefined): string | null {
   const trimmed = blank(url)
   if (!trimmed) return null
   if (!/^https?:\/\//i.test(trimmed)) return null
@@ -98,5 +98,3 @@ export function hasTitle(raw: { title: string }): boolean {
 export function overRowLimit(total: number): boolean {
   return total > spotImportLimit
 }
-
-export { spotImportLimit }

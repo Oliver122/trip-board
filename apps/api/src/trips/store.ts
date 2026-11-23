@@ -74,7 +74,7 @@ JOIN trip_members m ON m.trip_id = t.id AND m.user_id = $1
 LEFT JOIN users creator ON creator.id = t.created_by
 `
 
-export type TripFailure =
+type TripFailure =
   | { ok: false; status: 400; fields: Record<string, string> }
   | { ok: false; status: 403 | 404 }
   | {

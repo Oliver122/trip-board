@@ -31,9 +31,9 @@ export type ExportVisit = {
   visitTime: string | null
 }
 
-export type ExportKind = Pick<SpotKindRef, 'id' | 'name' | 'preset'>
+type ExportKind = Pick<SpotKindRef, 'id' | 'name' | 'preset'>
 
-export type HomePlace = {
+type HomePlace = {
   address: string | null
   lat: number
   lng: number

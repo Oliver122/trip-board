@@ -34,7 +34,7 @@ import {
 } from './login.js'
 import { sendError } from '../http/errors.js'
 
-export type AuthRouteOptions = {
+type AuthRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

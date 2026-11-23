@@ -1,5 +1,5 @@
 // R-44-02: fail fast on stray errors, close gracefully on SIGTERM/SIGINT.
-export interface GuardedProcess {
+interface GuardedProcess {
   on(event: string, handler: (arg?: never) => void): unknown
   exit(code: number): unknown
 }

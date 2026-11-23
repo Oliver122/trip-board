@@ -1,5 +1,5 @@
-export const uploadRateLimit = 30
-export const uploadRateWindowMs = 60_000
+const uploadRateLimit = 30
+const uploadRateWindowMs = 60_000
 
 export class UploadLimiter {
   private readonly hits = new Map<string, number[]>()

@@ -453,16 +453,14 @@ export const jobRunResponseSchema = z.object({
 
 export type JobRunResponse = z.infer<typeof jobRunResponseSchema>
 
-export const activityEventSchema = adminActionSchema
-
 export const activityListSchema = z.object({
-  events: z.array(activityEventSchema),
+  events: z.array(adminActionSchema),
   nextCursor: z.string().nullable(),
 })
 
-export type ActivityEvent = z.infer<typeof activityEventSchema>
+export type ActivityEvent = z.infer<typeof adminActionSchema>
 
-export const tableSizeSchema = z.object({
+const tableSizeSchema = z.object({
   name: z.string(),
   tableBytes: z.number().int().nonnegative(),
   indexBytes: z.number().int().nonnegative(),

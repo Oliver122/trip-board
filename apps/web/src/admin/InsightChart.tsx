@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 
-export type ChartColumn = { key: string; label: string }
+type ChartColumn = { key: string; label: string }
 
 export function InsightChart({
   testId,
@@ -148,31 +148,6 @@ export function MultiLineChart({
   )
 }
 
-export function BarChart({ values }: { values: number[] }) {
-  const max = Math.max(1, ...values)
-  const width = 320
-  const height = 120
-  const gap = 2
-  const bar = values.length > 0 ? width / values.length : width
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-36 w-full" role="img">
-      {values.map((value, index) => {
-        const h = (value / max) * (height - 4)
-        return (
-          <rect
-            key={index}
-            x={index * bar + gap / 2}
-            y={height - h}
-            width={Math.max(1, bar - gap)}
-            height={h}
-            fill="currentColor"
-          />
-        )
-      })}
-    </svg>
-  )
-}
-
 export function StackedChart({
   series,
 }: {
@@ -258,30 +233,5 @@ export function AreaChart({
         points={line(capacity)}
       />
     </svg>
-  )
-}
-
-export function HorizontalChart({
-  rows,
-}: {
-  rows: { label: string; value: number }[]
-}) {
-  const max = Math.max(1, ...rows.map((row) => row.value))
-  return (
-    <ul className="space-y-2">
-      {rows.map((row) => (
-        <li key={row.label}>
-          <div className="mb-1 flex justify-between gap-2 text-sm">
-            <span>{row.label}</span>
-          </div>
-          <div className="h-2 rounded-full bg-border">
-            <div
-              className="h-2 rounded-full bg-foreground"
-              style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
   )
 }

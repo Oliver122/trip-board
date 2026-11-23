@@ -1,7 +1,7 @@
 import { isGoogleMapsUrl } from '@tripboard/shared'
 
-export const maxHops = 5
-export const resolveTimeoutMs = 5000
+const maxHops = 5
+const resolveTimeoutMs = 5000
 
 export class LinkResolveError extends Error {
   constructor() {

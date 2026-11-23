@@ -27,7 +27,7 @@ import { idParams, parseParams } from '../http/params.js'
 
 const importBodyLimit = 2 * 1024 * 1024
 
-export type SpotRouteOptions = {
+type SpotRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

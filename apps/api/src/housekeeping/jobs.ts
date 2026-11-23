@@ -10,11 +10,6 @@ import { drainBlobDeletions } from '../images/worker.js'
 import type { ObjectStorage } from '../images/storage.js'
 import { recordJobEnd, recordJobStart } from './runs.js'
 
-export const inviteRetentionDays = 90
-export const geocodeRetentionDays = 30
-export const commonsRetentionDays = 7
-export const activityRetentionDays = 180
-
 export async function deleteExpiredSessions(
   pool: Pool,
   now: Date,
@@ -84,14 +79,14 @@ export async function deleteOldActivity(
 const hourMs = 60 * 60 * 1000
 const dayMs = 24 * hourMs
 
-export type HousekeepingDeps = {
+type HousekeepingDeps = {
   pool: Pool
   storage: ObjectStorage
   now: () => Date
   webhook?: { url: string; fetchImpl?: typeof fetch }
 }
 
-export type HousekeepingJob = {
+type HousekeepingJob = {
   /** How often the timer runs it; `metrics` runs daily at 00:05 UTC. */
   intervalMs: number
   task: () => Promise<unknown>

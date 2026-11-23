@@ -20,7 +20,7 @@ export type ChipOption = {
 }
 
 /** More options than this show a search field. */
-export const chipSearchThreshold = 8
+const chipSearchThreshold = 8
 
 function fold(text: string): string {
   return text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase()

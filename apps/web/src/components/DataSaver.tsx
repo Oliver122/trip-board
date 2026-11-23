@@ -11,7 +11,7 @@ import { hoverClass } from './ui/hover'
 import { MenuItem } from './ui/menu'
 import { SettingRow } from './ui/setting-row'
 
-export const dataSaverAnchor = 'data-saver'
+const dataSaverAnchor = 'data-saver'
 
 /** Header badge shown while low data is on; links to the account page setting. */
 export function DataSaverBadge() {

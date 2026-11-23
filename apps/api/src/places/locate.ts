@@ -7,9 +7,9 @@ import {
 } from '@tripboard/shared'
 import type { GeocodeService } from '../geocode/store.js'
 
-export const matchRadiusMeters = 300
+const matchRadiusMeters = 300
 
-export type LinkInput = {
+type LinkInput = {
   /** The link as the user gave it. */
   link: string
   lat: number | null
@@ -18,7 +18,7 @@ export type LinkInput = {
   addressHint: string | null
 }
 
-export function distanceMeters(
+function distanceMeters(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
 ): number {

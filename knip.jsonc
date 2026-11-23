@@ -1,0 +1,42 @@
+// R-48-07: dead-code check, run by `pnpm deadcode` and the CI static job.
+// Plugins (vitest, vite, playwright, eslint) supply most entry points;
+// the entries below are the ones they cannot see. No bulk silencers.
+{
+  "$schema": "https://unpkg.com/knip@5.64.1/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.mjs"],
+      "project": [
+        "scripts/**/*.{mjs,js,ts}",
+        "e2e/**/*.ts",
+        "eslint/**/*.js",
+        "!scripts/deadcode/fixtures/**",
+      ],
+    },
+    "apps/api": {
+      "project": ["src/**/*.ts"],
+    },
+    "apps/web": {
+      "entry": [
+        "src/main.tsx",
+        "scripts/**/*.ts",
+        // Registered by path: navigator.serviceWorker.register('/sw.js') in src/main.tsx.
+        "public/sw.js",
+        // CLI only: node apps/web/src/photobook/fixtures/make-fixtures.mjs writes the photobook test photos.
+        "src/photobook/fixtures/make-fixtures.mjs",
+      ],
+      "project": [
+        "src/**/*.{ts,tsx,mjs}",
+        "scripts/**/*.ts",
+        "eslint/**/*.js",
+        "*.ts",
+      ],
+    },
+    "packages/shared": {
+      "project": ["src/**/*.ts"],
+    },
+  },
+  "ignore": ["scripts/deadcode/fixtures/**"],
+  // Both are imported only from apps/web/src/styles.css (@import), which knip does not follow.
+  "ignoreDependencies": ["@fontsource/inter", "tailwindcss"],
+}

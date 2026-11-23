@@ -32,7 +32,7 @@ import { sendError } from './http/errors.js'
 import { housekeepingJobs } from './housekeeping/jobs.js'
 import { OpsCounters } from './ops/counters.js'
 
-export type BuildAppOptions = {
+type BuildAppOptions = {
   config?: AppConfig
   now?: () => Date
   geocodeFetch?: typeof fetch

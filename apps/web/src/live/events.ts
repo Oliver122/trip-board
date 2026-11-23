@@ -11,10 +11,7 @@ export type FoldedChanges = {
   changes: LiveChange[]
 }
 
-export function foldChanges(
-  events: LiveChange[],
-  ownClientId: string,
-): FoldedChanges {
+function foldChanges(events: LiveChange[], ownClientId: string): FoldedChanges {
   const changes = events.filter((event) => event.clientId !== ownClientId)
   const resources: string[] = []
   for (const event of changes) {

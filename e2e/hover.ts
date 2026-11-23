@@ -22,7 +22,7 @@ export async function expectHover(locator: Locator) {
   expect(visual(after)).not.toEqual(visual(before))
 }
 
-export function visual(value: Paint) {
+function visual(value: Paint) {
   return {
     backgroundColor: value.backgroundColor,
     borderColor: value.borderColor,
@@ -33,7 +33,7 @@ export function visual(value: Paint) {
   }
 }
 
-export function paint(locator: Locator): Promise<Paint> {
+function paint(locator: Locator): Promise<Paint> {
   return locator.evaluate((el) => {
     const style = getComputedStyle(el)
     return {

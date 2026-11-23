@@ -9,7 +9,7 @@ import { useDataSaver } from '../lib/data-saver'
 let requested = false
 const listeners = new Set<() => void>()
 
-export function requestMapLoad() {
+function requestMapLoad() {
   if (requested) return
   requested = true
   for (const listener of listeners) listener()
@@ -30,9 +30,4 @@ export function useMapGate(): { ready: boolean; load: () => void } {
   )
   if (!on && !requested) requested = true
   return { ready: !on || wasRequested, load: requestMapLoad }
-}
-
-/** Test helper. */
-export function resetMapGate() {
-  requested = false
 }

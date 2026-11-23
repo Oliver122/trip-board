@@ -23,12 +23,12 @@ type UserRow = {
   suspended_reason: string | null
 }
 
-export type AuthSession = {
+type AuthSession = {
   user: MeResponse
   slid: boolean
 }
 
-export type LoginResult =
+type LoginResult =
   | { kind: 'ok'; token: string; next: string }
   | { kind: 'suspended'; reason: string | null }
   | { kind: 'signups_disabled' }

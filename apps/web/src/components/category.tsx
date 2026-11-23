@@ -7,10 +7,8 @@ import { kindLabel } from '../kinds/label'
 import { cn } from '../lib/utils'
 
 /** `kind` is a spot with 1 or 2 kinds; `planned` and `home` are system states. */
-export const categories = ['kind', 'planned', 'home'] as const
-
-export type Category = (typeof categories)[number]
-export type SystemCategory = Exclude<Category, 'kind'>
+export type Category = 'kind' | 'planned' | 'home'
+type SystemCategory = Exclude<Category, 'kind'>
 
 /** What a pin, strip or dot needs of a kind. */
 export type KindMark = Pick<SpotKindRef, 'color' | 'symbol'>

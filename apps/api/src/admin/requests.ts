@@ -33,7 +33,7 @@ type RequestRow = {
   max_bytes: string | number
 }
 
-export function toRequest(row: RequestRow) {
+function toRequest(row: RequestRow) {
   return {
     id: row.id,
     userId: row.user_id,

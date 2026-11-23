@@ -173,7 +173,7 @@ function addDays(iso: string, days: number): string {
 }
 
 /** Helvetica is a WinAnsi font. Keep Latin-1 and map the rest. */
-export function pdfSafe(value: string): string {
+function pdfSafe(value: string): string {
   let out = ''
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0

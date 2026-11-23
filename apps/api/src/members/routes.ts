@@ -33,7 +33,7 @@ import {
 import { sendError } from '../http/errors.js'
 import { idUserParams, parseParams } from '../http/params.js'
 
-export type MemberRouteOptions = {
+type MemberRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

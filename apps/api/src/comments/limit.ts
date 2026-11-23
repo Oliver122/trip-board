@@ -1,5 +1,5 @@
-export const commentRateLimit = 20
-export const commentRateWindowMs = 60_000
+const commentRateLimit = 20
+const commentRateWindowMs = 60_000
 
 /** At most 20 new comments per user per minute (R-24-11). */
 export class CommentLimiter {

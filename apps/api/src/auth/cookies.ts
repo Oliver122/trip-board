@@ -8,7 +8,7 @@ export const SLIDE_IF_REMAINING_UNDER_MS = 15 * 24 * 60 * 60 * 1000
 export const OAUTH_TTL_MS = 10 * 60 * 1000
 export const SEEN_INTERVAL = '5 minutes'
 
-export type OAuthState = {
+type OAuthState = {
   state: string
   verifier: string
   next: string
@@ -54,7 +54,7 @@ export function readOAuthState(
   }
 }
 
-export function serializeCookie(
+function serializeCookie(
   name: string,
   value: string,
   options: { maxAge: number; secure: boolean },

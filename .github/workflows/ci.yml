@@ -79,6 +79,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm req:check
       - run: pnpm typecheck
+      - run: pnpm deadcode
       - name: Start MinIO
         run: |
           docker run -d --name minio -p 9000:9000 \

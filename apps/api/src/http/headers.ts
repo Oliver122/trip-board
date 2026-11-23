@@ -3,7 +3,7 @@ import type { FastifyReply } from 'fastify'
 export const tileOrigin = 'https://tiles.openfreemap.org'
 
 /** Commons thumbnails in the suggestion strip (step 34). */
-export const commonsImageOrigin = 'https://upload.wikimedia.org'
+const commonsImageOrigin = 'https://upload.wikimedia.org'
 
 const hsts = 'max-age=15552000; includeSubDomains'
 

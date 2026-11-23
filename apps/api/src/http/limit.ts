@@ -1,5 +1,5 @@
-export const globalRateLimit = 300
-export const globalRateWindowMs = 60_000
+const globalRateLimit = 300
+const globalRateWindowMs = 60_000
 
 export class RequestLimiter {
   private readonly hits = new Map<string, number[]>()

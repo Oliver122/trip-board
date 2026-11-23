@@ -12,11 +12,3 @@ export function kindLabel(
   if (kind.preset) return t(`kinds.presets.${kind.preset}`)
   return ''
 }
-
-/** Names of a spot's kinds, joined for badges and accessible names. */
-export function kindLabels(
-  t: TFunction,
-  kinds: readonly Pick<SpotKindRef, 'name' | 'preset'>[],
-): string[] {
-  return kinds.map((kind) => kindLabel(t, kind))
-}

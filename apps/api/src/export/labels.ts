@@ -7,7 +7,7 @@ import type {
 
 export type ExportLocale = 'en' | 'de'
 
-export const csvHeaders: Record<ExportLocale, readonly string[]> = {
+const csvHeaders: Record<ExportLocale, readonly string[]> = {
   en: [
     'Title',
     'Category',
@@ -67,7 +67,7 @@ const presets: Record<ExportLocale, Record<KindPreset, string>> = {
 }
 
 /** A kind's display name: the custom name, or the preset label in the language. */
-export function kindName(
+function kindName(
   locale: ExportLocale,
   kind: Pick<SpotKindRef, 'name' | 'preset'>,
 ): string {

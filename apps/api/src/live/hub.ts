@@ -12,7 +12,7 @@ const maxStreamsPerUser = 5
 const initialBackoffMs = 200
 const maxBackoffMs = 10_000
 
-export type TripNotice = {
+type TripNotice = {
   tripId: string
   resource: string
   id: string | null

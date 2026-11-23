@@ -8,8 +8,6 @@ import {
 } from '@tripboard/shared'
 import type { QueuedPhoto } from '../images/queue'
 import type { LngLatBounds } from '../map/bounds'
-import { formatDate, formatTime } from '../lib/format'
-import type { AppLocale } from '../lib/locale'
 
 export type Draft = {
   title: string
@@ -133,7 +131,7 @@ export function draftsEqual(left: Draft, right: Draft): boolean {
   )
 }
 
-export type SwitchDecision = 'switch' | 'confirm' | 'ignore'
+type SwitchDecision = 'switch' | 'confirm' | 'ignore'
 
 /**
  * What a pin click, card click or right-click add does while a panel is open:
@@ -173,7 +171,7 @@ export function orderPrimaryHomes<T extends Spot>(spots: T[]): T[] {
   return next
 }
 
-export function containsPoint(
+function containsPoint(
   bounds: LngLatBounds,
   point: { lat: number; lng: number },
 ): boolean {
@@ -203,28 +201,6 @@ export function listEmptyKind(
   if (matched === 0) return 'filters'
   if (shown === 0) return 'view'
   return 'none'
-}
-
-export function spotSubtitle(spot: Spot, locale: AppLocale): string {
-  if (spot.firstScheduledAt)
-    return formatWallClock(spot.firstScheduledAt, locale)
-  return spot.address ?? ''
-}
-
-/** `spots_view` stores the trip's local date and time with no zone. */
-function formatWallClock(value: string, locale: AppLocale): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value)
-  if (!match) return value
-  const date = new Date(
-    Date.UTC(
-      Number(match[1]),
-      Number(match[2]) - 1,
-      Number(match[3]),
-      Number(match[4]),
-      Number(match[5]),
-    ),
-  )
-  return `${formatDate(date, locale)} ${formatTime(date, locale)}`
 }
 
 /** Spots per filter token: each kind id, `planned` and `home`. */

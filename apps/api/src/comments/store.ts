@@ -14,7 +14,7 @@ import { requireTripRole } from '../trips/roles.js'
 
 type Queryable = Pool | PoolClient
 
-export type CommentFailure = { ok: false; status: 403 | 404 }
+type CommentFailure = { ok: false; status: 403 | 404 }
 
 type CommentRow = {
   id: string
@@ -44,7 +44,7 @@ LEFT JOIN users u ON u.id = c.author_id
 const nowMs = `date_trunc('milliseconds', clock_timestamp())`
 
 /** Cursor = the createdAt and id of the last comment on the page. */
-export function encodeCursor(createdAt: Date, id: string): string {
+function encodeCursor(createdAt: Date, id: string): string {
   return Buffer.from(`${createdAt.toISOString()}|${id}`).toString('base64url')
 }
 

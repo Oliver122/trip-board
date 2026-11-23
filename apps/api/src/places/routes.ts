@@ -18,7 +18,7 @@ import { PlaceLinkLimiter } from './limit.js'
 import { locatePlace } from './locate.js'
 import { isShortLink, LinkResolveError, resolveShortLink } from './resolve.js'
 
-export type PlaceRouteOptions = {
+type PlaceRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

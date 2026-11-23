@@ -1,11 +1,11 @@
-export type LocateCandidate = {
+type LocateCandidate = {
   title: string
   address: string | null
   lat: number | null
   lng: number | null
 }
 
-export type LocationStatus = 'file' | 'found' | 'not_found'
+type LocationStatus = 'file' | 'found' | 'not_found'
 
 export type Located<T> = T & {
   lat: number | null
@@ -14,7 +14,7 @@ export type Located<T> = T & {
   foundLabel: string | null
 }
 
-export type GeocodeSearch = (
+type GeocodeSearch = (
   query: string,
   signal: AbortSignal,
 ) => Promise<{ lat: number; lng: number; label: string } | null>

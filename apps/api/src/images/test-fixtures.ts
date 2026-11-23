@@ -7,7 +7,7 @@ import type { InterceptResponse } from './web-fetch.js'
 // Served at GET /test/fixtures/:name and, for the host below, through the
 // download code in place of a network connection.
 
-export const fixtureHost = 'fixtures.tripboard.test'
+const fixtureHost = 'fixtures.tripboard.test'
 const commonsRenditionHost = 'upload.wikimedia.org'
 
 const cache = new Map<string, Promise<Buffer>>()
