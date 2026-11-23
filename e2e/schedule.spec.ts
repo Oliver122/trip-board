@@ -78,7 +78,8 @@ test('T-11-03 drag and keyboard reorder persist', async ({ page }) => {
     '2026-04-16',
   )
   const firstLink = await addVisit(page, entryId, first, '2026-04-13')
-  const secondLink = await addVisit(page, entryId, second, '2026-04-14')
+  // same day: the Move up / Move down items reorder inside a day group (R-46-02)
+  const secondLink = await addVisit(page, entryId, second, '2026-04-13')
   await page.goto(`/trips/${tripId}/schedule`)
   await expect
     .poll(() => visitTitles(page))
@@ -135,14 +136,13 @@ test('T-11-04 selecting a bucket fits the map to its spots', async ({
   await expect
     .poll(async () => (await mapView(page)).lng)
     .toBeGreaterThan(139.4)
-  await expect(page.getByTestId(`pin-${shibuya}`)).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  await expect(page.getByTestId(`pin-${teamLab}`)).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  // on the Schedule tab the dated spots are numbered plan pins (R-46-05)
+  await expect(
+    page.getByTestId('plan-pin-40000000-0000-0000-0000-000000000001'),
+  ).toBeVisible()
+  await expect(
+    page.getByTestId('plan-pin-40000000-0000-0000-0000-000000000004'),
+  ).toBeVisible()
 })
 
 test('T-11-05 plan entry filter keeps only that entry’s spots', async ({
@@ -218,7 +218,7 @@ test('T-11-09 schedule passes axe and reorders from the keyboard', async ({
     '2026-04-16',
   )
   const firstLink = await addVisit(page, entryId, first, '2026-04-13')
-  await addVisit(page, entryId, second, '2026-04-14')
+  await addVisit(page, entryId, second, '2026-04-13')
   await page.goto(`/trips/${tripId}/schedule`)
   await expect(page.getByText('Alpha Spot')).toBeVisible()
 

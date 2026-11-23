@@ -349,12 +349,15 @@ export type AddPlanSpot = z.infer<typeof addPlanSpotSchema>
 
 export const patchPlanSpotSchema = z
   .object({
+    /** R-46-03: move the visit to this entry of the same trip. */
+    planEntryId: z.string().uuid({ message: 'invalid' }).optional(),
     visitDate: z.string().nullable().optional(),
     visitTime: z.string().nullable().optional(),
     info: z.string().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (
+      data.planEntryId === undefined &&
       data.visitDate === undefined &&
       data.visitTime === undefined &&
       data.info === undefined
@@ -377,6 +380,7 @@ export const patchPlanSpotSchema = z
     }
   })
   .transform((data) => ({
+    planEntryId: data.planEntryId,
     visitDate:
       data.visitDate === undefined
         ? undefined

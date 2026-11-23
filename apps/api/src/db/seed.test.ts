@@ -64,6 +64,81 @@ describe.skipIf(!hasDb)('seed', () => {
     })
   })
 
+  // R-46-10: the schedule demo links, restored by a re-run
+  it('seeds and restores the schedule demo links', async () => {
+    await db.pool.query(`
+      UPDATE plan_entry_spots
+      SET visit_date = NULL, visit_time = NULL, info = 'moved', sort_order = 9
+      WHERE id::text LIKE '40000000-0000-0000-0000-00000000000%'
+    `)
+    await seedDatabase(db.pool)
+    const links = await db.pool.query(`
+      SELECT right(pes.id::text, 1) AS n, pe.title AS entry, s.title AS spot,
+        pes.visit_date::text AS date, to_char(pes.visit_time, 'HH24:MI') AS time,
+        pes.info, pes.sort_order
+      FROM plan_entry_spots pes
+      JOIN plan_entries pe ON pe.id = pes.plan_entry_id
+      JOIN spots s ON s.id = pes.spot_id
+      ORDER BY pes.id
+    `)
+    expect(links.rows).toEqual([
+      {
+        n: '1',
+        entry: 'Tokyo',
+        spot: 'Shibuya Sky',
+        date: '2026-04-13',
+        time: '18:00',
+        info: null,
+        sort_order: 0,
+      },
+      {
+        n: '2',
+        entry: 'Tokyo',
+        spot: 'teamLab Borderless',
+        date: '2026-04-14',
+        time: null,
+        info: null,
+        sort_order: 1,
+      },
+      {
+        n: '3',
+        entry: 'Kyoto',
+        spot: 'Fushimi Inari',
+        date: '2026-04-18',
+        time: '09:00',
+        info: null,
+        sort_order: 0,
+      },
+      {
+        n: '4',
+        entry: 'Tokyo',
+        spot: 'teamLab Borderless',
+        date: '2026-04-13',
+        time: '10:00',
+        info: null,
+        sort_order: 2,
+      },
+      {
+        n: '5',
+        entry: 'Tokyo',
+        spot: 'Hotel Gracery',
+        date: '2026-04-13',
+        time: null,
+        info: null,
+        sort_order: 3,
+      },
+      {
+        n: '6',
+        entry: 'Tokyo',
+        spot: 'Shibuya Sky',
+        date: null,
+        time: null,
+        info: null,
+        sort_order: 4,
+      },
+    ])
+  })
+
   // T-45-10 seed: one overdue, one failed, one fresh job; geocode has no row
   it('seeds the service health demo data', async () => {
     const runs = await db.pool.query<{

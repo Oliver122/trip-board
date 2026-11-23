@@ -148,7 +148,7 @@ Counts are the active rules and the _Known gaps_ bullets in each core file at th
 
 ### Planning
 
-- **Users can:** build a schedule from bucket entries (a date range) and single entries (date and time), link spots into them, reorder, see the empty-schedule hint.
+- **Users can:** build a schedule from bucket entries (a date range) and single entries (date and time), link spots into them, reorder, see the empty-schedule hint, see each bucket by day, move a visit to another day or entry (*Move to…* or drag), and see the plan on the map as numbered pins and dashed lines in one colour per day, with day cards from 1024 px (step 46).
 - **Roles:** planner and above write; visitors read.
 - **Routes:** `GET`, `POST /trips/:id/plan`, `PATCH`, `DELETE /plan/:id`, `POST /plan/:id/spots`, `PATCH`, `DELETE /plan/:id/spots/:linkId`, `PUT /plan/:id/spots/order`; screen `/trips/:id/schedule`.
 - **Touches:** spots (a spot in a plan becomes Planned), home, list, map, live.

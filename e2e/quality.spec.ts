@@ -90,8 +90,8 @@ test('T-18-07 move down keeps focus, highlights the row, and announces it', asyn
   }
   const entryId = await createBucket(page, tripId, 'Tokyo')
   const links: string[] = []
-  for (const [index, spotId] of ids.entries()) {
-    links.push(await addVisit(page, entryId, spotId, `2026-04-1${index + 2}`))
+  for (const spotId of ids) {
+    links.push(await addVisit(page, entryId, spotId, '2026-04-13'))
   }
   await page.goto(`/trips/${tripId}/schedule`)
   await expect.poll(() => visitTitles(page)).toEqual(titles)
@@ -133,7 +133,7 @@ test('T-18-08 a failed reorder restores the order and shows a toast', async ({
   const second = await createSpot(page, tripId, 'Beta')
   const entryId = await createBucket(page, tripId, 'Tokyo')
   const firstLink = await addVisit(page, entryId, first, '2026-04-12')
-  await addVisit(page, entryId, second, '2026-04-13')
+  await addVisit(page, entryId, second, '2026-04-12')
   await page.goto(`/trips/${tripId}/schedule`)
   await expect.poll(() => visitTitles(page)).toEqual(['Alpha', 'Beta'])
   await page.route('**/api/plan/**/spots/order', (route) =>
@@ -353,10 +353,10 @@ test('T-18-16 a board draft does not carry onto the schedule', async ({
   await page.goto(`${japanTrip}/schedule`)
   await waitForMap(page)
   await page.getByTestId('entry-30000000-0000-0000-0000-000000000001').click()
-  await expect(page.getByTestId(`pin-${shibuya}`)).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  // the dated spot is a numbered plan pin on the Schedule tab (R-46-05)
+  await expect(
+    page.getByTestId('plan-pin-40000000-0000-0000-0000-000000000001'),
+  ).toBeVisible()
   await page.getByRole('link', { name: 'Board', exact: true }).click()
   await page.getByTestId('add-new').click()
   await page
@@ -365,10 +365,10 @@ test('T-18-16 a board draft does not carry onto the schedule', async ({
   await expect(page.getByTestId('draft-pin')).toBeVisible()
   await page.getByRole('link', { name: 'Schedule', exact: true }).click()
   await expect(page.getByTestId('draft-pin')).toHaveCount(0)
-  await expect(page.getByTestId(`pin-${shibuya}`)).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
+  // the dated spot is a numbered plan pin on the Schedule tab (R-46-05)
+  await expect(
+    page.getByTestId('plan-pin-40000000-0000-0000-0000-000000000001'),
+  ).toBeVisible()
   await page
     .locator('.maplibregl-canvas')
     .click({ position: { x: 180, y: 180 } })

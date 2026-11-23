@@ -30,6 +30,15 @@
   --cat-maybe: #30a46c;
   --cat-planned: #3e63dd;
   --cat-home: #f5a524;
+  /* R-46-08: day colours, 3:1 on the map land, 4.5:1 for white numbers */
+  --day-1: #bb251b;
+  --day-2: #9f470d;
+  --day-3: #7a5d06;
+  --day-4: #1c7031;
+  --day-5: #106d6a;
+  --day-6: #1460b6;
+  --day-7: #753dd6;
+  --day-8: #b0257d;
 }
 
 .dark {
@@ -54,6 +63,14 @@
   --cat-maybe: #3dd68c;
   --cat-planned: #5b7fff;
   --cat-home: #ffc53d;
+  --day-1: #d42a1e;
+  --day-2: #b6510f;
+  --day-3: #8b6a07;
+  --day-4: #208038;
+  --day-5: #127c78;
+  --day-6: #176dd0;
+  --day-7: #8451da;
+  --day-8: #c72a8d;
 }
 
 @theme inline {
@@ -118,4 +135,10 @@ body {
   .avatar-lift {
     transition-duration: 0s;
   }
+}
+
+/* R-46-05: an undated spot's pin on the schedule map. !important because
+   MapLibre sets the marker element's inline opacity on every map update. */
+.maplibregl-marker[data-undated='true'] {
+  opacity: 0.4 !important;
 }

@@ -3,7 +3,14 @@ import { hoverClass } from '../components/ui/hover'
 import { cn } from '../lib/utils'
 import { setWorkerUrl, type Map as MaplibreMap } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import Map, { Marker, type MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -14,6 +21,8 @@ import {
   type KindMark,
 } from '../components/category'
 import { activeLocale } from '../i18n'
+import { useMediaQuery } from '../lib/media'
+import type { PlanMapScene } from '../trips/trip-context'
 import { useDark } from '../theme'
 import {
   boundsForPoints,
@@ -23,6 +32,7 @@ import {
 } from './bounds'
 import { clusterSpots, type MapSpot } from './clusters'
 import { Pin } from './Pin'
+import { PlanLayer, PlanOverlay, useDayCardsSetting } from './PlanLayer'
 import { mapLandColor, mapStyle } from './style'
 import {
   initialViewport,
@@ -60,6 +70,9 @@ export function TripMap({
   viewportScope = 'board',
   viewportStorageKey,
   flyTo = null,
+  plan = null,
+  onPlanStop,
+  onFocusDay,
 }: {
   bbox: LngLatBounds
   spots: MapSpot[]
@@ -85,6 +98,10 @@ export function TripMap({
   viewportScope?: ViewportScope
   viewportStorageKey?: string
   flyTo?: { token: string; lng: number; lat: number } | null
+  /** The schedule's plan layer; null everywhere else (R-46-05). */
+  plan?: PlanMapScene | null
+  onPlanStop?: (linkId: string, date: string) => void
+  onFocusDay?: (date: string | null) => void
 }) {
   const { t, i18n } = useTranslation()
   const dark = useDark()
@@ -100,9 +117,33 @@ export function TripMap({
     [locale, dark],
   )
   const maxBounds = toMaxBoundsTuple(maxBoundsFor(bbox))
+  // R-46-05: with a plan only spots without a dated visit keep a normal pin.
+  const undatedIds = useMemo(
+    () => (plan ? new Set(plan.undatedSpotIds) : null),
+    [plan],
+  )
   const clustered = useMemo(
-    () => clusterSpots(spots, camera.bounds, camera.zoom),
-    [spots, camera],
+    () =>
+      clusterSpots(
+        undatedIds ? spots.filter((spot) => undatedIds.has(spot.id)) : spots,
+        camera.bounds,
+        camera.zoom,
+      ),
+    [spots, camera, undatedIds],
+  )
+  const wide = useMediaQuery('(min-width: 1024px)')
+  const [dayCards, setDayCards] = useDayCardsSetting()
+  const onPlanStopRef = useRef(onPlanStop)
+  onPlanStopRef.current = onPlanStop
+  const onFocusDayRef = useRef(onFocusDay)
+  onFocusDayRef.current = onFocusDay
+  const planStop = useCallback(
+    (linkId: string, date: string) => onPlanStopRef.current?.(linkId, date),
+    [],
+  )
+  const focusDay = useCallback(
+    (date: string | null) => onFocusDayRef.current?.(date),
+    [],
   )
   const [initialView] = useState(() =>
     initialViewport(
@@ -414,6 +455,14 @@ export function TripMap({
               longitude={item.spot.lng}
               latitude={item.spot.lat}
               anchor="center"
+              ref={(marker) => {
+                // R-46-05: pins of spots without a dated visit are faded (styles.css;
+                // MapLibre rewrites the marker's inline opacity on every update).
+                const element = marker?.getElement()
+                if (!element) return
+                if (plan) element.setAttribute('data-undated', 'true')
+                else element.removeAttribute('data-undated')
+              }}
               style={{
                 zIndex:
                   item.spot.id === selectedId ||
@@ -450,6 +499,15 @@ export function TripMap({
             </Marker>
           ),
         )}
+        {plan ? (
+          <PlanLayer
+            plan={plan}
+            dark={dark}
+            cards={wide && dayCards}
+            onPlanStop={planStop}
+            onFocusDay={focusDay}
+          />
+        ) : null}
         {draft ? (
           <Marker
             longitude={draft.lng}
@@ -471,6 +529,14 @@ export function TripMap({
           </Marker>
         ) : null}
       </Map>
+      {plan ? (
+        <PlanOverlay
+          plan={plan}
+          wide={wide}
+          cards={dayCards}
+          onCards={setDayCards}
+        />
+      ) : null}
       {tileError ? (
         <div
           role="status"

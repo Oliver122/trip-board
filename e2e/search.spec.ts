@@ -87,11 +87,11 @@ test('T-09-08 scheduled spots come first, then the divider', async ({
     )
   expect(order).toEqual([
     `card-${shibuya}`,
+    `card-${hotel}`,
     'card-20000000-0000-0000-0000-000000000002',
     `card-${fushimi}`,
     'unscheduled-divider',
     `card-${nara}`,
-    `card-${hotel}`,
     'card-20000000-0000-0000-0000-000000000006',
   ])
   await expect(page.getByText('Not scheduled yet')).toBeVisible()

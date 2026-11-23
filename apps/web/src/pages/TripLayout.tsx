@@ -160,6 +160,11 @@ function TripWorkspace() {
           viewportScope={scope}
           viewportStorageKey={viewportStorageKey('board', trip.id)}
           flyTo={scene?.flyTo ?? null}
+          plan={scene?.plan ?? null}
+          onPlanStop={(linkId, date) =>
+            handlersRef.current.onPlanStop?.(linkId, date)
+          }
+          onFocusDay={(date) => handlersRef.current.onFocusDay?.(date)}
           onCancelLoad={() => setView('list', { replace: true })}
         />
         <div

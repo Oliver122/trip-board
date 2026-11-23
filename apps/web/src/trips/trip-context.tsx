@@ -31,6 +31,42 @@ export type MapDraft = {
   filled?: boolean
 }
 
+/** One numbered stop of a day on the schedule map (R-46-05). */
+export type PlanMapStop = {
+  linkId: string
+  entryId: string
+  spotId: string
+  title: string
+  stopNumber: number
+  lng: number
+  lat: number
+}
+
+/** One day of the plan as the map draws it (R-46-05, R-46-06). */
+export type PlanMapDay = {
+  /** `YYYY-MM-DD`, also the day's key. */
+  date: string
+  /** Localised short day, e.g. "Mon 13 Apr" / "Mo., 13. Apr.". */
+  label: string
+  /** 0..7, picks `dayColor` / `--day-N`. */
+  colorIndex: number
+  /** Stops with coordinates, in day order. */
+  stops: PlanMapStop[]
+}
+
+/** The plan layer of the schedule map; absent on every other page (R-46-05). */
+export type PlanMapScene = {
+  days: PlanMapDay[]
+  /** Spots without any dated visit: drawn as normal pins at 40 % opacity. */
+  undatedSpotIds: string[]
+  /** The focused day (R-46-07), or null. */
+  focusedDate: string | null
+  /** The visit selected in the list, its numbered pin is raised. */
+  selectedLinkId: string | null
+  /** R-46-09: the plan has entries but no visit has a date. */
+  showHint: boolean
+}
+
 /** Pins and camera hints the active page paints onto the shared map. */
 export type MapScene = {
   spots: MapSpot[]
@@ -41,6 +77,8 @@ export type MapScene = {
   highlightIds: string[]
   focus: { key: string; bounds: LngLatBounds } | null
   flyTo: { token: string; lng: number; lat: number } | null
+  /** Only the Schedule tab sets this (R-46-05). */
+  plan?: PlanMapScene | null
 }
 
 export type MapHandlers = {
@@ -50,6 +88,10 @@ export type MapHandlers = {
   onContextPlace?: (lng: number, lat: number) => boolean
   onDraftMove?: (lng: number, lat: number) => void
   onViewport?: (bounds: LngLatBounds) => void
+  /** A numbered plan pin was clicked (R-46-05). */
+  onPlanStop?: (linkId: string, date: string) => void
+  /** A day card was clicked, or Escape / the focused card ended the focus (R-46-07). */
+  onFocusDay?: (date: string | null) => void
 }
 
 type TripState = {

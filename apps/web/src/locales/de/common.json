@@ -318,7 +318,20 @@
     "rowActions": "Aktionen für {{spot}}",
     "menuMoveUp": "Nach oben",
     "menuMoveDown": "Nach unten",
-    "removeFromBucket": "Aus dem Sammelplan entfernen"
+    "removeFromBucket": "Aus dem Sammelplan entfernen",
+    "anyDay": "Ohne Tag",
+    "stops_one": "{{count}} Stopp",
+    "stops_other": "{{count}} Stopps",
+    "dayHeading": "{{day}} · {{stops}}",
+    "focusDay": "{{day}} auf der Karte zeigen",
+    "stopNumber": "Stopp {{stop}}",
+    "menuMoveTo": "Verschieben nach…",
+    "moveTitle": "{{spot}} verschieben nach…",
+    "moveCurrent": "aktueller Platz",
+    "movedTo": "Verschoben nach {{day}}, Stopp {{stop}}",
+    "movedToAnyDay": "Verschoben nach {{entry}}, ohne Tag",
+    "moveError": "Der Besuch konnte nicht verschoben werden.",
+    "dropHere": "Auf {{day}} ablegen"
   },
   "members": {
     "title": "Mitglieder",
@@ -662,7 +675,8 @@
           "update": "{{actor}} hat den Plan {{plan}} aktualisiert",
           "delete": "{{actor}} hat den Plan {{plan}} gelöscht",
           "spot_add": "{{actor}} hat {{spot}} zu {{plan}} hinzugefügt",
-          "spot_remove": "{{actor}} hat {{spot}} aus {{plan}} entfernt"
+          "spot_remove": "{{actor}} hat {{spot}} aus {{plan}} entfernt",
+          "spot_move": "{{actor}} hat {{spot}} nach {{plan}} verschoben"
         },
         "image": {
           "upload": "{{actor}} hat ein Foto von {{spot}} hochgeladen",
@@ -1051,5 +1065,12 @@
     "valueOn": "An",
     "valueOff": "Aus",
     "lowDataHint": "Der Datensparmodus lädt keine Fotos, keine Karte und keine Avatare, bis du sie anforderst. Auto folgt deiner Verbindung."
+  },
+  "planMap": {
+    "pin": "{{day}}, Stopp {{stop}}: {{spot}}",
+    "card": "{{day}} · {{stops}}",
+    "cardLabel": "{{day}}, {{stops}}: auf der Karte zeigen",
+    "dayCards": "Tageskarten",
+    "hint": "Gib Besuchen einen Tag, um deine Route auf der Karte zu sehen"
   }
 }
