@@ -8,7 +8,7 @@ import { buildExport, type ExportFormat } from './store.js'
 import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 
-export type ExportRouteOptions = {
+type ExportRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

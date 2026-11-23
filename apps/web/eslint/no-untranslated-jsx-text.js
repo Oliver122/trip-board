@@ -32,7 +32,7 @@ export default {
 }
 
 /**
- * @param {import('estree').Node | null | undefined} node
+ * @param {import('eslint').Rule.Node | null | undefined} node
  * @param {import('eslint').Rule.RuleContext} context
  */
 function inspect(node, context) {

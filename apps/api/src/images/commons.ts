@@ -7,7 +7,7 @@ import {
 // Wikimedia Commons client (R-34-07, R-34-09). Talks to the MediaWiki API only
 // through the injected fetch, so tests never leave the machine.
 
-export const commonsTimeoutMs = 5000
+const commonsTimeoutMs = 5000
 export const commonsRadiusMeters = 150
 export const commonsRenditionHost = 'upload.wikimedia.org'
 const geosearchLimit = 50
@@ -21,7 +21,7 @@ export type CommonsClient = {
   timeoutMs?: number
 }
 
-export type CommonsFile = PhotoSuggestion & {
+type CommonsFile = PhotoSuggestion & {
   /** Rendition of at most 2048 px, or the original when it is smaller. */
   renditionUrl: string
 }

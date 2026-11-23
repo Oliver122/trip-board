@@ -55,7 +55,7 @@ const tripSelect = `
   o.members, o.spots, o.plan_entries, o.images, o.image_bytes, o.last_activity_at
 `
 
-export function toAdminTrip(row: TripRow) {
+function toAdminTrip(row: TripRow) {
   return {
     id: row.id,
     name: row.name,

@@ -32,7 +32,7 @@ type KindRow = {
 }
 
 /** The body the schema lets through; the schema guarantees one complete shape. */
-export type ParsedCreateKind = {
+type ParsedCreateKind = {
   name?: string
   color?: string
   symbol?: string
@@ -430,7 +430,7 @@ export async function deleteKind(
   })
 }
 
-export type ResolvedKinds =
+type ResolvedKinds =
   | { ok: true; home: true }
   | { ok: true; home: false; kindIds: string[] }
   | {

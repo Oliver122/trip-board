@@ -16,7 +16,7 @@ type SettingsRow = {
   default_max_file_bytes: string | number
 }
 
-export type SettingsInput = {
+type SettingsInput = {
   defaultMaxImages?: number
   defaultMaxBytes?: number
   dbCapacityBytes?: number

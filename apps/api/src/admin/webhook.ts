@@ -7,7 +7,7 @@ type WebhookOptions = {
   now: Date
 }
 
-export const webhookTimeoutMs = 5000
+const webhookTimeoutMs = 5000
 
 function utcDay(now: Date): string {
   return now.toISOString().slice(0, 10)

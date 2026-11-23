@@ -7,7 +7,7 @@ import { selectedRing, SelectedCheck } from './selection'
 import { SymbolMark } from './textures'
 
 /** Lower case without diacritics, so "kat" finds "Katze" and "ubung" finds "Übung". */
-export function normalizeSearch(value: string): string {
+function normalizeSearch(value: string): string {
   return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 

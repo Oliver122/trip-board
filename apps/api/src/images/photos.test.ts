@@ -5,7 +5,8 @@ import { buildApp } from '../app.js'
 import { loadConfig } from '../config.js'
 import { seedDatabase, seedIds } from '../db/seed.js'
 import { createTestDatabase, type TestDatabase } from '../db/test-db.js'
-import { createS3Storage, type ObjectStorage } from './storage.js'
+import { type ObjectStorage } from './storage.js'
+import { createTestStorage } from './test-storage.js'
 
 const WEB_ORIGIN = 'http://127.0.0.1:5180'
 
@@ -28,7 +29,7 @@ describe('photobook photos', () => {
       WEB_ORIGIN,
       S3_BUCKET: 'tripboard-photos-test',
     })
-    storage = createS3Storage(config)
+    storage = createTestStorage(config, import.meta.url)
     png = await sharp({
       create: {
         width: 8,

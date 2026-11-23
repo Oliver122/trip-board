@@ -1,7 +1,7 @@
 import { tripSchema, type Trip, type TripRole } from '@tripboard/shared'
 import type { LngLatBounds } from './bounds'
 
-export type TripMapData = {
+type TripMapData = {
   id: string
   name: string
   role: TripRole

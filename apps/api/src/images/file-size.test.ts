@@ -4,7 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app.js'
 import { loadConfig, type AppConfig } from '../config.js'
 import { createTestDatabase, type TestDatabase } from '../db/test-db.js'
-import { createS3Storage, type ObjectStorage } from './storage.js'
+import { type ObjectStorage } from './storage.js'
+import { createTestStorage } from './test-storage.js'
 import type { WebFetchOptions } from './web-fetch.js'
 
 const WEB_ORIGIN = 'http://127.0.0.1:5180'
@@ -33,7 +34,7 @@ describe('per-user file size limit', () => {
       WEB_ORIGIN,
       S3_BUCKET: 'tripboard-test',
     })
-    storage = createS3Storage(config)
+    storage = createTestStorage(config, import.meta.url)
     small = await sharp({
       create: {
         width: 64,

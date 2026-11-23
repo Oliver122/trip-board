@@ -78,7 +78,7 @@ const extensions: Record<string, string> = {
   'image/heic': 'heic',
 }
 
-export function fileFromDataUri(uri: string): File | null {
+function fileFromDataUri(uri: string): File | null {
   const match = /^data:(image\/[a-z0-9.+-]+)((?:;[^,;]*)*),(.*)$/is.exec(uri)
   if (!match) return null
   const [, type, params, data] = match

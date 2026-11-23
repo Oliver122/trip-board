@@ -18,7 +18,7 @@ export type MapSpot = {
   unread?: boolean
 }
 
-export type ClusteredSpot =
+type ClusteredSpot =
   | { kind: 'spot'; spot: MapSpot }
   | { kind: 'cluster'; id: number; lng: number; lat: number; count: number }
 

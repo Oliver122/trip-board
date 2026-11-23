@@ -20,7 +20,7 @@ import {
 } from './store.js'
 import { sendError } from '../http/errors.js'
 
-export type GeocodeRouteOptions = {
+type GeocodeRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

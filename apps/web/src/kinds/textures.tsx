@@ -9,7 +9,7 @@ import { KindSymbolIcon } from './symbols'
  * A symbol's texture is a cell of `/textures/kind-symbols.png` (8 x 8 cells),
  * listed in `texture-manifest.json` only when the cell is filled (R-29-19).
  */
-export type SymbolTexture = {
+type SymbolTexture = {
   /** `/textures/kind-symbols.png?v=<version>` */
   url: string
   /** CSS `background-position` of the symbol's cell, e.g. `"71.43% 0%"`. */

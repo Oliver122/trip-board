@@ -1,4 +1,4 @@
-import { meResponseSchema, type MeResponse } from '@tripboard/shared'
+import { meResponseSchema } from '@tripboard/shared'
 import { useTranslation } from 'react-i18next'
 import { activeLocale, chooseLocale } from './i18n'
 import type { AppLocale } from './lib/locale'
@@ -29,5 +29,3 @@ export function useLocaleSwitcher() {
 
   return { locale, setLocale }
 }
-
-export type { MeResponse }

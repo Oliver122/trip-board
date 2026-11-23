@@ -15,7 +15,7 @@ export type QueuedPhoto =
       label: string
     }
 
-export type QueueResult = {
+type QueueResult = {
   /** Photos that could not be added, with a translated reason. */
   failed: { photo: QueuedPhoto; reason: string }[]
 }

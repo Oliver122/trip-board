@@ -10,7 +10,7 @@ export type JobRunRow = {
 }
 
 /** Longest error message kept in `job_runs.last_error` (column CHECK). */
-export const jobErrorMaxLength = 1000
+const jobErrorMaxLength = 1000
 
 /** Upserts the job's row when a run starts; result columns keep the last run's values. */
 export async function recordJobStart(

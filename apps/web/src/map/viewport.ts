@@ -34,7 +34,7 @@ const scopePages: Record<ViewportScope, RegExp> = {
   schedule: /^\/trips\/[^/]+\/schedule\/?$/,
 }
 
-export const viewportTransitionMs = 500
+const viewportTransitionMs = 500
 
 /** Animated tab changes use ~500 ms. Reduced motion jumps in the same frame. */
 export function viewportTransitionDuration(reducedMotion: boolean): number {
@@ -131,7 +131,7 @@ export function initialViewport(
   return null
 }
 
-export function roundViewport(view: Viewport): Viewport {
+function roundViewport(view: Viewport): Viewport {
   return {
     zoom: Number(view.zoom.toFixed(2)),
     lat: Number(view.lat.toFixed(5)),

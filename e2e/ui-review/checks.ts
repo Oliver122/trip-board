@@ -11,7 +11,7 @@ export type CheckName =
   | 'overlap'
   | 'small-text'
 
-export type CheckResult = {
+type CheckResult = {
   check: CheckName
   screen: string
   width: 1280 | 768 | 390
@@ -22,7 +22,7 @@ export type CheckResult = {
   box: { x: number; y: number; width: number; height: number }
 }
 
-export type CheckContext = {
+type CheckContext = {
   screen: string
   width: 1280 | 768 | 390
   theme: 'light' | 'dark'

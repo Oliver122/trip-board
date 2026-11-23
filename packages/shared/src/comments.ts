@@ -33,11 +33,9 @@ export const commentBodySchema = z
   .superRefine((data, ctx) => bodyErrors(data.body, ctx))
   .transform((data) => ({ body: data.body.trim() }))
 
-export type CommentBody = z.infer<typeof commentBodySchema>
+type CommentBody = z.infer<typeof commentBodySchema>
 
-export const createCommentSchema = commentBodySchema
 export type CreateCommentBody = CommentBody
-export const patchCommentSchema = commentBodySchema
 export type PatchCommentBody = CommentBody
 
 const authorSchema = z.object({

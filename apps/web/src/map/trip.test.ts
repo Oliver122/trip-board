@@ -17,6 +17,7 @@ const trip = {
   unreadComments: 0,
 }
 
+// T-05-02 (the trip bbox the map is centred and bounded by)
 describe('parseTrip', () => {
   it('reads the trip bbox from the trip payload', () => {
     expect(parseTrip(trip)?.bbox).toEqual({

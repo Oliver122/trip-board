@@ -8,7 +8,7 @@ const rank: Record<TripRole, number> = {
   owner: 3,
 }
 
-export function roleSatisfies(actual: TripRole, min: TripRole): boolean {
+function roleSatisfies(actual: TripRole, min: TripRole): boolean {
   return rank[actual] >= rank[min]
 }
 

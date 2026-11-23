@@ -311,11 +311,11 @@ export async function revokeInvite(
   })
 }
 
-export type InviteFailure =
+type InviteFailure =
   | { ok: false; status: 410; reason: 'expired' | 'revoked' | 'used' }
   | { ok: false; status: 404; reason: 'not_found' }
 
-export type InviteLookup = { ok: true; preview: JoinPreview } | InviteFailure
+type InviteLookup = { ok: true; preview: JoinPreview } | InviteFailure
 
 export async function previewInvite(
   db: Queryable,

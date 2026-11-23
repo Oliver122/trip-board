@@ -463,10 +463,7 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
  * The first unread comment: unread comments are the newest comments written by
  * others, so count back over those.
  */
-export function firstUnread(
-  comments: Comment[],
-  unread: number,
-): string | null {
+function firstUnread(comments: Comment[], unread: number): string | null {
   if (unread <= 0) return null
   let seen = 0
   for (let index = comments.length - 1; index >= 0; index -= 1) {

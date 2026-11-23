@@ -19,7 +19,7 @@ import {
 import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 
-export type CommentRouteOptions = {
+type CommentRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

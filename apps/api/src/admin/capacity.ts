@@ -1,6 +1,6 @@
-export type CapacityLevel = 'amber' | 'red'
+type CapacityLevel = 'amber' | 'red'
 
-export function usageLevel(
+function usageLevel(
   used: number,
   capacity: number,
   warnPct: number,

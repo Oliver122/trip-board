@@ -3,7 +3,7 @@ import { useId, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 import { hoverClass } from './hover'
 
-export type SettingOption<T extends string> = { value: T; label: string }
+type SettingOption<T extends string> = { value: T; label: string }
 
 /**
  * A setting as a row (R-42-28): label, current value and a chevron; it opens

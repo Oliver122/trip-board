@@ -20,7 +20,7 @@ import { googleMapsUrl } from '../spots/maps-link'
  * only when one was planned. `spots_view` stores the trip's local wall clock;
  * midnight stands for "no time".
  */
-export function visitText(value: string, locale: AppLocale): string {
+function visitText(value: string, locale: AppLocale): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value)
   if (!match) return value
   const date = new Date(
@@ -37,11 +37,7 @@ export function visitText(value: string, locale: AppLocale): string {
 }
 
 /** "Planned · 14 Apr 2026": the kind's name in words, then the date or address (R-42-14). */
-export function cardSubtitle(
-  t: TFunction,
-  spot: Spot,
-  locale: AppLocale,
-): string {
+function cardSubtitle(t: TFunction, spot: Spot, locale: AppLocale): string {
   const category = spot.displayCategory
   const name =
     category === 'kind'

@@ -79,7 +79,7 @@ import {
 import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 
-export type AdminRoute = {
+type AdminRoute = {
   method: string
   url: string
 }
@@ -90,7 +90,7 @@ export function listAdminRoutes(app: FastifyInstance): AdminRoute[] {
   return indexed.get(app) ?? []
 }
 
-export type AdminRouteOptions = {
+type AdminRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

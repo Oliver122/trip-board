@@ -1,7 +1,7 @@
 import { expectNoSeriousViolations } from './a11y'
 import { answerConfirm } from './confirm'
 import { expect, test, type Page } from './fixtures'
-import type { Route } from '@playwright/test'
+import type { APIResponse, Route } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 // T-27-08: this whole file must pass 10 repeats on Chromium and next to the full suite.
@@ -494,7 +494,25 @@ test('T-26-16 shared step 26 labels exist in en and de', () => {
   }
 })
 
+// The opening click can land on a button the page renders again right after
+// (seen on WebKit: the click runs, no dialog opens), so it is retried until
+// the dialog shows.
 async function openModal(
+  page: Page,
+  tripId: string,
+  name: ModalName,
+  width: number,
+) {
+  const dialog = page.getByRole('dialog').first()
+  await expect(async () => {
+    if (await dialog.isVisible()) return
+    await openModalOnce(page, tripId, name, width)
+    await expect(dialog).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 20_000 })
+  return dialog
+}
+
+async function openModalOnce(
   page: Page,
   tripId: string,
   name: ModalName,
@@ -540,47 +558,52 @@ function freshDiscordId() {
 
 async function login(page: Page, discordId: string) {
   await page.goto('/login')
-  await page.evaluate(async (id) => {
-    const response = await fetch('/api/test/login', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ discordId: id }),
-    })
-    if (!response.ok) throw new Error(await response.text())
-  }, discordId)
+  // The request context shares the page's cookies but not its navigation
+  // state: an in-page fetch dies with "Load failed" on WebKit when the page
+  // navigates meanwhile.
+  await ok(
+    page.request.post('/api/test/login', {
+      data: { discordId },
+      headers: originOf(page),
+    }),
+  )
 }
 
 async function setLocale(page: Page, locale: 'en' | 'de') {
-  await page.evaluate(async (next) => {
-    const response = await fetch('/api/me', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ locale: next }),
-    })
-    if (!response.ok) throw new Error(await response.text())
-  }, locale)
+  await ok(
+    page.request.patch('/api/me', {
+      data: { locale },
+      headers: originOf(page),
+    }),
+  )
 }
 
 async function createTrip(page: Page, name: string) {
-  return page.evaluate(async (tripName) => {
-    const response = await fetch('/api/trips', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: tripName,
+  const response = await ok(
+    page.request.post('/api/trips', {
+      headers: originOf(page),
+      data: {
+        name,
         timezone: 'Asia/Tokyo',
         region: {
           bbox: { minLng: 135, minLat: 34, maxLng: 140, maxLat: 36 },
         },
-      }),
-    })
-    if (!response.ok) throw new Error(await response.text())
-    const body = (await response.json()) as { id: string }
-    return body.id
-  }, name)
+      },
+    }),
+  )
+  return ((await response.json()) as { id: string }).id
+}
+
+// The API refuses writes without the app's Origin (CSRF), which the request
+// context does not send by itself. Every test loads a page first.
+function originOf(page: Page) {
+  return { origin: new URL(page.url()).origin }
+}
+
+async function ok(pending: Promise<APIResponse>) {
+  const response = await pending
+  if (!response.ok()) throw new Error(await response.text())
+  return response
 }
 
 async function createSpot(page: Page, tripId: string, title: string) {

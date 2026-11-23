@@ -21,7 +21,7 @@ import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 import { deny, parseBody } from '../http/validate.js'
 
-export type TripRouteOptions = {
+type TripRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

@@ -19,7 +19,7 @@ export class GeocodeNotFoundError extends Error {
   }
 }
 
-export type NominatimClientOptions = {
+type NominatimClientOptions = {
   fetch: typeof fetch
   baseUrl: string
   userAgent: string
@@ -29,7 +29,7 @@ export type NominatimClientOptions = {
   timeout?: (ms: number) => AbortSignal
 }
 
-export const nominatimTimeoutMs = 5000
+const nominatimTimeoutMs = 5000
 
 export class NominatimClient {
   private readonly fetch: typeof fetch
@@ -100,12 +100,12 @@ export class NominatimClient {
   }
 }
 
-export function parseSearch(body: unknown): GeocodePlace[] {
+function parseSearch(body: unknown): GeocodePlace[] {
   if (!Array.isArray(body)) throw new GeocodeUpstreamError()
   return body.map((row) => parsePlace(row))
 }
 
-export function parsePlace(body: unknown): GeocodePlace {
+function parsePlace(body: unknown): GeocodePlace {
   if (!body || typeof body !== 'object') throw new GeocodeUpstreamError()
   const row = body as Record<string, unknown>
   if (typeof row.error === 'string') throw new GeocodeNotFoundError()

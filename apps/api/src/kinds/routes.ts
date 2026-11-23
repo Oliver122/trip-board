@@ -27,7 +27,7 @@ import {
   type KindFailure,
 } from './store.js'
 
-export type KindRouteOptions = {
+type KindRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

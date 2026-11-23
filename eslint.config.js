@@ -1,5 +1,6 @@
 import eslint from '@eslint/js'
 import tseslint from 'typescript-eslint'
+import noFocusedOrSkippedTests from './eslint/no-focused-or-skipped-tests.js'
 import noUntranslatedJsxText from './apps/web/eslint/no-untranslated-jsx-text.js'
 
 export default tseslint.config(
@@ -16,6 +17,20 @@ export default tseslint.config(
     },
     rules: {
       'tripboard/no-untranslated-jsx-text': 'error',
+    },
+  },
+  {
+    // R-48-03
+    files: ['**/*.test.{ts,tsx,mjs}', '**/*.spec.ts'],
+    plugins: {
+      'tripboard-tests': {
+        rules: {
+          'no-focused-or-skipped-tests': noFocusedOrSkippedTests,
+        },
+      },
+    },
+    rules: {
+      'tripboard-tests/no-focused-or-skipped-tests': 'error',
     },
   },
   {

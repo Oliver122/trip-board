@@ -31,7 +31,7 @@ export function mapLandColor(theme: 'light' | 'dark'): string {
 }
 
 /** Prefer the app language, then the other Latin tag the tiles ship, then the local name. */
-export function labelTextField(locale: AppLocale) {
+function labelTextField(locale: AppLocale) {
   const localized = locale === 'de' ? 'name:de' : 'name:en'
   const underscored = locale === 'de' ? 'name_de' : 'name_en'
   return ['coalesce', ['get', localized], ['get', underscored], ['get', 'name']]

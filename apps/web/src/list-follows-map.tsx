@@ -6,9 +6,9 @@ import {
   type ReactNode,
 } from 'react'
 
-export const listFollowsMapKey = 'listFollowsMap'
+const listFollowsMapKey = 'listFollowsMap'
 
-export function readListFollowsMap(): boolean {
+function readListFollowsMap(): boolean {
   try {
     return localStorage.getItem(listFollowsMapKey) === '1'
   } catch {

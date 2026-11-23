@@ -96,7 +96,7 @@ describe('Pin', () => {
     )
   })
 
-  it('T-24-28 shows a dot on a pin with unread comments only', () => {
+  it('T-24-24 shows a dot on a pin with unread comments only', () => {
     const { unmount } = render(
       <Pin category="kind" kinds={[mustGo]} label="Spot" />,
     )

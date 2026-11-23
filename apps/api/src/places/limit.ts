@@ -1,5 +1,5 @@
-export const placeLinkRateLimit = 20
-export const placeLinkRateWindowMs = 60_000
+const placeLinkRateLimit = 20
+const placeLinkRateWindowMs = 60_000
 
 export class PlaceLinkLimiter {
   private readonly hits = new Map<string, number[]>()

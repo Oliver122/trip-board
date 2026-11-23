@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 const honshu = { minLng: 132, minLat: 34, maxLng: 142, maxLat: 41 }
 
+// T-06-05
 describe('expandTripBBox', () => {
   it('leaves a spot inside the box unchanged', () => {
     expect(expandTripBBox(honshu, 139.7671, 35.6812)).toBe(honshu)

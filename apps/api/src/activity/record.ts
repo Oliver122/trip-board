@@ -12,7 +12,7 @@ const liveResources = new Set([
   'kind',
 ])
 
-export type TripNotice = {
+type TripNotice = {
   tripId: string
   resource: string
   action: string
@@ -36,7 +36,7 @@ export async function notifyTrip(
   await tx.query(`SELECT pg_notify('trip_events', $1)`, [payload])
 }
 
-export type ActivityInput = {
+type ActivityInput = {
   actor: string | null
   trip: string | null
   action: string
@@ -45,10 +45,7 @@ export type ActivityInput = {
   resource?: string
 }
 
-export async function record(
-  tx: PoolClient,
-  input: ActivityInput,
-): Promise<void> {
+async function record(tx: PoolClient, input: ActivityInput): Promise<void> {
   await tx.query(
     `
     INSERT INTO activity_events (actor_id, trip_id, action, entity_id, metadata)

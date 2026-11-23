@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-export const signedUrlTtlSeconds = 10 * 60
+const signedUrlTtlSeconds = 10 * 60
 
 export function signImagePath(id: string, secret: string, now: Date): string {
   const exp = Math.floor(now.getTime() / 1000) + signedUrlTtlSeconds

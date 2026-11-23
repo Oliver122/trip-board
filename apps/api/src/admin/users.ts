@@ -72,7 +72,7 @@ type UserRow = {
   last_activity_at: Date | null
 }
 
-export type UserListQuery = {
+type UserListQuery = {
   q?: string
   filter?: 'admins' | 'suspended' | 'quota' | 'inactive'
   sort?: string
@@ -87,7 +87,7 @@ const filters: Record<NonNullable<UserListQuery['filter']>, string> = {
   inactive: `COALESCE(last_activity_at, last_seen_at, last_login_at, created_at) < now() - interval '90 days'`,
 }
 
-export function toAdminUser(row: UserRow) {
+function toAdminUser(row: UserRow) {
   return {
     id: row.id,
     discordId: row.discord_id,

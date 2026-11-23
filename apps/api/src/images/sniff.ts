@@ -8,7 +8,7 @@ const heicBrands = new Set([
   'msf1',
 ])
 
-export type ImageKind = 'jpeg' | 'png' | 'webp' | 'heic'
+type ImageKind = 'jpeg' | 'png' | 'webp' | 'heic'
 
 /** Type from the bytes themselves. A renamed PDF or text file is rejected. */
 export function sniffImage(bytes: Buffer): ImageKind | null {

@@ -65,3 +65,17 @@ test('T-39-02 build job checks that no locale copy is built', () => {
 test('T-36-02 pull_request has no branch filter (R-35-11)', () => {
   assert.match(text, /^ {2}pull_request:\n(?! {4})/m)
 })
+
+test('T-48-08 static runs pnpm deadcode right after pnpm typecheck (R-48-07)', () => {
+  const j = job('static')
+  assert.match(j, /- run: pnpm typecheck\n\s+- run: pnpm deadcode\n/)
+})
+
+test('T-48-03 Playwright fails flaky tests and forbids .only in CI (R-48-02)', () => {
+  const cfg = fs.readFileSync(
+    fileURLToPath(new URL('../playwright.config.ts', import.meta.url)),
+    'utf8',
+  )
+  assert.match(cfg, /forbidOnly: !!process\.env\.CI/)
+  assert.match(cfg, /failOnFlakyTests: !!process\.env\.CI/)
+})

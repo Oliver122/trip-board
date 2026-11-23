@@ -18,7 +18,7 @@ const kindPickerFiles = [
 
 // A checkbox whose options come from the trip's kinds: inside a `.map(` over
 // `kinds`, or within a short window after the `board.category` heading.
-export function kindCheckboxViolations(source: string): string[] {
+function kindCheckboxViolations(source: string): string[] {
   const checkbox = /type=["']checkbox["']/
   for (const match of source.matchAll(/\bkinds\b[^;]{0,40}\.map\(/g)) {
     const start = match.index + match[0].length

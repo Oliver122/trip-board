@@ -1,3 +1,4 @@
+// T-01-05 (runs in parallel with isolation-a.test.ts, same IDs)
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { createTestDatabase, type TestDatabase } from './test-db.js'
 

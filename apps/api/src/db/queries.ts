@@ -3,13 +3,13 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import type { Pool } from 'pg'
 import { spotsView, userQuotaUsage } from './schema.js'
 
-export type SpotDisplay = {
+type SpotDisplay = {
   id: string
   displayCategory: 'kind' | 'planned' | 'home'
   planCount: number
 }
 
-export type UserQuota = {
+type UserQuota = {
   userId: string
   maxImages: number
   maxBytes: number

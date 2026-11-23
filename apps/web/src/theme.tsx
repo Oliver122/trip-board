@@ -9,9 +9,9 @@ import {
 
 export type ThemeChoice = 'system' | 'light' | 'dark'
 
-export const themeStorageKey = 'theme'
+const themeStorageKey = 'theme'
 
-export function readTheme(): ThemeChoice {
+function readTheme(): ThemeChoice {
   try {
     const value = localStorage.getItem(themeStorageKey)
     if (value === 'light' || value === 'dark' || value === 'system')
@@ -22,7 +22,7 @@ export function readTheme(): ThemeChoice {
   return 'system'
 }
 
-export function applyTheme(theme: ThemeChoice) {
+function applyTheme(theme: ThemeChoice) {
   const dark =
     theme === 'dark' ||
     (theme === 'system' &&

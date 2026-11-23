@@ -7,7 +7,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { latestKindRequest, listKinds } from './client'
 
 /** One trip's kinds, shared by the toolbar, the spot panel and the kinds dialog. */
-export type KindsState = {
+type KindsState = {
   kinds: SpotKind[] | null
   /** The trip's effective kind limit and how many kinds it has. */
   limit: number
@@ -94,7 +94,7 @@ export function useTripKinds(tripId: string | undefined): KindsState & {
 }
 
 /** The newest kind limit request of a trip; only board admins may read it. */
-export type RequestState = {
+type RequestState = {
   request: KindLimitRequest | null
   loaded: boolean
   error: boolean
@@ -110,7 +110,7 @@ function setRequest(tripId: string, next: RequestState) {
   for (const listener of requestListeners.get(tripId) ?? []) listener()
 }
 
-export async function reloadKindRequest(tripId: string): Promise<void> {
+async function reloadKindRequest(tripId: string): Promise<void> {
   try {
     const request = (await latestKindRequest(tripId)) ?? null
     setRequest(tripId, { request, loaded: true, error: false })

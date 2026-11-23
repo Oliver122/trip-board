@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { clientId } from './write'
 
+// T-19-07 (R-19-09: the random per-tab X-Client-Id)
 describe('clientId', () => {
   const original = crypto.randomUUID
 

@@ -15,7 +15,7 @@ import type { QueuedPhoto } from './queue'
 import { tooLargeMessage } from './reasons'
 import { Suggestions } from './Suggestions'
 
-export type DraftPhotosProps = {
+type DraftPhotosProps = {
   tripId: string
   /** The draft pin. */
   lat: number

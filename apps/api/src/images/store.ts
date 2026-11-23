@@ -15,7 +15,7 @@ import type { ProcessedImage } from './process.js'
 import { signImagePath } from './sign.js'
 import type { ObjectStorage } from './storage.js'
 
-export type ImageRecord = {
+type ImageRecord = {
   id: string
   tripId: string
   spotId: string | null
@@ -107,7 +107,7 @@ export type ImageSource = {
   license: string | null
 }
 
-export class QuotaExceeded extends Error {
+class QuotaExceeded extends Error {
   constructor(readonly quota: Quota) {
     super('quota')
   }

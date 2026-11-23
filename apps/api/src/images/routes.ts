@@ -62,7 +62,7 @@ import { wikimediaFileTitle, wikimediaRendition } from './wikimedia.js'
 import { sendError } from '../http/errors.js'
 import { idParams, parseParams } from '../http/params.js'
 
-export type ImageRouteOptions = {
+type ImageRouteOptions = {
   pool: Pool
   config: AppConfig
   now: () => Date

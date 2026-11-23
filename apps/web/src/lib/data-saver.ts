@@ -3,9 +3,9 @@ import { useSyncExternalStore } from 'react'
 /** Step 38 (R-38-06): low-data mode, stored per device. */
 export type DataSaverSetting = 'auto' | 'on' | 'off'
 
-export const dataSaverStorageKey = 'dataSaver'
+const dataSaverStorageKey = 'dataSaver'
 
-export type ConnectionInfo = {
+type ConnectionInfo = {
   saveData?: boolean
   effectiveType?: string
 }
@@ -15,7 +15,7 @@ type ConnectionLike = ConnectionInfo & {
   removeEventListener?: (type: 'change', listener: () => void) => void
 }
 
-export function parseDataSaver(value: unknown): DataSaverSetting {
+function parseDataSaver(value: unknown): DataSaverSetting {
   return value === 'on' || value === 'off' ? value : 'auto'
 }
 
@@ -112,7 +112,7 @@ function getSnapshot() {
 const serverSnapshot = { setting: 'auto' as DataSaverSetting, on: false }
 
 /** Stores the setting (ignored when storage is unavailable) and notifies every hook. */
-export function setDataSaver(setting: DataSaverSetting) {
+function setDataSaver(setting: DataSaverSetting) {
   try {
     safeStorage()?.setItem(dataSaverStorageKey, setting)
   } catch {
@@ -138,9 +138,4 @@ export function useDataSaver(): {
     () => serverSnapshot,
   )
   return { ...state, setSetting: setDataSaver }
-}
-
-/** Test helper: forget the cached snapshot. */
-export function resetDataSaverState() {
-  snapshot = null
 }

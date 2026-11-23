@@ -63,7 +63,7 @@ describe('trip settings kinds section', () => {
     vi.resetAllMocks()
   })
 
-  it('shows the kinds section to admins and owners only', () => {
+  it('T-32-02 shows the kinds section to admins and owners only', () => {
     for (const role of ['owner', 'admin'] as const) {
       renderPage(role)
       expect(screen.getByTestId('kinds-section')).toBeInTheDocument()
@@ -77,7 +77,7 @@ describe('trip settings kinds section', () => {
     }
   })
 
-  it('scrolls to #kinds and focuses the heading', async () => {
+  it('T-32-03 scrolls to #kinds and focuses the heading', async () => {
     renderPage('admin', '/trips/trip-1/settings#kinds')
     const heading = screen.getByRole('heading', { name: 'Spot kinds' })
     await waitFor(() => expect(heading).toHaveFocus())

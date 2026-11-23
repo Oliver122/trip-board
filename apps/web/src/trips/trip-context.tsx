@@ -23,7 +23,7 @@ import type { Category, KindMark } from '../components/category'
 import type { LngLatBounds } from '../map/bounds'
 import type { MapSpot } from '../map/clusters'
 
-export type MapDraft = {
+type MapDraft = {
   lng: number
   lat: number
   category: Category
@@ -103,7 +103,7 @@ export type MapScene = {
   photos?: PhotoMapScene | null
 }
 
-export type MapHandlers = {
+type MapHandlers = {
   onSelect: (id: string) => void
   onHover: (id: string | null) => void
   onPlace?: (lng: number, lat: number) => void
